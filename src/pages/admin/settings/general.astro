@@ -1,0 +1,132 @@
+---
+// Admin: General shop settings
+// Route: /admin/plugins/shop/settings/general
+import AdminLayout from 'pelerin:admin-layout';
+import { createPluginContext } from 'pelerin:plugin-sdk';
+
+const sdk = createPluginContext();
+const user = await sdk.auth.requireAdmin(Astro.request);
+---
+
+<AdminLayout title="General Settings" currentPath="/admin/plugins/shop/settings/general" user={user}>
+  <div class="max-w-2xl mx-auto p-6">
+    <h1 class="text-2xl font-bold mb-6">General Shop Settings</h1>
+
+    <form id="settings-form" class="space-y-4">
+      <div class="form-control">
+        <label class="label" for="shop_name"><span class="label-text">Shop Name</span></label>
+        <input type="text" id="shop_name" name="shop_name" class="input input-bordered w-full" placeholder="My Shop" />
+      </div>
+
+      <div class="form-control">
+        <label class="label" for="order_number_prefix"><span class="label-text">Order Number Prefix</span></label>
+        <input type="text" id="order_number_prefix" name="order_number_prefix" class="input input-bordered w-full" placeholder="ORD" />
+      </div>
+
+      <div class="form-control">
+        <label class="label cursor-pointer">
+          <span class="label-text">Include Year in Order Number</span>
+          <input type="checkbox" id="order_number_year" name="order_number_year" value="true" class="checkbox" />
+        </label>
+      </div>
+
+      <div class="form-control">
+        <label class="label" for="order_number_padding"><span class="label-text">Order Number Padding</span></label>
+        <input type="number" id="order_number_padding" name="order_number_padding" class="input input-bordered w-full" value="5" min="1" max="10" />
+      </div>
+
+      <div class="form-control">
+        <label class="label" for="default_currency"><span class="label-text">Default Currency</span></label>
+        <select id="default_currency" name="default_currency" class="select select-bordered">
+          <option value="">None</option>
+          <option value="RON">RON</option>
+          <option value="EUR">EUR</option>
+          <option value="USD">USD</option>
+        </select>
+      </div>
+
+      <div class="form-control">
+        <label class="label" for="default_locale"><span class="label-text">Default Locale</span></label>
+        <select id="default_locale" name="default_locale" class="select select-bordered">
+          <option value="">None</option>
+          <option value="ro">Romanian (ro)</option>
+          <option value="en">English (en)</option>
+        </select>
+      </div>
+
+      <div class="form-control mt-6">
+        <button type="submit" class="btn btn-primary" id="save-btn">Save Settings</button>
+      </div>
+    </form>
+
+    <div id="status-message" class="mt-4 hidden"></div>
+  </div>
+</AdminLayout>
+
+<script>
+  var API_URL = '/api/plugins/shop/settings/general';
+
+  async function loadSettings() {
+    try {
+      var res = await fetch(API_URL);
+      var json = await res.json();
+      if (json.success && json.data) {
+        for (var key in json.data) {
+          if (key === 'order_number_year') {
+            var cb = document.getElementById(key);
+            if (cb) cb.checked = json.data[key] === 'true';
+          } else {
+            var input = document.getElementById(key);
+            if (input && json.data[key] !== null && json.data[key] !== undefined) {
+              input.value = json.data[key];
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load settings:', err);
+    }
+  }
+
+  document.getElementById('settings-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var form = e.target;
+    var formData = new FormData(form);
+    var body = {};
+    formData.forEach(function(value, key) {
+      if (key === 'order_number_year') {
+        body[key] = String(formData.get(key) === 'true');
+      } else if (value) {
+        body[key] = value;
+      }
+    });
+
+    var statusEl = document.getElementById('status-message');
+    var saveBtn = document.getElementById('save-btn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+
+    try {
+      var res = await fetch(API_URL, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      var json = await res.json();
+      statusEl.classList.remove('hidden');
+      if (json.success) {
+        statusEl.className = 'mt-4 alert alert-success';
+        statusEl.textContent = 'Settings saved.';
+        await loadSettings();
+      } else {
+        statusEl.className = 'mt-4 alert alert-error';
+        statusEl.textContent = json.error || 'Failed to save.';
+      }
+    } catch (err) {
+      statusEl.classList.remove('hidden');
+      statusEl.className = 'mt-4 alert alert-error';
+      statusEl.textContent = err.message || 'Network error.';
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Settings';
+    }
+  });
+
+  loadSettings();
+</script>

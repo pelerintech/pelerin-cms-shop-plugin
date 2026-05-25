@@ -1,0 +1,152 @@
+---
+// Admin: product list
+// Route: /admin/plugins/shop/products
+import AdminLayout from 'pelerin:admin-layout';
+import { createPluginContext } from 'pelerin:plugin-sdk';
+import { db, products, categories, sql as dbSql } from 'astro:db';
+
+const sdk = createPluginContext();
+const user = await sdk.auth.requireAdmin(Astro.request);
+
+// Parse query params
+const url = new URL(Astro.request.url);
+const filterCategory = url.searchParams.get('category') || '';
+const filterType = url.searchParams.get('type') || '';
+const filterActive = url.searchParams.get('active') || '';
+const page = parseInt(url.searchParams.get('page') || '1');
+const limit = 20;
+const offset = (page - 1) * limit;
+
+// Build where clause
+const conditions: string[] = [];
+if (filterCategory) conditions.push(`p.category_id = '${filterCategory}'`);
+if (filterType) conditions.push(`p.type = '${filterType}'`);
+if (filterActive === 'true') conditions.push('p.active = 1');
+if (filterActive === 'false') conditions.push('p.active = 0');
+
+const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+// Fetch products with category names
+const result = await db.run(dbSql`
+  SELECT p.*, c.name as category_name
+  FROM ${products} p
+  LEFT JOIN ${categories} c ON p.category_id = c.id
+  ${dbSql.raw(whereClause)}
+  ORDER BY p.name
+  LIMIT ${limit} OFFSET ${offset}
+`);
+
+const productList = result.rows as any[];
+
+// Count total
+const countResult = await db.run(dbSql`
+  SELECT COUNT(*) as total FROM ${products} p
+  ${dbSql.raw(whereClause)}
+`);
+const total = (countResult.rows[0] as any).total as number;
+const totalPages = Math.ceil(total / limit);
+
+// Fetch categories for filter dropdown
+const catList = await db.select().from(categories).orderBy(categories.name);
+---
+
+<AdminLayout title="Products" currentPath="/admin/plugins/shop/products" user={user}>
+  <div class="col-span-12">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold">Products</h1>
+      <a href="/admin/plugins/shop/products/new" class="btn btn-primary">New Product</a>
+    </div>
+
+    <!-- Filters -->
+    <form method="GET" class="flex gap-4 mb-6 flex-wrap items-end">
+      <div class="form-control">
+        <label class="label"><span class="label-text">Category</span></label>
+        <select name="category" class="select select-bordered">
+          <option value="">All Categories</option>
+          {catList.map(c => (
+            <option value={c.id} selected={filterCategory === c.id}>{c.name}</option>
+          ))}
+        </select>
+      </div>
+      <div class="form-control">
+        <label class="label"><span class="label-text">Type</span></label>
+        <select name="type" class="select select-bordered">
+          <option value="">All Types</option>
+          <option value="physical" selected={filterType === 'physical'}>Physical</option>
+          <option value="digital" selected={filterType === 'digital'}>Digital</option>
+        </select>
+      </div>
+      <div class="form-control">
+        <label class="label"><span class="label-text">Status</span></label>
+        <select name="active" class="select select-bordered">
+          <option value="">All</option>
+          <option value="true" selected={filterActive === 'true'}>Active</option>
+          <option value="false" selected={filterActive === 'false'}>Inactive</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-outline">Filter</button>
+      {(filterCategory || filterType || filterActive) && (
+        <a href="/admin/plugins/shop/products" class="btn btn-ghost">Clear</a>
+      )}
+    </form>
+
+    <!-- Product Table -->
+    {productList.length === 0 ? (
+      <p class="text-base-content/60">No products found.</p>
+    ) : (
+      <div class="overflow-x-auto">
+        <table class="table table-zebra w-full">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>SKU</th>
+              <th>Type</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {productList.map(p => (
+              <tr>
+                <td class="font-medium">{p.name}</td>
+                <td><code class="text-xs">{p.sku || '-'}</code></td>
+                <td><span class="badge badge-sm">{p.type}</span></td>
+                <td>{p.category_name || '-'}</td>
+                <td>
+                  <span class={`badge badge-sm ${p.active ? 'badge-success' : 'badge-error'}`}>
+                    {p.active ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td>
+                  <a href={`/admin/plugins/shop/products/${p.id}`} class="btn btn-ghost btn-xs">Edit</a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+
+    <!-- Pagination -->
+    {totalPages > 1 && (
+      <div class="join mt-4">
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => {
+          const params = new URLSearchParams();
+          if (filterCategory) params.set('category', filterCategory);
+          if (filterType) params.set('type', filterType);
+          if (filterActive) params.set('active', filterActive);
+          params.set('page', String(p));
+          return (
+            <a
+              href={`/admin/plugins/shop/products?${params.toString()}`}
+              class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
+            >
+              {p}
+            </a>
+          );
+        })}
+      </div>
+    )}
+  </div>
+</AdminLayout>

@@ -1,0 +1,138 @@
+---
+// Admin: euPlatesc payment settings
+// Route: /admin/plugins/shop/settings/payments/euplatesc
+import AdminLayout from 'pelerin:admin-layout';
+import { createPluginContext } from 'pelerin:plugin-sdk';
+
+const sdk = createPluginContext();
+const user = await sdk.auth.requireAdmin(Astro.request);
+---
+
+<AdminLayout title="euPlatesc Settings" currentPath="/admin/plugins/shop/settings/payments/euplatesc" user={user}>
+  <div class="max-w-2xl mx-auto p-6">
+    <h1 class="text-2xl font-bold mb-6">euPlatesc Payment Settings</h1>
+
+    <form id="euplatesc-settings-form" class="space-y-4">
+      <div class="form-control">
+        <label class="label" for="euplatesc_merchant_id">
+          <span class="label-text">Merchant ID</span>
+        </label>
+        <input
+          type="text"
+          id="euplatesc_merchant_id"
+          name="euplatesc_merchant_id"
+          class="input input-bordered w-full"
+          placeholder="Your merchant ID"
+        />
+      </div>
+
+      <div class="form-control">
+        <label class="label" for="euplatesc_secret_key">
+          <span class="label-text">Secret Key</span>
+        </label>
+        <input
+          type="password"
+          id="euplatesc_secret_key"
+          name="euplatesc_secret_key"
+          class="input input-bordered w-full"
+          placeholder="••••••••"
+        />
+      </div>
+
+      <div class="form-control">
+        <label class="label cursor-pointer">
+          <span class="label-text">Test Mode</span>
+          <input
+            type="checkbox"
+            id="euplatesc_test_mode"
+            name="euplatesc_test_mode"
+            value="true"
+            class="checkbox"
+          />
+        </label>
+        <span class="label-text-alt text-gray-500">Enable test mode for sandbox transactions</span>
+      </div>
+
+      <div class="form-control mt-6">
+        <button type="submit" class="btn btn-primary" id="save-btn">
+          Save Settings
+        </button>
+      </div>
+    </form>
+
+    <div id="status-message" class="mt-4 hidden"></div>
+  </div>
+</AdminLayout>
+
+<script>
+  const API_URL = '/api/plugins/shop/settings/payments/euplatesc';
+
+  async function loadSettings() {
+    try {
+      const res = await fetch(API_URL);
+      const json = await res.json();
+      if (json.success && json.data) {
+        for (const [key, value] of Object.entries(json.data)) {
+          if (key === 'euplatesc_test_mode') {
+            const checkbox = document.getElementById(key) as HTMLInputElement;
+            if (checkbox) checkbox.checked = value === 'true';
+          } else {
+            const input = document.getElementById(key) as HTMLInputElement;
+            if (input && value) {
+              input.value = value as string;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load settings:', err);
+    }
+  }
+
+  document.getElementById('euplatesc-settings-form')!.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+
+    // For checkbox, only include if checked
+    const body: Record<string, string> = {};
+    body.euplatesc_test_mode = String(formData.get('euplatesc_test_mode') === 'true');
+    const merchantId = formData.get('euplatesc_merchant_id');
+    const secretKey = formData.get('euplatesc_secret_key');
+    if (merchantId) body.euplatesc_merchant_id = merchantId as string;
+    if (secretKey) body.euplatesc_secret_key = secretKey as string;
+
+    const statusEl = document.getElementById('status-message')!;
+    const saveBtn = document.getElementById('save-btn') as HTMLButtonElement;
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+
+    try {
+      const res = await fetch(API_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+
+      statusEl.classList.remove('hidden');
+      if (json.success) {
+        statusEl.className = 'mt-4 alert alert-success';
+        statusEl.textContent = 'Settings saved successfully.';
+        await loadSettings();
+      } else {
+        statusEl.className = 'mt-4 alert alert-error';
+        statusEl.textContent = json.error || 'Failed to save settings.';
+      }
+    } catch (err: any) {
+      statusEl.classList.remove('hidden');
+      statusEl.className = 'mt-4 alert alert-error';
+      statusEl.textContent = err.message || 'Network error.';
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Settings';
+    }
+  });
+
+  loadSettings();
+</script>

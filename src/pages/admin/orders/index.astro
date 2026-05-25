@@ -1,0 +1,170 @@
+---
+// Admin: Orders list
+// Route: /admin/plugins/shop/orders
+import AdminLayout from 'pelerin:admin-layout';
+import { createPluginContext } from 'pelerin:plugin-sdk';
+
+const sdk = createPluginContext();
+const user = await sdk.auth.requireAdmin(Astro.request);
+---
+
+<AdminLayout title="Orders" currentPath="/admin/plugins/shop/orders" user={user}>
+  <div class="p-6">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold">Orders</h1>
+      <div class="flex gap-2">
+        <a href="/admin/plugins/shop/orders/new" class="btn btn-primary">New Order</a>
+        <button id="export-btn" class="btn btn-outline">Export CSV</button>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card bg-base-100 shadow mb-6">
+      <div class="card-body p-4">
+        <div class="flex flex-wrap gap-4 items-end">
+          <div class="form-control">
+            <label class="label"><span class="label-text">Status</span></label>
+            <select id="filter-status" class="select select-bordered" multiple size="1">
+              <option value="">All</option>
+              <option value="pending">Pending</option>
+              <option value="awaiting_payment">Awaiting Payment</option>
+              <option value="paid">Paid</option>
+              <option value="processing">Processing</option>
+              <option value="shipped">Shipped</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="refunded">Refunded</option>
+            </select>
+          </div>
+          <div class="form-control">
+            <label class="label"><span class="label-text">From</span></label>
+            <input type="date" id="filter-from" class="input input-bordered" />
+          </div>
+          <div class="form-control">
+            <label class="label"><span class="label-text">To</span></label>
+            <input type="date" id="filter-to" class="input input-bordered" />
+          </div>
+          <div class="form-control flex-1 min-w-[200px]">
+            <label class="label"><span class="label-text">Search</span></label>
+            <input type="text" id="filter-search" class="input input-bordered w-full" placeholder="Order number, name, email..." />
+          </div>
+          <div class="form-control">
+            <button id="filter-apply" class="btn btn-primary">Filter</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Orders Table -->
+    <div class="overflow-x-auto">
+      <table class="table table-zebra w-full">
+        <thead>
+          <tr>
+            <th>Order #</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Status</th>
+            <th>Total</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="orders-body">
+          <tr><td colspan="6" class="text-center">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination" class="flex justify-center gap-2 mt-4"></div>
+  </div>
+</AdminLayout>
+
+<script>
+  const API_URL = '/api/plugins/shop/orders';
+  let currentPage = 1;
+
+  function getFilters() {
+    const params = new URLSearchParams();
+    const status = document.getElementById('filter-status').value;
+    const from = document.getElementById('filter-from').value;
+    const to = document.getElementById('filter-to').value;
+    const search = document.getElementById('filter-search').value;
+
+    if (status) params.set('status', status);
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    if (search) params.set('search', search);
+    params.set('page', String(currentPage));
+    params.set('limit', '50');
+
+    return params;
+  }
+
+  function statusBadge(status) {
+    var colors = {
+      pending: 'badge-ghost',
+      awaiting_payment: 'badge-warning',
+      paid: 'badge-success',
+      processing: 'badge-info',
+      shipped: 'badge-primary',
+      delivered: 'badge-accent',
+      cancelled: 'badge-error',
+      refunded: 'badge-error',
+    };
+    return '<span class="badge ' + (colors[status] || 'badge-ghost') + '">' + status + '</span>';
+  }
+
+  window.goToPage = function(page) {
+    currentPage = page;
+    loadOrders();
+  };
+
+  async function loadOrders() {
+    var params = getFilters();
+    var res = await fetch(API_URL + '?' + params.toString());
+    var json = await res.json();
+    var body = document.getElementById('orders-body');
+
+    if (!json.success || !json.data || !json.data.length) {
+      body.innerHTML = '<tr><td colspan="6" class="text-center">No orders found</td></tr>';
+      return;
+    }
+
+    body.innerHTML = json.data.map(function(order) {
+      return '<tr>' +
+        '<td><a href="/admin/plugins/shop/orders/' + order.id + '" class="link link-primary">' + order.order_number + '</a></td>' +
+        '<td>' + new Date(order.created_at).toLocaleDateString() + '</td>' +
+        '<td>' + order.customer_name + '<br/><span class="text-xs text-gray-500">' + order.customer_email + '</span></td>' +
+        '<td>' + statusBadge(order.status) + '</td>' +
+        '<td class="font-mono">' + (order.total || 0).toFixed(2) + ' ' + order.currency + '</td>' +
+        '<td><a href="/admin/plugins/shop/orders/' + order.id + '" class="btn btn-sm btn-ghost">View</a></td>' +
+      '</tr>';
+    }).join('');
+
+    var meta = json.meta;
+    var pagination = document.getElementById('pagination');
+    if (meta.totalPages > 1) {
+      var html = '';
+      for (var i = 1; i <= meta.totalPages; i++) {
+        html += '<button class="btn btn-sm ' + (i === currentPage ? 'btn-primary' : 'btn-ghost') + '" onclick="goToPage(' + i + ')">' + i + '</button>';
+      }
+      pagination.innerHTML = html;
+    } else {
+      pagination.innerHTML = '';
+    }
+  }
+
+  document.getElementById('filter-apply').addEventListener('click', function() {
+    currentPage = 1;
+    loadOrders();
+  });
+
+  document.getElementById('export-btn').addEventListener('click', function() {
+    var params = getFilters();
+    params.delete('page');
+    params.delete('limit');
+    window.location.href = '/api/plugins/shop/orders/export?' + params.toString();
+  });
+
+  loadOrders();
+</script>

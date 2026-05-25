@@ -1,0 +1,150 @@
+---
+// Admin: create voucher
+// Route: /admin/plugins/shop/vouchers/new
+import AdminLayout from 'pelerin:admin-layout';
+import { createPluginContext } from 'pelerin:plugin-sdk';
+
+const sdk = createPluginContext();
+const user = await sdk.auth.requireAdmin(Astro.request);
+---
+
+<AdminLayout title="New Voucher" currentPath="/admin/plugins/shop/vouchers" user={user}>
+  <div class="max-w-2xl mx-auto p-6">
+    <div class="flex items-center gap-4 mb-6">
+      <a href="/admin/plugins/shop/vouchers" class="btn btn-ghost btn-sm">&larr; Back</a>
+      <h1 class="text-2xl font-bold">New Voucher</h1>
+    </div>
+
+    <form id="voucher-form" class="space-y-4">
+      <div class="form-control">
+        <label class="label" for="code"><span class="label-text">Code</span></label>
+        <input type="text" id="code" name="code" class="input input-bordered w-full uppercase" placeholder="SUMMER10" required style="text-transform: uppercase;" />
+      </div>
+
+      <div class="form-control">
+        <label class="label" for="type"><span class="label-text">Type</span></label>
+        <select id="type" name="type" class="select select-bordered" required>
+          <option value="">Select type...</option>
+          <option value="fixed_amount">Fixed Amount</option>
+          <option value="percentage">Percentage</option>
+          <option value="free_shipping">Free Shipping</option>
+        </select>
+      </div>
+
+      <div class="form-control" id="value-field">
+        <label class="label" for="value"><span class="label-text">Value</span></label>
+        <input type="number" id="value" name="value" class="input input-bordered w-full" placeholder="10" min="0" step="0.01" />
+      </div>
+
+      <div class="form-control">
+        <label class="label" for="min_order_value"><span class="label-text">Minimum Order Value</span></label>
+        <input type="number" id="min_order_value" name="min_order_value" class="input input-bordered w-full" placeholder="Optional" min="0" step="0.01" />
+      </div>
+
+      <div class="form-control">
+        <label class="label" for="max_uses"><span class="label-text">Max Uses</span></label>
+        <input type="number" id="max_uses" name="max_uses" class="input input-bordered w-full" placeholder="Leave empty for unlimited" min="1" />
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div class="form-control">
+          <label class="label" for="valid_from"><span class="label-text">Valid From</span></label>
+          <input type="date" id="valid_from" name="valid_from" class="input input-bordered w-full" />
+        </div>
+        <div class="form-control">
+          <label class="label" for="valid_until"><span class="label-text">Valid Until</span></label>
+          <input type="date" id="valid_until" name="valid_until" class="input input-bordered w-full" />
+        </div>
+      </div>
+
+      <div class="form-control">
+        <label class="label cursor-pointer justify-start gap-4">
+          <input type="checkbox" id="single_use_per_customer" name="single_use_per_customer" class="checkbox" />
+          <span class="label-text">Single use per customer</span>
+        </label>
+      </div>
+
+      <div class="form-control">
+        <label class="label cursor-pointer justify-start gap-4">
+          <input type="checkbox" id="active" name="active" class="checkbox" checked />
+          <span class="label-text">Active</span>
+        </label>
+      </div>
+
+      <div id="errors" class="hidden alert alert-error"></div>
+
+      <div class="form-control mt-6">
+        <button type="submit" class="btn btn-primary" id="save-btn">Create Voucher</button>
+      </div>
+    </form>
+  </div>
+</AdminLayout>
+
+<script>
+  var API_URL = '/api/plugins/shop/vouchers';
+
+  // Toggle value field visibility based on type
+  document.getElementById('type').addEventListener('change', function() {
+    var valueField = document.getElementById('value-field');
+    if (this.value === 'free_shipping') {
+      valueField.style.display = 'none';
+      document.getElementById('value').removeAttribute('required');
+    } else {
+      valueField.style.display = '';
+      document.getElementById('value').setAttribute('required', 'required');
+    }
+  });
+
+  document.getElementById('voucher-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var form = e.target;
+    var formData = new FormData(form);
+
+    var body = {
+      code: formData.get('code') || '',
+      type: formData.get('type'),
+      value: formData.get('type') === 'free_shipping' ? null : (formData.get('value') ? parseFloat(formData.get('value')) : null),
+      min_order_value: formData.get('min_order_value') ? parseFloat(formData.get('min_order_value')) : null,
+      max_uses: formData.get('max_uses') ? parseInt(formData.get('max_uses')) : null,
+      valid_from: formData.get('valid_from') ? new Date(formData.get('valid_from')).toISOString() : null,
+      valid_until: formData.get('valid_until') ? new Date(formData.get('valid_until')).toISOString() : null,
+      single_use_per_customer: formData.get('single_use_per_customer') === 'on',
+      active: formData.get('active') === 'on',
+    };
+
+    var errorsEl = document.getElementById('errors');
+    var saveBtn = document.getElementById('save-btn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Creating...';
+    errorsEl.classList.add('hidden');
+
+    try {
+      var res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      var json = await res.json();
+      if (json.success) {
+        window.location.href = '/admin/plugins/shop/vouchers';
+      } else {
+        errorsEl.classList.remove('hidden');
+        if (json.fields) {
+          var msgs = [];
+          for (var key in json.fields) {
+            msgs.push(key + ': ' + json.fields[key]);
+          }
+          errorsEl.textContent = msgs.join(' / ');
+        } else {
+          errorsEl.textContent = json.error || 'Failed to create voucher.';
+        }
+      }
+    } catch (err) {
+      errorsEl.classList.remove('hidden');
+      errorsEl.textContent = err.message || 'Network error.';
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Create Voucher';
+    }
+  });
+</script>

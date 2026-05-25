@@ -1,0 +1,449 @@
+---
+// Admin: edit product (tabbed)
+// Route: /admin/plugins/shop/products/[id]
+import AdminLayout from 'pelerin:admin-layout';
+import { createPluginContext } from 'pelerin:plugin-sdk';
+import {
+  db, eq,
+  products, categories, translations, product_prices, product_images,
+  product_variants, product_variant_option_values, product_option_values,
+  product_option_types,
+  sql as dbSql,
+} from 'astro:db';
+
+const sdk = createPluginContext();
+const user = await sdk.auth.requireAdmin(Astro.request);
+
+const { id } = Astro.params;
+
+const [product] = await db.select().from(products).where(eq(products.id, id));
+if (!product) {
+  return Astro.redirect('/admin/plugins/shop/products');
+}
+
+const catList = await db.select().from(categories).orderBy(categories.name);
+
+// Fetch translations
+const transRows = await db.select().from(translations).where(
+  dbSql`${translations.entity_type} = 'product' AND ${translations.entity_id} = ${id}`
+);
+
+// Fetch prices
+const priceRows = await db.select().from(product_prices).where(
+  dbSql`${product_prices.product_id} = ${id} OR ${product_prices.variant_id} IN (SELECT id FROM product_variants WHERE product_id = ${id})`
+);
+
+// Fetch images
+const imageRows = await db.select().from(product_images)
+  .where(eq(product_images.product_id, id))
+  .orderBy(product_images.sort_order);
+
+// Fetch option types
+const optionTypeRows = await db.select().from(product_option_types)
+  .where(eq(product_option_types.product_id, id))
+  .orderBy(product_option_types.sort_order);
+
+// Fetch option values
+let optionValueRows: any[] = [];
+if (optionTypeRows.length > 0) {
+  const otIds = optionTypeRows.map(ot => ot.id);
+  const ovResult = await db.run(
+    dbSql`SELECT * FROM ${product_option_values} WHERE ${product_option_values.option_type_id} IN (${dbSql.join(otIds.map(oid => dbSql`${oid}`))}) ORDER BY ${product_option_values.sort_order}`
+  );
+  optionValueRows = ovResult.rows as any[];
+}
+
+// Fetch variants
+const variantRows = await db.select().from(product_variants)
+  .where(eq(product_variants.product_id, id));
+
+let variantOptionValues: any[] = [];
+let variantPrices: any[] = [];
+if (variantRows.length > 0) {
+  const vIds = variantRows.map(v => v.id);
+  const vovResult = await db.run(
+    dbSql`SELECT * FROM ${product_variant_option_values} WHERE ${product_variant_option_values.variant_id} IN (${dbSql.join(vIds.map(vid => dbSql`${vid}`))})`
+  );
+  variantOptionValues = vovResult.rows as any[];
+
+  const vpResult = await db.run(
+    dbSql`SELECT * FROM ${product_prices} WHERE ${product_prices.variant_id} IN (${dbSql.join(vIds.map(vid => dbSql`${vid}`))})`
+  );
+  variantPrices = vpResult.rows as any[];
+}
+
+// Tab from query param
+const tab = Astro.url.searchParams.get('tab') || 'general';
+---
+
+<AdminLayout title={`Edit: ${product.name}`} currentPath="/admin/plugins/shop/products" user={user}>
+  <div class="col-span-12">
+    <div class="flex items-center gap-4 mb-6">
+      <a href="/admin/plugins/shop/products" class="btn btn-ghost btn-sm">&larr; Back</a>
+      <h1 class="text-2xl font-bold">Edit: {product.name}</h1>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs tabs-boxed mb-6">
+      <a href={`/admin/plugins/shop/products/${id}?tab=general`} class={`tab ${tab === 'general' ? 'tab-active' : ''}`}>General</a>
+      <a href={`/admin/plugins/shop/products/${id}?tab=translations`} class={`tab ${tab === 'translations' ? 'tab-active' : ''}`}>Translations</a>
+      <a href={`/admin/plugins/shop/products/${id}?tab=prices`} class={`tab ${tab === 'prices' ? 'tab-active' : ''}`}>Prices</a>
+      <a href={`/admin/plugins/shop/products/${id}?tab=images`} class={`tab ${tab === 'images' ? 'tab-active' : ''}`}>Images</a>
+      <a href={`/admin/plugins/shop/products/${id}?tab=options`} class={`tab ${tab === 'options' ? 'tab-active' : ''}`}>Options & Variants</a>
+    </div>
+
+    <!-- General Tab -->
+    {tab === 'general' && (
+      <div class="max-w-2xl">
+        <form id="general-form" class="space-y-4">
+          <div class="form-control">
+            <label class="label"><span class="label-text">Name (RO) *</span></label>
+            <input type="text" name="name" class="input input-bordered" value={product.name} required />
+          </div>
+          <div class="form-control">
+            <label class="label"><span class="label-text">Slug *</span></label>
+            <input type="text" name="slug" class="input input-bordered" value={product.slug} required />
+          </div>
+          <div class="form-control">
+            <label class="label"><span class="label-text">SKU</span></label>
+            <input type="text" name="sku" class="input input-bordered" value={product.sku || ''} />
+          </div>
+          <div class="form-control">
+            <label class="label"><span class="label-text">Description (RO)</span></label>
+            <textarea name="description" class="textarea textarea-bordered h-24">{product.description || ''}</textarea>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="form-control">
+              <label class="label"><span class="label-text">Type *</span></label>
+              <select name="type" class="select select-bordered">
+                <option value="physical" selected={product.type === 'physical'}>Physical</option>
+                <option value="digital" selected={product.type === 'digital'}>Digital</option>
+              </select>
+            </div>
+            <div class="form-control">
+              <label class="label"><span class="label-text">Category</span></label>
+              <select name="category_id" class="select select-bordered">
+                <option value="">None</option>
+                {catList.map(c => (
+                  <option value={c.id} selected={product.category_id === c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="form-control">
+              <label class="label"><span class="label-text">VAT Rate</span></label>
+              <input type="number" name="vat_rate" class="input input-bordered" step="0.01" min="0" max="1" value={product.vat_rate || ''} />
+            </div>
+            <div class="form-control">
+              <label class="label"><span class="label-text">Stock</span></label>
+              <input type="number" name="stock" class="input input-bordered" min="0" value={product.stock || ''} />
+            </div>
+          </div>
+          <label class="cursor-pointer label justify-start gap-4">
+            <input type="checkbox" name="active" class="checkbox" checked={product.active} />
+            <span class="label-text">Active</span>
+          </label>
+          <div id="general-error" class="alert alert-error hidden"></div>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </form>
+        <script>
+          document.getElementById('general-form')!.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target as HTMLFormElement);
+            const data: Record<string, any> = {
+              name: fd.get('name'), slug: fd.get('slug'),
+              sku: fd.get('sku') || null, description: fd.get('description') || null,
+              type: fd.get('type'), category_id: fd.get('category_id') || null,
+              vat_rate: fd.get('vat_rate') ? parseFloat(fd.get('vat_rate') as string) : null,
+              stock: fd.get('stock') ? parseInt(fd.get('stock') as string) : null,
+              active: fd.get('active') === 'on',
+            };
+            const res = await fetch(`/api/plugins/shop/products/${id}`, {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+            });
+            const result = await res.json();
+            if (result.success) location.reload();
+            else {
+              const err = document.getElementById('general-error')!;
+              err.textContent = result.error || 'Failed to save';
+              err.classList.remove('hidden');
+            }
+          });
+        </script>
+      </div>
+    )}
+
+    <!-- Translations Tab -->
+    {tab === 'translations' && (
+      <div class="max-w-2xl">
+        <h2 class="text-lg font-semibold mb-4">Translations</h2>
+        {['ro', 'en'].map(locale => {
+          const t = (transRows as any[]).find(tr => tr.locale === locale);
+          return (
+            <div class="card bg-base-200 mb-4 p-4">
+              <h3 class="font-medium mb-2">{locale === 'ro' ? 'Română (RO)' : 'English (EN)'}</h3>
+              <div class="space-y-3" data-translation-locale={locale}>
+                <div class="form-control">
+                  <label class="label"><span class="label-text">Name</span></label>
+                  <input type="text" class="input input-bordered trans-name" value={t?.name || ''} placeholder="Name" />
+                </div>
+                <div class="form-control">
+                  <label class="label"><span class="label-text">Description</span></label>
+                  <textarea class="textarea textarea-bordered h-20 trans-desc" placeholder="Description">{t?.description || ''}</textarea>
+                </div>
+                <div class="form-control">
+                  <label class="label"><span class="label-text">Slug</span></label>
+                  <input type="text" class="input input-bordered trans-slug" value={t?.slug || ''} placeholder="slug" />
+                </div>
+                <button class="btn btn-sm btn-outline save-translation" data-locale={locale}>Save {locale.toUpperCase()}</button>
+                <span class={`text-success text-sm hidden trans-ok-${locale}`}>Saved!</span>
+              </div>
+            </div>
+          );
+        })}
+        <script>
+          document.querySelectorAll('.save-translation').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              const locale = (btn as HTMLElement).dataset.locale!;
+              const container = document.querySelector(`[data-translation-locale="${locale}"]`)!;
+              const name = (container.querySelector('.trans-name') as HTMLInputElement).value;
+              const description = (container.querySelector('.trans-desc') as HTMLTextAreaElement).value;
+              const slug = (container.querySelector('.trans-slug') as HTMLInputElement).value;
+              const res = await fetch(`/api/plugins/shop/products/${id}/translations/${locale}`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name || null, description: description || null, slug: slug || null }),
+              });
+              if ((await res.json()).success) {
+                const ok = document.querySelector(`.trans-ok-${locale}`)!;
+                ok.classList.remove('hidden');
+                setTimeout(() => ok.classList.add('hidden'), 2000);
+              }
+            });
+          });
+        </script>
+      </div>
+    )}
+
+    <!-- Prices Tab -->
+    {tab === 'prices' && (
+      <div class="max-w-2xl">
+        <h2 class="text-lg font-semibold mb-4">Prices</h2>
+        <div id="prices-container">
+          <table class="table table-zebra w-full">
+            <thead>
+              <tr><th>Currency</th><th>Target</th><th>Price (net)</th><th /></tr>
+            </thead>
+            <tbody>
+              {(priceRows as any[]).map(p => (
+                <tr>
+                  <td>{p.currency}</td>
+                  <td>{p.product_id ? 'Product' : `Variant: ${p.variant_id?.slice(0,8)}...`}</td>
+                  <td><input type="number" class="input input-bordered input-sm w-32 price-input" data-id={p.id} value={p.price_net} step="0.01" min="0" /></td>
+                  <td><button class="btn btn-ghost btn-xs save-price" data-id={p.id} data-currency={p.currency} data-product-id={p.product_id || ''} data-variant-id={p.variant_id || ''}>Save</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p class="text-sm text-base-content/60 mt-2">Add new prices via the bulk price API endpoint.</p>
+        </div>
+        <script>
+          document.querySelectorAll('.save-price').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              const el = btn as HTMLElement;
+              const priceId = el.dataset.id!;
+              const currency = el.dataset.currency!;
+              const productId = el.dataset.productId || null;
+              const variantId = el.dataset.variantId || null;
+              const input = document.querySelector(`.price-input[data-id="${priceId}"]`) as HTMLInputElement;
+              const priceNet = parseFloat(input.value);
+              const res = await fetch(`/api/plugins/shop/products/${id}/prices`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prices: [{ product_id: productId, variant_id: variantId, currency, price_net: priceNet }] }),
+              });
+              if ((await res.json()).success) location.reload();
+            });
+          });
+        </script>
+      </div>
+    )}
+
+    <!-- Images Tab -->
+    {tab === 'images' && (
+      <div class="max-w-2xl">
+        <h2 class="text-lg font-semibold mb-4">Images</h2>
+        <div class="grid grid-cols-3 gap-4 mb-6">
+          {(imageRows as any[]).map(img => (
+            <div class="card bg-base-200 p-2">
+              <img src={img.url} alt={img.alt || ''} class="w-full h-32 object-cover rounded" />
+              <p class="text-xs truncate mt-1">{img.url}</p>
+              <button class="btn btn-error btn-xs mt-1 w-full delete-image" data-id={img.id}>Delete</button>
+            </div>
+          ))}
+        </div>
+        <form id="image-upload-form" class="space-y-3">
+          <div class="form-control">
+            <label class="label"><span class="label-text">Upload Image</span></label>
+            <input type="file" name="file" class="file-input file-input-bordered" accept="image/*" />
+          </div>
+          <div class="form-control">
+            <label class="label"><span class="label-text">Alt text</span></label>
+            <input type="text" name="alt" class="input input-bordered" placeholder="Image description" />
+          </div>
+          <div id="image-error" class="alert alert-error hidden"></div>
+          <button type="submit" class="btn btn-primary">Upload</button>
+        </form>
+        <script>
+          document.getElementById('image-upload-form')!.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target as HTMLFormElement);
+            const res = await fetch(`/api/plugins/shop/products/${id}/images`, { method: 'POST', body: fd });
+            if ((await res.json()).success) location.reload();
+            else { document.getElementById('image-error')!.classList.remove('hidden'); }
+          });
+          document.querySelectorAll('.delete-image').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              const imageId = (btn as HTMLElement).dataset.id!;
+              if (!confirm('Delete this image?')) return;
+              await fetch(`/api/plugins/shop/products/${id}/images/${imageId}`, { method: 'DELETE' });
+              location.reload();
+            });
+          });
+        </script>
+      </div>
+    )}
+
+    <!-- Options & Variants Tab -->
+    {tab === 'options' && (
+      <div class="max-w-2xl">
+        <h2 class="text-lg font-semibold mb-4">Options & Variants</h2>
+
+        <!-- Option Types -->
+        <div class="mb-6">
+          <h3 class="font-medium mb-2">Option Types</h3>
+          {optionTypeRows.map(ot => {
+            const values = optionValueRows.filter(v => v.option_type_id === ot.id);
+            return (
+              <div class="card bg-base-200 p-3 mb-2">
+                <div class="flex justify-between items-center">
+                  <span class="font-medium">{ot.label} <span class="text-xs text-base-content/50">({ot.value_type})</span></span>
+                  <button class="btn btn-error btn-xs delete-option-type" data-id={ot.id}>Delete</button>
+                </div>
+                <div class="flex flex-wrap gap-1 mt-2">
+                  {values.map(v => (
+                    <span class="badge badge-sm">{v.label} <button class="ml-1 delete-option-value" data-id={v.id} data-option-type-id={v.option_type_id}>&times;</button></span>
+                  ))}
+                </div>
+                <form class="flex gap-2 mt-2 add-value-form" data-option-type={ot.id}>
+                  <input type="text" class="input input-bordered input-sm flex-1 add-value-input" placeholder="New value label" required />
+                  <input type="text" class="input input-bordered input-sm w-24 add-value-code" placeholder="Code" required />
+                  <button type="submit" class="btn btn-xs btn-outline">Add</button>
+                </form>
+              </div>
+            );
+          })}
+          <form id="add-option-type" class="flex gap-2 mt-3">
+            <input type="text" name="label" class="input input-bordered input-sm" placeholder="Option name" required />
+            <select name="value_type" class="select select-bordered select-sm">
+              <option value="short_text">Short Text</option>
+              <option value="long_text">Long Text</option>
+              <option value="number">Number</option>
+            </select>
+            <button type="submit" class="btn btn-xs btn-primary">Add Option</button>
+          </form>
+        </div>
+
+        <!-- Variants -->
+        <div>
+          <h3 class="font-medium mb-2">Variants</h3>
+          {variantRows.length > 0 ? (
+            variantRows.map(v => {
+              const vov = variantOptionValues.filter(vo => vo.variant_id === v.id);
+              const vp = variantPrices.filter(p => p.variant_id === v.id);
+              return (
+                <div class="card bg-base-200 p-3 mb-2">
+                  <div class="flex justify-between items-center">
+                    <span class="font-medium">{v.sku || 'No SKU'}</span>
+                    <button class="btn btn-error btn-xs delete-variant" data-id={v.id}>Delete</button>
+                  </div>
+                  <div class="text-sm text-base-content/60">
+                    Options: {vov.map(vo => {
+                      const ov = optionValueRows.find(o => o.id === vo.option_value_id);
+                      return ov?.label || '?';
+                    }).join(', ')}
+                  </div>
+                  <div class="text-sm">Stock: {v.stock ?? '-'} | Active: {v.active ? 'Yes' : 'No'}</div>
+                  {vp.length > 0 && (
+                    <div class="text-sm">Prices: {vp.map(p => `${p.currency} ${p.price_net}`).join(', ')}</div>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <p class="text-sm text-base-content/60">No variants yet. Add option types and values, then create variants via the API.</p>
+          )}
+        </div>
+
+        <script>
+          // Add option type
+          document.getElementById('add-option-type')!.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target as HTMLFormElement);
+            await fetch(`/api/plugins/shop/products/${id}/options`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ label: fd.get('label'), value_type: fd.get('value_type'), sort_order: 0 }),
+            });
+            location.reload();
+          });
+
+          // Delete option type
+          document.querySelectorAll('.delete-option-type').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              if (!confirm('Delete this option type?')) return;
+              const otId = (btn as HTMLElement).dataset.id!;
+              await fetch(`/api/plugins/shop/products/${id}/options/${otId}`, { method: 'DELETE' });
+              location.reload();
+            });
+          });
+
+          // Add option value
+          document.querySelectorAll('.add-value-form').forEach(form => {
+            form.addEventListener('submit', async (e) => {
+              e.preventDefault();
+              const otId = (form as HTMLElement).dataset.optionType!;
+              const label = (form.querySelector('.add-value-input') as HTMLInputElement).value;
+              const value = (form.querySelector('.add-value-code') as HTMLInputElement).value;
+              await fetch(`/api/plugins/shop/products/${id}/options/${otId}/values`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ value, label, sort_order: 0 }),
+              });
+              location.reload();
+            });
+          });
+
+          // Delete option value
+          document.querySelectorAll('.delete-option-value').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              if (!confirm('Delete this value?')) return;
+              const el = btn as HTMLElement;
+              const ovId = el.dataset.id!;
+              const otId = el.dataset.optionTypeId!;
+              await fetch(`/api/plugins/shop/products/${id}/options/${otId}/values/${ovId}`, { method: 'DELETE' });
+              location.reload();
+            });
+          });
+
+          // Delete variant
+          document.querySelectorAll('.delete-variant').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              if (!confirm('Delete this variant?')) return;
+              const vId = (btn as HTMLElement).dataset.id!;
+              await fetch(`/api/plugins/shop/products/${id}/variants/${vId}`, { method: 'DELETE' });
+              location.reload();
+            });
+          });
+        </script>
+      </div>
+    )}
+  </div>
+</AdminLayout>

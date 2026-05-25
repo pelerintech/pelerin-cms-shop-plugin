@@ -1,0 +1,264 @@
+---
+// Admin: New order (4-step flow)
+// Route: /admin/plugins/shop/orders/new
+import AdminLayout from 'pelerin:admin-layout';
+import { createPluginContext } from 'pelerin:plugin-sdk';
+
+const sdk = createPluginContext();
+const user = await sdk.auth.requireAdmin(Astro.request);
+---
+
+<AdminLayout title="New Order" currentPath="/admin/plugins/shop/orders" user={user}>
+  <div class="p-6 max-w-3xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6">Create Order</h1>
+
+    <!-- Step indicator -->
+    <ul class="steps steps-horizontal mb-8 w-full">
+      <li id="step-ind-1" class="step step-primary">Customer</li>
+      <li id="step-ind-2" class="step">Items</li>
+      <li id="step-ind-3" class="step">Shipping</li>
+      <li id="step-ind-4" class="step">Summary</li>
+    </ul>
+
+    <!-- Step 1: Customer -->
+    <div id="step-1" class="card bg-base-100 shadow">
+      <div class="card-body">
+        <h2 class="card-title">Customer Information</h2>
+        <div class="form-control"><label class="label"><span class="label-text">Type</span></label>
+          <select id="cust-type" class="select select-bordered"><option value="individual">Individual</option><option value="company">Company</option></select></div>
+        <div class="form-control"><label class="label"><span class="label-text">Name *</span></label>
+          <input type="text" id="cust-name" class="input input-bordered" /></div>
+        <div class="form-control"><label class="label"><span class="label-text">Email *</span></label>
+          <input type="email" id="cust-email" class="input input-bordered" /></div>
+        <div class="form-control"><label class="label"><span class="label-text">Phone</span></label>
+          <input type="text" id="cust-phone" class="input input-bordered" /></div>
+        <div id="company-fields" class="hidden space-y-4">
+          <div class="form-control"><label class="label"><span class="label-text">Company Name *</span></label>
+            <input type="text" id="billing-company" class="input input-bordered" /></div>
+          <div class="form-control"><label class="label"><span class="label-text">VAT Number *</span></label>
+            <input type="text" id="billing-vat" class="input input-bordered" /></div>
+        </div>
+        <h3 class="font-semibold mt-4">Billing Address</h3>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="form-control"><label class="label"><span class="label-text">First Name *</span></label><input type="text" id="bill-fn" class="input input-bordered" /></div>
+          <div class="form-control"><label class="label"><span class="label-text">Last Name *</span></label><input type="text" id="bill-ln" class="input input-bordered" /></div>
+        </div>
+        <div class="form-control"><label class="label"><span class="label-text">Address *</span></label><input type="text" id="bill-addr" class="input input-bordered" /></div>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="form-control"><label class="label"><span class="label-text">City *</span></label><input type="text" id="bill-city" class="input input-bordered" /></div>
+          <div class="form-control"><label class="label"><span class="label-text">County</span></label><input type="text" id="bill-county" class="input input-bordered" /></div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="form-control"><label class="label"><span class="label-text">Postal Code *</span></label><input type="text" id="bill-pc" class="input input-bordered" /></div>
+          <div class="form-control"><label class="label"><span class="label-text">Country *</span></label><input type="text" id="bill-country" class="input input-bordered" value="Romania" /></div>
+        </div>
+        <div class="card-actions justify-end mt-4">
+          <button class="btn btn-primary" onclick="nextStep(2)">Next: Items</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Items -->
+    <div id="step-2" class="card bg-base-100 shadow hidden">
+      <div class="card-body">
+        <h2 class="card-title">Order Items</h2>
+        <div id="items-list" class="space-y-2 mb-4"></div>
+        <div class="flex gap-2 flex-wrap">
+          <div class="form-control flex-1"><input type="text" id="item-name" class="input input-bordered w-full" placeholder="Product name" /></div>
+          <div class="form-control"><input type="text" id="item-sku" class="input input-bordered" placeholder="SKU" /></div>
+          <div class="form-control w-24"><input type="number" id="item-qty" class="input input-bordered" value="1" min="1" /></div>
+          <div class="form-control w-32"><input type="number" id="item-price" class="input input-bordered" placeholder="Price net" step="0.01" /></div>
+          <div class="form-control w-24"><input type="number" id="item-vat" class="input input-bordered" placeholder="VAT %" step="1" /></div>
+          <div class="form-control w-32"><select id="item-currency" class="select select-bordered"><option>RON</option><option>EUR</option></select></div>
+          <button class="btn btn-outline" onclick="addItem()">Add</button>
+        </div>
+        <div class="card-actions justify-between mt-4">
+          <button class="btn btn-ghost" onclick="nextStep(1)">Back</button>
+          <button class="btn btn-primary" onclick="nextStep(3)">Next: Shipping</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Shipping -->
+    <div id="step-3" class="card bg-base-100 shadow hidden">
+      <div class="card-body">
+        <h2 class="card-title">Shipping & Discounts</h2>
+        <div class="form-control"><label class="label"><span class="label-text">Shipping Type</span></label>
+          <select id="ship-type" class="select select-bordered"><option value="physical">Physical</option><option value="digital">Digital</option><option value="pickup">Pickup</option></select></div>
+        <div class="form-control"><label class="label"><span class="label-text">Shipping Method</span></label>
+          <input type="text" id="ship-method" class="input input-bordered" placeholder="Courier name" /></div>
+        <div class="form-control"><label class="label"><span class="label-text">Shipping Cost</span></label>
+          <input type="number" id="ship-cost" class="input input-bordered" value="0" step="0.01" /></div>
+        <div class="form-control"><label class="label"><span class="label-text">Discount Amount</span></label>
+          <input type="number" id="discount" class="input input-bordered" value="0" step="0.01" /></div>
+        <label class="label cursor-pointer"><span class="label-text">Shipping same as billing</span>
+          <input type="checkbox" id="ship-same" class="checkbox" checked /></label>
+        <div id="ship-fields" class="hidden space-y-4">
+          <h3 class="font-semibold">Shipping Address</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="form-control"><label class="label"><span class="label-text">First Name</span></label><input type="text" id="ship-fn" class="input input-bordered" /></div>
+            <div class="form-control"><label class="label"><span class="label-text">Last Name</span></label><input type="text" id="ship-ln" class="input input-bordered" /></div>
+          </div>
+          <div class="form-control"><label class="label"><span class="label-text">Address</span></label><input type="text" id="ship-addr" class="input input-bordered" /></div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="form-control"><label class="label"><span class="label-text">City</span></label><input type="text" id="ship-city" class="input input-bordered" /></div>
+            <div class="form-control"><label class="label"><span class="label-text">County</span></label><input type="text" id="ship-county" class="input input-bordered" /></div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="form-control"><label class="label"><span class="label-text">Postal Code</span></label><input type="text" id="ship-pc" class="input input-bordered" /></div>
+            <div class="form-control"><label class="label"><span class="label-text">Country</span></label><input type="text" id="ship-country" class="input input-bordered" /></div>
+          </div>
+        </div>
+        <div class="card-actions justify-between mt-4">
+          <button class="btn btn-ghost" onclick="nextStep(2)">Back</button>
+          <button class="btn btn-primary" onclick="nextStep(4)">Next: Summary</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Summary -->
+    <div id="step-4" class="card bg-base-100 shadow hidden">
+      <div class="card-body">
+        <h2 class="card-title">Order Summary</h2>
+        <div id="summary-content" class="space-y-2 text-sm"></div>
+        <div class="card-actions justify-between mt-6">
+          <button class="btn btn-ghost" onclick="nextStep(3)">Back</button>
+          <button class="btn btn-primary" id="create-btn" onclick="createOrder()">Create Order</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</AdminLayout>
+
+<script>
+  var items = [];
+  var currentStep = 1;
+
+  document.getElementById('cust-type').addEventListener('change', function() {
+    document.getElementById('company-fields').classList.toggle('hidden', this.value !== 'company');
+  });
+
+  document.getElementById('ship-same').addEventListener('change', function() {
+    document.getElementById('ship-fields').classList.toggle('hidden', this.checked);
+  });
+
+  window.addItem = function() {
+    var name = document.getElementById('item-name').value;
+    var sku = document.getElementById('item-sku').value;
+    var qty = parseInt(document.getElementById('item-qty').value) || 1;
+    var price = parseFloat(document.getElementById('item-price').value) || 0;
+    var vat = document.getElementById('item-vat').value ? parseFloat(document.getElementById('item-vat').value) / 100 : null;
+    var curr = document.getElementById('item-currency').value;
+    if (!name) return alert('Product name is required');
+    var gross = price * (1 + (vat || 0));
+    items.push({ product_name: name, sku: sku || null, quantity: qty, price_net: price, vat_rate: vat, price_gross: gross, currency: curr });
+    document.getElementById('item-name').value = '';
+    document.getElementById('item-sku').value = '';
+    renderItems();
+  };
+
+  function renderItems() {
+    document.getElementById('items-list').innerHTML = items.map(function(item, i) {
+      return '<div class="flex justify-between items-center p-2 bg-base-200 rounded">' +
+        '<span>' + item.product_name + ' x' + item.quantity + ' @ ' + item.price_net.toFixed(2) + ' ' + item.currency + ' (VAT ' + ((item.vat_rate || 0) * 100).toFixed(0) + '%)</span>' +
+        '<span class="font-mono">' + item.price_gross.toFixed(2) + ' ' + item.currency + '</span>' +
+        '<button class="btn btn-xs btn-error" onclick="removeItem(' + i + ')">✕</button></div>';
+    }).join('');
+  }
+
+  window.removeItem = function(i) { items.splice(i, 1); renderItems(); };
+
+  window.nextStep = function(step) {
+    // Basic validation per step
+    if (currentStep === 1 && step > 1) {
+      if (!document.getElementById('cust-name').value || !document.getElementById('cust-email').value) return alert('Name and email are required');
+      if (document.getElementById('cust-type').value === 'company' && (!document.getElementById('billing-company').value || !document.getElementById('billing-vat').value)) return alert('Company name and VAT are required');
+    }
+    if (currentStep === 2 && step > 2) {
+      if (items.length === 0) return alert('Add at least one item');
+    }
+    document.getElementById('step-' + currentStep).classList.add('hidden');
+    document.getElementById('step-' + step).classList.remove('hidden');
+    for (var i = 1; i <= 4; i++) document.getElementById('step-ind-' + i).classList.toggle('step-primary', i <= step);
+    currentStep = step;
+    if (step === 4) renderSummary();
+  };
+
+  function renderSummary() {
+    var subtotal = items.reduce(function(s, i) { return s + i.price_net * i.quantity; }, 0);
+    var vatTotal = items.reduce(function(s, i) { return s + (i.price_net * i.quantity * (i.vat_rate || 0)); }, 0);
+    var shipping = parseFloat(document.getElementById('ship-cost').value) || 0;
+    var discount = parseFloat(document.getElementById('discount').value) || 0;
+    var total = subtotal + vatTotal + shipping - discount;
+
+    document.getElementById('summary-content').innerHTML =
+      '<p><strong>Customer:</strong> ' + document.getElementById('cust-name').value + ' (' + document.getElementById('cust-email').value + ')</p>' +
+      '<p><strong>Items:</strong> ' + items.length + ' item(s)</p>' +
+      '<p><strong>Subtotal (net):</strong> ' + subtotal.toFixed(2) + ' RON</p>' +
+      '<p><strong>VAT:</strong> ' + vatTotal.toFixed(2) + ' RON</p>' +
+      '<p><strong>Shipping:</strong> ' + shipping.toFixed(2) + ' RON</p>' +
+      (discount > 0 ? '<p><strong>Discount:</strong> -' + discount.toFixed(2) + ' RON</p>' : '') +
+      '<p class="text-lg font-bold mt-2"><strong>Total:</strong> ' + total.toFixed(2) + ' RON</p>';
+  }
+
+  window.createOrder = async function() {
+    var btn = document.getElementById('create-btn');
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
+
+    var isCompany = document.getElementById('cust-type').value === 'company';
+    var subtotal = items.reduce(function(s, i) { return s + i.price_net * i.quantity; }, 0);
+    var vatTotal = items.reduce(function(s, i) { return s + (i.price_net * i.quantity * (i.vat_rate || 0)); }, 0);
+    var shipping = parseFloat(document.getElementById('ship-cost').value) || 0;
+    var discount = parseFloat(document.getElementById('discount').value) || 0;
+    var total = subtotal + vatTotal + shipping - discount;
+    var sameAsBilling = document.getElementById('ship-same').checked;
+
+    var payload = {
+      customer_type: document.getElementById('cust-type').value,
+      customer_email: document.getElementById('cust-email').value,
+      customer_name: document.getElementById('cust-name').value,
+      customer_phone: document.getElementById('cust-phone').value || null,
+      status: 'pending',
+      currency: 'RON',
+      subtotal_net: subtotal,
+      vat_total: vatTotal,
+      shipping_cost: shipping,
+      discount_amount: discount,
+      total: total,
+      shipping_type: document.getElementById('ship-type').value,
+      shipping_method: document.getElementById('ship-method').value || null,
+      billing_first_name: document.getElementById('bill-fn').value || document.getElementById('cust-name').value,
+      billing_last_name: document.getElementById('bill-ln').value || '',
+      billing_address: document.getElementById('bill-addr').value,
+      billing_city: document.getElementById('bill-city').value,
+      billing_postal_code: document.getElementById('bill-pc').value,
+      billing_country: document.getElementById('bill-country').value,
+      billing_county: document.getElementById('bill-county').value || null,
+      billing_company: isCompany ? document.getElementById('billing-company').value : null,
+      billing_vat_number: isCompany ? document.getElementById('billing-vat').value : null,
+      shipping_first_name: sameAsBilling ? (document.getElementById('bill-fn').value || document.getElementById('cust-name').value) : document.getElementById('ship-fn').value,
+      shipping_last_name: sameAsBilling ? (document.getElementById('bill-ln').value || '') : document.getElementById('ship-ln').value,
+      shipping_address: sameAsBilling ? document.getElementById('bill-addr').value : document.getElementById('ship-addr').value,
+      shipping_city: sameAsBilling ? document.getElementById('bill-city').value : document.getElementById('ship-city').value,
+      shipping_postal_code: sameAsBilling ? document.getElementById('bill-pc').value : document.getElementById('ship-pc').value,
+      shipping_country: sameAsBilling ? document.getElementById('bill-country').value : document.getElementById('ship-country').value,
+      shipping_county: sameAsBilling ? (document.getElementById('bill-county').value || null) : (document.getElementById('ship-county').value || null),
+      shipping_same_as_billing: sameAsBilling,
+      items: items
+    };
+
+    var res = await fetch('/api/plugins/shop/orders', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    var json = await res.json();
+    if (json.success) {
+      window.location.href = '/admin/plugins/shop/orders/' + json.data.id;
+    } else {
+      alert(json.error || 'Failed to create order');
+      btn.disabled = false;
+      btn.textContent = 'Create Order';
+    }
+  };
+</script>

@@ -1,0 +1,167 @@
+---
+// Admin: new product form
+// Route: /admin/plugins/shop/products/new
+import AdminLayout from 'pelerin:admin-layout';
+import { createPluginContext } from 'pelerin:plugin-sdk';
+import { db, categories } from 'astro:db';
+
+const sdk = createPluginContext();
+const user = await sdk.auth.requireAdmin(Astro.request);
+
+// Fetch categories for select
+const catList = await db.select().from(categories).orderBy(categories.name);
+---
+
+<AdminLayout title="New Product" currentPath="/admin/plugins/shop/products" user={user}>
+  <div class="col-span-12 max-w-2xl">
+    <div class="flex items-center gap-4 mb-6">
+      <a href="/admin/plugins/shop/products" class="btn btn-ghost btn-sm">&larr; Back</a>
+      <h1 class="text-2xl font-bold">New Product</h1>
+    </div>
+
+    <form id="product-form" class="space-y-4">
+      <div class="form-control">
+        <label class="label"><span class="label-text">Name (RO) *</span></label>
+        <input type="text" name="name" class="input input-bordered" required placeholder="Product name in Romanian" />
+        <span class="text-error text-sm hidden" data-field="name"></span>
+      </div>
+
+      <div class="form-control">
+        <label class="label"><span class="label-text">Slug *</span></label>
+        <input type="text" name="slug" class="input input-bordered" required placeholder="product-slug" />
+        <span class="text-error text-sm hidden" data-field="slug"></span>
+      </div>
+
+      <div class="form-control">
+        <label class="label"><span class="label-text">SKU</span></label>
+        <input type="text" name="sku" class="input input-bordered" placeholder="PROD-001" />
+        <span class="text-error text-sm hidden" data-field="sku"></span>
+      </div>
+
+      <div class="form-control">
+        <label class="label"><span class="label-text">Description (RO)</span></label>
+        <textarea name="description" class="textarea textarea-bordered h-24" placeholder="Product description in Romanian"></textarea>
+      </div>
+
+      <div class="form-control">
+        <label class="label"><span class="label-text">Name (EN)</span></label>
+        <input type="text" name="name_en" class="input input-bordered" placeholder="Product name in English" />
+      </div>
+
+      <div class="form-control">
+        <label class="label"><span class="label-text">Description (EN)</span></label>
+        <textarea name="description_en" class="textarea textarea-bordered h-24" placeholder="Product description in English"></textarea>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div class="form-control">
+          <label class="label"><span class="label-text">Type *</span></label>
+          <select name="type" class="select select-bordered" required>
+            <option value="physical">Physical</option>
+            <option value="digital">Digital</option>
+          </select>
+        </div>
+
+        <div class="form-control">
+          <label class="label"><span class="label-text">Category</span></label>
+          <select name="category_id" class="select select-bordered">
+            <option value="">None</option>
+            {catList.map(c => (
+              <option value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div class="form-control">
+          <label class="label"><span class="label-text">VAT Rate</span></label>
+          <input type="number" name="vat_rate" class="input input-bordered" step="0.01" min="0" max="1" placeholder="0.19" />
+        </div>
+
+        <div class="form-control">
+          <label class="label"><span class="label-text">Stock</span></label>
+          <input type="number" name="stock" class="input input-bordered" min="0" placeholder="100" />
+        </div>
+      </div>
+
+      <div class="form-control">
+        <label class="cursor-pointer label justify-start gap-4">
+          <input type="checkbox" name="active" class="checkbox" checked />
+          <span class="label-text">Active (visible in store)</span>
+        </label>
+      </div>
+
+      <div id="form-error" class="alert alert-error hidden"></div>
+
+      <button type="submit" class="btn btn-primary">Create Product</button>
+    </form>
+  </div>
+</AdminLayout>
+
+<script>
+  const form = document.getElementById('product-form') as HTMLFormElement;
+  const errorDiv = document.getElementById('form-error') as HTMLDivElement;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorDiv.classList.add('hidden');
+
+    // Clear previous field errors
+    document.querySelectorAll('[data-field]').forEach(el => el.classList.add('hidden'));
+
+    const formData = new FormData(form);
+    const data: Record<string, any> = {
+      name: formData.get('name'),
+      slug: formData.get('slug'),
+      sku: formData.get('sku') || null,
+      description: formData.get('description') || null,
+      type: formData.get('type'),
+      category_id: formData.get('category_id') || null,
+      vat_rate: formData.get('vat_rate') ? parseFloat(formData.get('vat_rate') as string) : null,
+      stock: formData.get('stock') ? parseInt(formData.get('stock') as string) : null,
+      active: formData.get('active') === 'on',
+    };
+
+    // EN translation data (upserted after creation if provided)
+    const nameEn = formData.get('name_en') as string;
+    const descriptionEn = formData.get('description_en') as string;
+
+    try {
+      const res = await fetch('/api/plugins/shop/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await res.json();
+
+      if (result.success) {
+        // Upsert EN translation if provided
+        if (nameEn || descriptionEn) {
+          await fetch(`/api/plugins/shop/products/${result.data.id}/translations/en`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: nameEn || null, description: descriptionEn || null, slug: null }),
+          });
+        }
+        window.location.href = `/admin/plugins/shop/products/${result.data.id}`;
+      } else {
+        if (result.fields) {
+          for (const [field, msg] of Object.entries(result.fields)) {
+            const el = document.querySelector(`[data-field="${field}"]`);
+            if (el) {
+              el.textContent = msg as string;
+              el.classList.remove('hidden');
+            }
+          }
+        }
+        errorDiv.textContent = result.error || 'Failed to create product';
+        errorDiv.classList.remove('hidden');
+      }
+    } catch (err) {
+      errorDiv.textContent = 'Network error. Please try again.';
+      errorDiv.classList.remove('hidden');
+    }
+  });
+</script>

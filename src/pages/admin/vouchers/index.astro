@@ -1,0 +1,115 @@
+---
+// Admin: vouchers list
+// Route: /admin/plugins/shop/vouchers
+import AdminLayout from 'pelerin:admin-layout';
+import { createPluginContext } from 'pelerin:plugin-sdk';
+import { db, vouchers, sql as dbSql } from 'astro:db';
+
+const sdk = createPluginContext();
+const user = await sdk.auth.requireAdmin(Astro.request);
+
+// Parse filters
+const url = new URL(Astro.request.url);
+const activeFilter = url.searchParams.get('active');
+const typeFilter = url.searchParams.get('type');
+
+const conditions: string[] = [];
+if (activeFilter !== null) {
+  if (activeFilter === 'true') {
+    conditions.push(`v.active = 1 AND (v.valid_until IS NULL OR v.valid_until >= datetime('now')) AND (v.max_uses IS NULL OR v.uses_count < v.max_uses)`);
+  } else {
+    conditions.push(`(v.active = 0 OR (v.valid_until IS NOT NULL AND v.valid_until < datetime('now')) OR (v.max_uses IS NOT NULL AND v.uses_count >= v.max_uses))`);
+  }
+}
+if (typeFilter) {
+  conditions.push(`v.type = '${typeFilter.replace(/'/g, "''")}'`);
+}
+
+const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+const result = await db.run(dbSql`
+  SELECT v.*,
+    CASE
+      WHEN v.active = 0 THEN 'inactive'
+      WHEN v.valid_until IS NOT NULL AND v.valid_until < datetime('now') THEN 'expired'
+      WHEN v.max_uses IS NOT NULL AND v.uses_count >= v.max_uses THEN 'exhausted'
+      ELSE 'active'
+    END as status
+  FROM ${vouchers} v
+  ${dbSql.raw(whereClause)}
+  ORDER BY v.code ASC
+`);
+
+const voucherList = result.rows as any[];
+
+function statusBadge(status: string) {
+  const colors: Record<string, string> = {
+    active: 'badge-success',
+    inactive: 'badge-ghost',
+    expired: 'badge-warning',
+    exhausted: 'badge-error',
+  };
+  return colors[status] || 'badge-ghost';
+}
+---
+
+<AdminLayout title="Vouchers" currentPath="/admin/plugins/shop/vouchers" user={user}>
+  <div class="p-6">
+    <div class="flex justify-between items-center mb-4">
+      <h1 class="text-2xl font-bold">Vouchers</h1>
+      <a href="/admin/plugins/shop/vouchers/new" class="btn btn-primary btn-sm">New Voucher</a>
+    </div>
+
+    <div class="mb-4 flex gap-2 items-center">
+      <label class="text-sm">Filter:</label>
+      <select class="select select-bordered select-sm" onchange="const u=new URL(location);if(this.value==='all'){u.searchParams.delete('active')}else{u.searchParams.set('active',this.value)};location=u.toString()">
+        <option value="all" {!activeFilter ? 'selected' : ''}>All</option>
+        <option value="true" {activeFilter === 'true' ? 'selected' : ''}>Active</option>
+        <option value="false" {activeFilter === 'false' ? 'selected' : ''}>Inactive / Expired / Exhausted</option>
+      </select>
+      <select class="select select-bordered select-sm" onchange="const u=new URL(location);if(this.value==='all'){u.searchParams.delete('type')}else{u.searchParams.set('type',this.value)};location=u.toString()">
+        <option value="all" {!typeFilter ? 'selected' : ''}>All types</option>
+        <option value="fixed_amount" {typeFilter === 'fixed_amount' ? 'selected' : ''}>Fixed Amount</option>
+        <option value="percentage" {typeFilter === 'percentage' ? 'selected' : ''}>Percentage</option>
+        <option value="free_shipping" {typeFilter === 'free_shipping' ? 'selected' : ''}>Free Shipping</option>
+      </select>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="table table-zebra w-full">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Type</th>
+            <th>Value</th>
+            <th>Uses</th>
+            <th>Max Uses</th>
+            <th>Status</th>
+            <th>Valid From</th>
+            <th>Valid Until</th>
+          </tr>
+        </thead>
+        <tbody>
+          {voucherList.length === 0 ? (
+            <tr>
+              <td colspan="8" class="text-center text-gray-500 py-4">No vouchers found</td>
+            </tr>
+          ) : (
+            voucherList.map((v: any) => (
+              <tr class="hover cursor-pointer" onclick={`location.href='/admin/plugins/shop/vouchers/${v.id}'`}>
+                <td class="font-mono font-bold">{v.code}</td>
+                <td>{v.type === 'fixed_amount' ? 'Fixed Amount' : v.type === 'percentage' ? 'Percentage' : 'Free Shipping'}</td>
+                <td class="font-mono">{v.type === 'free_shipping' ? '—' : v.type === 'percentage' ? `${v.value}%` : `${v.value} RON`}</td>
+                <td>{v.uses_count}</td>
+                <td>{v.max_uses ?? '∞'}</td>
+                <td><span class={`badge badge-sm ${statusBadge(v.status)}`}>{v.status}</span></td>
+                <td class="text-sm">{v.valid_from ? new Date(v.valid_from).toLocaleDateString() : '—'}</td>
+                <td class="text-sm">{v.valid_until ? new Date(v.valid_until).toLocaleDateString() : '—'}</td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</AdminLayout>

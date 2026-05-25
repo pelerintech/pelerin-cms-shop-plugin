@@ -1,0 +1,96 @@
+---
+// Admin: referral codes list
+// Route: /admin/plugins/shop/referral-codes
+import AdminLayout from 'pelerin:admin-layout';
+import { createPluginContext } from 'pelerin:plugin-sdk';
+import { db, referral_codes, orders, sql as dbSql } from 'astro:db';
+
+const sdk = createPluginContext();
+const user = await sdk.auth.requireAdmin(Astro.request);
+
+// Parse filters
+const url = new URL(Astro.request.url);
+const activeFilter = url.searchParams.get('active');
+
+let result;
+if (activeFilter !== null) {
+  const isActive = activeFilter === 'true';
+  result = await db.run(
+    dbSql`SELECT * FROM ${referral_codes} WHERE ${referral_codes.active} = ${isActive ? 1 : 0} ORDER BY ${referral_codes.code} ASC`
+  );
+} else {
+  result = await db.run(
+    dbSql`SELECT * FROM ${referral_codes} ORDER BY ${referral_codes.code} ASC`
+  );
+}
+
+const codeList = result.rows as any[];
+
+// Fetch order attribution counts for all referral codes
+const codes = codeList.map(c => c.code);
+let orderCounts = new Map<string, number>();
+if (codes.length > 0) {
+  const orderResult = await db.run(
+    dbSql`SELECT ${orders.referral_code}, COUNT(*) as cnt FROM ${orders} WHERE ${orders.referral_code} IN (${dbSql.join(codes.map((c: string) => dbSql`${c}`))}) AND ${orders.status} NOT IN ('cancelled', 'refunded') GROUP BY ${orders.referral_code}`
+  );
+  for (const row of orderResult.rows as any[]) {
+    orderCounts.set(row.referral_code, Number(row.cnt));
+  }
+}
+
+function discountLabel(c: any): string {
+  if (!c.discount_type) return '—';
+  if (c.discount_type === 'percentage') return `${c.discount_value}%`;
+  if (c.discount_type === 'fixed_amount') return `${c.discount_value} RON`;
+  return '—';
+}
+---
+
+<AdminLayout title="Referral Codes" currentPath="/admin/plugins/shop/referral-codes" user={user}>
+  <div class="p-6">
+    <div class="flex justify-between items-center mb-4">
+      <h1 class="text-2xl font-bold">Referral Codes</h1>
+      <a href="/admin/plugins/shop/referral-codes/new" class="btn btn-primary btn-sm">New Referral Code</a>
+    </div>
+
+    <div class="mb-4 flex gap-2 items-center">
+      <label class="text-sm">Filter:</label>
+      <select class="select select-bordered select-sm" onchange="const u=new URL(location);if(this.value==='all'){u.searchParams.delete('active')}else{u.searchParams.set('active',this.value)};location=u.toString()">
+        <option value="all" {!activeFilter ? 'selected' : ''}>All</option>
+        <option value="true" {activeFilter === 'true' ? 'selected' : ''}>Active</option>
+        <option value="false" {activeFilter === 'false' ? 'selected' : ''}>Inactive</option>
+      </select>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="table table-zebra w-full">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Discount</th>
+            <th>Orders</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {codeList.length === 0 ? (
+            <tr>
+              <td colspan="5" class="text-center text-gray-500 py-4">No referral codes found</td>
+            </tr>
+          ) : (
+            codeList.map((c: any) => (
+              <tr class="hover cursor-pointer" onclick={`location.href='/admin/plugins/shop/referral-codes/${c.id}'`}>
+                <td class="font-mono font-bold">{c.code}</td>
+                <td>{c.name}</td>
+                <td>{discountLabel(c)}</td>
+                <td>{orderCounts.get(c.code) ?? 0}</td>
+                <td>{c.active ? <span class="badge badge-sm badge-success">Active</span> : <span class="badge badge-sm badge-ghost">Inactive</span>}</td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</AdminLayout>
