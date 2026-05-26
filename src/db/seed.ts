@@ -4,25 +4,6 @@
  * is always predictable.
  */
 import { db, sql } from 'astro:db';
-import {
-  shop_settings,
-  categories,
-  products,
-  product_images,
-  product_option_types,
-  product_option_values,
-  product_variants,
-  product_variant_option_values,
-  product_prices,
-  translations,
-  carts,
-  cart_items,
-  order_items,
-  order_status_history,
-  orders,
-  vouchers,
-  referral_codes,
-} from './config.ts';
 
 export default async function seed() {
   console.log('[Plugin:pelerin_ro_shop] Seeding...');
@@ -47,28 +28,15 @@ export default async function seed() {
   await db.run(sql`DELETE FROM shop_settings`);
 
   // ─── Settings (locales, currencies, order config) ───
-  await db.insert(shop_settings).values([
-    {
-      id: crypto.randomUUID(),
-      key: 'locales',
-      value: JSON.stringify([
-        { code: 'ro', name: 'Română', isDefault: true },
-        { code: 'en', name: 'English', isDefault: false },
-      ]),
-    },
-    {
-      id: crypto.randomUUID(),
-      key: 'currencies',
-      value: JSON.stringify([
-        { code: 'RON', name: 'Leu românesc', isDefault: true },
-        { code: 'EUR', name: 'Euro', isDefault: false },
-      ]),
-    },
-    { id: crypto.randomUUID(), key: 'order_number_prefix', value: 'ORD' },
-    { id: crypto.randomUUID(), key: 'order_number_year', value: new Date().getFullYear().toString() },
-    { id: crypto.randomUUID(), key: 'order_number_padding', value: '6' },
-    { id: crypto.randomUUID(), key: 'order_number_sequence', value: '0' },
-  ]);
+  await db.run(sql`
+    INSERT INTO shop_settings (id, key, value) VALUES
+      (${crypto.randomUUID()}, 'locales', ${JSON.stringify([{ code: 'ro', name: 'Română', isDefault: true }, { code: 'en', name: 'English', isDefault: false }])}),
+      (${crypto.randomUUID()}, 'currencies', ${JSON.stringify([{ code: 'RON', name: 'Leu românesc', isDefault: true }, { code: 'EUR', name: 'Euro', isDefault: false }])}),
+      (${crypto.randomUUID()}, 'order_number_prefix', 'ORD'),
+      (${crypto.randomUUID()}, 'order_number_year', ${new Date().getFullYear().toString()}),
+      (${crypto.randomUUID()}, 'order_number_padding', '6'),
+      (${crypto.randomUUID()}, 'order_number_sequence', '0')
+  `);
 
   console.log('[Plugin:pelerin_ro_shop] Seeded core data.');
 
@@ -76,111 +44,121 @@ export default async function seed() {
   const catElectronics = crypto.randomUUID();
   const catPhones = crypto.randomUUID();
 
-  await db.insert(categories).values([
-    { id: catElectronics, parent_id: null, name: 'Electronice', description: 'Produse electronice', slug: 'electronice', sort_order: 1 },
-    { id: catPhones, parent_id: catElectronics, name: 'Telefoane', description: 'Telefoane mobile', slug: 'telefoane', sort_order: 1 },
-  ]);
+  await db.run(sql`
+    INSERT INTO categories (id, parent_id, name, description, slug, sort_order) VALUES
+      (${catElectronics}, NULL, 'Electronice', 'Produse electronice', 'electronice', 1),
+      (${catPhones}, ${catElectronics}, 'Telefoane', 'Telefoane mobile', 'telefoane', 1)
+  `);
 
-  await db.insert(translations).values([
-    // Romanian (default locale) — mirrored into translations for completeness
-    { id: crypto.randomUUID(), entity_type: 'category', entity_id: catElectronics, locale: 'ro', name: 'Electronice', description: 'Produse electronice', slug: 'electronice', label: null },
-    { id: crypto.randomUUID(), entity_type: 'category', entity_id: catPhones, locale: 'ro', name: 'Telefoane', description: 'Telefoane mobile', slug: 'telefoane', label: null },
-    // English translations
-    { id: crypto.randomUUID(), entity_type: 'category', entity_id: catElectronics, locale: 'en', name: 'Electronics', description: 'Electronic products', slug: 'electronics', label: null },
-    { id: crypto.randomUUID(), entity_type: 'category', entity_id: catPhones, locale: 'en', name: 'Phones', description: 'Mobile phones', slug: 'phones', label: null },
-  ]);
+  await db.run(sql`
+    INSERT INTO translations (id, entity_type, entity_id, locale, name, description, slug, label) VALUES
+      (${crypto.randomUUID()}, 'category', ${catElectronics}, 'ro', 'Electronice', 'Produse electronice', 'electronice', NULL),
+      (${crypto.randomUUID()}, 'category', ${catPhones}, 'ro', 'Telefoane', 'Telefoane mobile', 'telefoane', NULL),
+      (${crypto.randomUUID()}, 'category', ${catElectronics}, 'en', 'Electronics', 'Electronic products', 'electronics', NULL),
+      (${crypto.randomUUID()}, 'category', ${catPhones}, 'en', 'Phones', 'Mobile phones', 'phones', NULL)
+  `);
 
   // ─── Products ───
   const prodSimple = crypto.randomUUID();
   const prodVariant = crypto.randomUUID();
 
-  await db.insert(products).values([
-    { id: prodSimple, sku: 'BOOK-001', type: 'physical', has_variants: false, vat_rate: 0.05, stock: 100, category_id: catElectronics, active: true, name: 'Carte de programare', description: 'O carte excelentă', slug: 'carte-programare' },
-    { id: prodVariant, sku: null, type: 'physical', has_variants: true, vat_rate: 0.19, stock: null, category_id: catPhones, active: true, name: 'Telefon Smart X', description: 'Telefon inteligent', slug: 'telefon-smart-x' },
-  ]);
+  await db.run(sql`
+    INSERT INTO products (id, sku, type, has_variants, vat_rate, stock, category_id, active, name, description, slug) VALUES
+      (${prodSimple}, 'BOOK-001', 'physical', 0, 0.05, 100, ${catElectronics}, 1, 'Carte de programare', 'O carte excelentă', 'carte-programare'),
+      (${prodVariant}, NULL, 'physical', 1, 0.19, NULL, ${catPhones}, 1, 'Telefon Smart X', 'Telefon inteligent', 'telefon-smart-x')
+  `);
 
-  await db.insert(translations).values([
-    // Romanian (default locale) — mirrored into translations for completeness
-    { id: crypto.randomUUID(), entity_type: 'product', entity_id: prodSimple, locale: 'ro', name: 'Carte de programare', description: 'O carte excelentă', slug: 'carte-programare', label: null },
-    { id: crypto.randomUUID(), entity_type: 'product', entity_id: prodVariant, locale: 'ro', name: 'Telefon Smart X', description: 'Telefon inteligent', slug: 'telefon-smart-x', label: null },
-    // English translations
-    { id: crypto.randomUUID(), entity_type: 'product', entity_id: prodSimple, locale: 'en', name: 'Programming Book', description: 'An excellent book', slug: 'programming-book', label: null },
-    { id: crypto.randomUUID(), entity_type: 'product', entity_id: prodVariant, locale: 'en', name: 'Smart Phone X', description: 'A smart phone', slug: 'smart-phone-x', label: null },
-  ]);
+  await db.run(sql`
+    INSERT INTO translations (id, entity_type, entity_id, locale, name, description, slug, label) VALUES
+      (${crypto.randomUUID()}, 'product', ${prodSimple}, 'ro', 'Carte de programare', 'O carte excelentă', 'carte-programare', NULL),
+      (${crypto.randomUUID()}, 'product', ${prodVariant}, 'ro', 'Telefon Smart X', 'Telefon inteligent', 'telefon-smart-x', NULL),
+      (${crypto.randomUUID()}, 'product', ${prodSimple}, 'en', 'Programming Book', 'An excellent book', 'programming-book', NULL),
+      (${crypto.randomUUID()}, 'product', ${prodVariant}, 'en', 'Smart Phone X', 'A smart phone', 'smart-phone-x', NULL)
+  `);
 
-  await db.insert(product_prices).values([
-    { id: crypto.randomUUID(), product_id: prodSimple, variant_id: null, currency: 'RON', price_net: 5000 },
-    { id: crypto.randomUUID(), product_id: prodSimple, variant_id: null, currency: 'EUR', price_net: 1000 },
-  ]);
+  await db.run(sql`
+    INSERT INTO product_prices (id, product_id, variant_id, currency, price_net) VALUES
+      (${crypto.randomUUID()}, ${prodSimple}, NULL, 'RON', 5000),
+      (${crypto.randomUUID()}, ${prodSimple}, NULL, 'EUR', 1000)
+  `);
 
   // ─── Product with variants ───
   const optTypeColor = crypto.randomUUID();
   const optTypeStorage = crypto.randomUUID();
 
-  await db.insert(product_option_types).values([
-    { id: optTypeColor, product_id: prodVariant, label: 'Culoare', value_type: 'short_text', sort_order: 1 },
-    { id: optTypeStorage, product_id: prodVariant, label: 'Stocare', value_type: 'short_text', sort_order: 2 },
-  ]);
+  await db.run(sql`
+    INSERT INTO product_option_types (id, product_id, label, value_type, sort_order) VALUES
+      (${optTypeColor}, ${prodVariant}, 'Culoare', 'short_text', 1),
+      (${optTypeStorage}, ${prodVariant}, 'Stocare', 'short_text', 2)
+  `);
 
-  await db.insert(translations).values([
-    { id: crypto.randomUUID(), entity_type: 'option_type', entity_id: optTypeColor, locale: 'en', name: null, description: null, slug: null, label: 'Color' },
-    { id: crypto.randomUUID(), entity_type: 'option_type', entity_id: optTypeStorage, locale: 'en', name: null, description: null, slug: null, label: 'Storage' },
-  ]);
+  await db.run(sql`
+    INSERT INTO translations (id, entity_type, entity_id, locale, name, description, slug, label) VALUES
+      (${crypto.randomUUID()}, 'option_type', ${optTypeColor}, 'en', NULL, NULL, NULL, 'Color'),
+      (${crypto.randomUUID()}, 'option_type', ${optTypeStorage}, 'en', NULL, NULL, NULL, 'Storage')
+  `);
 
   const optValBlack = crypto.randomUUID();
   const optValWhite = crypto.randomUUID();
   const optVal128 = crypto.randomUUID();
   const optVal256 = crypto.randomUUID();
 
-  await db.insert(product_option_values).values([
-    { id: optValBlack, option_type_id: optTypeColor, value: 'black', label: 'Negru', sort_order: 1 },
-    { id: optValWhite, option_type_id: optTypeColor, value: 'white', label: 'Alb', sort_order: 2 },
-    { id: optVal128, option_type_id: optTypeStorage, value: '128GB', label: '128 GB', sort_order: 1 },
-    { id: optVal256, option_type_id: optTypeStorage, value: '256GB', label: '256 GB', sort_order: 2 },
-  ]);
+  await db.run(sql`
+    INSERT INTO product_option_values (id, option_type_id, value, label, sort_order) VALUES
+      (${optValBlack}, ${optTypeColor}, 'black', 'Negru', 1),
+      (${optValWhite}, ${optTypeColor}, 'white', 'Alb', 2),
+      (${optVal128}, ${optTypeStorage}, '128GB', '128 GB', 1),
+      (${optVal256}, ${optTypeStorage}, '256GB', '256 GB', 2)
+  `);
 
-  await db.insert(translations).values([
-    { id: crypto.randomUUID(), entity_type: 'option_value', entity_id: optValBlack, locale: 'en', name: null, description: null, slug: null, label: 'Black' },
-    { id: crypto.randomUUID(), entity_type: 'option_value', entity_id: optValWhite, locale: 'en', name: null, description: null, slug: null, label: 'White' },
-    { id: crypto.randomUUID(), entity_type: 'option_value', entity_id: optVal128, locale: 'en', name: null, description: null, slug: null, label: '128 GB' },
-    { id: crypto.randomUUID(), entity_type: 'option_value', entity_id: optVal256, locale: 'en', name: null, description: null, slug: null, label: '256 GB' },
-  ]);
+  await db.run(sql`
+    INSERT INTO translations (id, entity_type, entity_id, locale, name, description, slug, label) VALUES
+      (${crypto.randomUUID()}, 'option_value', ${optValBlack}, 'en', NULL, NULL, NULL, 'Black'),
+      (${crypto.randomUUID()}, 'option_value', ${optValWhite}, 'en', NULL, NULL, NULL, 'White'),
+      (${crypto.randomUUID()}, 'option_value', ${optVal128}, 'en', NULL, NULL, NULL, '128 GB'),
+      (${crypto.randomUUID()}, 'option_value', ${optVal256}, 'en', NULL, NULL, NULL, '256 GB')
+  `);
 
   const varBlack128 = crypto.randomUUID();
   const varWhite256 = crypto.randomUUID();
 
-  await db.insert(product_variants).values([
-    { id: varBlack128, product_id: prodVariant, sku: 'SMX-BLK-128', stock: 50, active: true },
-    { id: varWhite256, product_id: prodVariant, sku: 'SMX-WHT-256', stock: 30, active: true },
-  ]);
+  await db.run(sql`
+    INSERT INTO product_variants (id, product_id, sku, stock, active) VALUES
+      (${varBlack128}, ${prodVariant}, 'SMX-BLK-128', 50, 1),
+      (${varWhite256}, ${prodVariant}, 'SMX-WHT-256', 30, 1)
+  `);
 
-  await db.insert(product_variant_option_values).values([
-    { id: crypto.randomUUID(), variant_id: varBlack128, option_value_id: optValBlack },
-    { id: crypto.randomUUID(), variant_id: varBlack128, option_value_id: optVal128 },
-    { id: crypto.randomUUID(), variant_id: varWhite256, option_value_id: optValWhite },
-    { id: crypto.randomUUID(), variant_id: varWhite256, option_value_id: optVal256 },
-  ]);
+  await db.run(sql`
+    INSERT INTO product_variant_option_values (id, variant_id, option_value_id) VALUES
+      (${crypto.randomUUID()}, ${varBlack128}, ${optValBlack}),
+      (${crypto.randomUUID()}, ${varBlack128}, ${optVal128}),
+      (${crypto.randomUUID()}, ${varWhite256}, ${optValWhite}),
+      (${crypto.randomUUID()}, ${varWhite256}, ${optVal256})
+  `);
 
-  await db.insert(product_prices).values([
-    { id: crypto.randomUUID(), product_id: null, variant_id: varBlack128, currency: 'RON', price_net: 25000 },
-    { id: crypto.randomUUID(), product_id: null, variant_id: varBlack128, currency: 'EUR', price_net: 5000 },
-    { id: crypto.randomUUID(), product_id: null, variant_id: varWhite256, currency: 'RON', price_net: 30000 },
-    { id: crypto.randomUUID(), product_id: null, variant_id: varWhite256, currency: 'EUR', price_net: 6000 },
-  ]);
+  await db.run(sql`
+    INSERT INTO product_prices (id, product_id, variant_id, currency, price_net) VALUES
+      (${crypto.randomUUID()}, NULL, ${varBlack128}, 'RON', 25000),
+      (${crypto.randomUUID()}, NULL, ${varBlack128}, 'EUR', 5000),
+      (${crypto.randomUUID()}, NULL, ${varWhite256}, 'RON', 30000),
+      (${crypto.randomUUID()}, NULL, ${varWhite256}, 'EUR', 6000)
+  `);
 
   console.log('[Plugin:pelerin_ro_shop] Seeded products and categories.');
 
   // ─── Vouchers ───
-  await db.insert(vouchers).values([
-    { id: crypto.randomUUID(), code: 'SAVE10', type: 'fixed_amount', value: 1000, min_order_value: 5000, max_uses: 100, uses_count: 0, valid_from: null, valid_until: null, single_use_per_customer: false, active: true, created_at: new Date(), updated_at: new Date() },
-    { id: crypto.randomUUID(), code: 'PCT20', type: 'percentage', value: 20, min_order_value: null, max_uses: null, uses_count: 0, valid_from: null, valid_until: null, single_use_per_customer: true, active: true, created_at: new Date(), updated_at: new Date() },
-    { id: crypto.randomUUID(), code: 'FREESHIP', type: 'free_shipping', value: null, min_order_value: 10000, max_uses: 50, uses_count: 0, valid_from: null, valid_until: null, single_use_per_customer: false, active: true, created_at: new Date(), updated_at: new Date() },
-  ]);
+  await db.run(sql`
+    INSERT INTO vouchers (id, code, type, value, min_order_value, max_uses, uses_count, valid_from, valid_until, single_use_per_customer, active, created_at, updated_at) VALUES
+      (${crypto.randomUUID()}, 'SAVE10', 'fixed_amount', 1000, 5000, 100, 0, NULL, NULL, 0, 1, ${new Date().toISOString()}, ${new Date().toISOString()}),
+      (${crypto.randomUUID()}, 'PCT20', 'percentage', 20, NULL, NULL, 0, NULL, NULL, 1, 1, ${new Date().toISOString()}, ${new Date().toISOString()}),
+      (${crypto.randomUUID()}, 'FREESHIP', 'free_shipping', NULL, 10000, 50, 0, NULL, NULL, 0, 1, ${new Date().toISOString()}, ${new Date().toISOString()})
+  `);
 
   // ─── Referral codes ───
-  await db.insert(referral_codes).values([
-    { id: crypto.randomUUID(), code: 'PARTNER10', name: 'Partner A', discount_type: 'percentage', discount_value: 10, active: true, notes: null, created_at: new Date(), updated_at: new Date() },
-  ]);
+  await db.run(sql`
+    INSERT INTO referral_codes (id, code, name, discount_type, discount_value, active, notes, created_at, updated_at) VALUES
+      (${crypto.randomUUID()}, 'PARTNER10', 'Partner A', 'percentage', 10, 1, NULL, ${new Date().toISOString()}, ${new Date().toISOString()})
+  `);
 
   console.log('[Plugin:pelerin_ro_shop] Seeded vouchers and referral codes.');
 }
