@@ -10,7 +10,7 @@ const orderId = Astro.params.id;
 ---
 
 <AdminLayout title={`Order #${orderId}`} currentPath="/admin/plugins/shop/orders" user={user}>
-  <div id="order-detail" class="p-6">
+  <div id="order-detail" class="col-span-12 p-6">
     <div class="text-center py-8 text-gray-500">Loading order...</div>
   </div>
 </AdminLayout>

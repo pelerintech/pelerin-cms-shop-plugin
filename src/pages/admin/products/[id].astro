@@ -1,15 +1,20 @@
 ---
-// Admin: edit product (tabbed)
+// Admin: edit product
 // Route: /admin/plugins/shop/products/[id]
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import {
   db, eq,
   products, categories, translations, product_prices, product_images,
-  product_variants, product_variant_option_values, product_option_values,
-  product_option_types,
   sql as dbSql,
+  shop_settings,
 } from 'astro:db';
+import Breadcrumbs from '../../../components/admin/Breadcrumbs.astro';
+import TextField from '../../../components/admin/TextField.astro';
+import SelectField from '../../../components/admin/SelectField.astro';
+import CheckboxField from '../../../components/admin/CheckboxField.astro';
+import RichTextEditor from '../../../components/admin/RichTextEditor.astro';
+import ImageUpload from '../../../components/admin/ImageUpload.astro';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
@@ -22,6 +27,7 @@ if (!product) {
 }
 
 const catList = await db.select().from(categories).orderBy(categories.name);
+const catOptions = catList.map(c => ({ value: c.id, label: c.name }));
 
 // Fetch translations
 const transRows = await db.select().from(translations).where(
@@ -30,7 +36,7 @@ const transRows = await db.select().from(translations).where(
 
 // Fetch prices
 const priceRows = await db.select().from(product_prices).where(
-  dbSql`${product_prices.product_id} = ${id} OR ${product_prices.variant_id} IN (SELECT id FROM product_variants WHERE product_id = ${id})`
+  dbSql`${product_prices.product_id} = ${id}`
 );
 
 // Fetch images
@@ -38,412 +44,276 @@ const imageRows = await db.select().from(product_images)
   .where(eq(product_images.product_id, id))
   .orderBy(product_images.sort_order);
 
-// Fetch option types
-const optionTypeRows = await db.select().from(product_option_types)
-  .where(eq(product_option_types.product_id, id))
-  .orderBy(product_option_types.sort_order);
+// Fetch locales from settings
+const localesResult = await db.run(
+  dbSql`SELECT ${shop_settings.value} FROM ${shop_settings} WHERE ${shop_settings.key} = 'locales' LIMIT 1`
+);
+let locales: { code: string; name: string; isDefault: boolean }[] = [];
+if (localesResult.rows.length > 0) {
+  try {
+    locales = JSON.parse((localesResult.rows[0] as any).value);
+  } catch {}
+}
+const defaultLocale = locales.find(l => l.isDefault)?.code || 'ro';
+const otherLocales = locales.filter(l => !l.isDefault);
 
-// Fetch option values
-let optionValueRows: any[] = [];
-if (optionTypeRows.length > 0) {
-  const otIds = optionTypeRows.map(ot => ot.id);
-  const ovResult = await db.run(
-    dbSql`SELECT * FROM ${product_option_values} WHERE ${product_option_values.option_type_id} IN (${dbSql.join(otIds.map(oid => dbSql`${oid}`))}) ORDER BY ${product_option_values.sort_order}`
-  );
-  optionValueRows = ovResult.rows as any[];
+// Fetch currencies from settings
+const currenciesResult = await db.run(
+  dbSql`SELECT ${shop_settings.value} FROM ${shop_settings} WHERE ${shop_settings.key} = 'currencies' LIMIT 1`
+);
+let currencies: { code: string; name: string; isDefault: boolean }[] = [];
+if (currenciesResult.rows.length > 0) {
+  try {
+    currencies = JSON.parse((currenciesResult.rows[0] as any).value);
+  } catch {}
 }
 
-// Fetch variants
-const variantRows = await db.select().from(product_variants)
-  .where(eq(product_variants.product_id, id));
-
-let variantOptionValues: any[] = [];
-let variantPrices: any[] = [];
-if (variantRows.length > 0) {
-  const vIds = variantRows.map(v => v.id);
-  const vovResult = await db.run(
-    dbSql`SELECT * FROM ${product_variant_option_values} WHERE ${product_variant_option_values.variant_id} IN (${dbSql.join(vIds.map(vid => dbSql`${vid}`))})`
-  );
-  variantOptionValues = vovResult.rows as any[];
-
-  const vpResult = await db.run(
-    dbSql`SELECT * FROM ${product_prices} WHERE ${product_prices.variant_id} IN (${dbSql.join(vIds.map(vid => dbSql`${vid}`))})`
-  );
-  variantPrices = vpResult.rows as any[];
+// Map existing translations by locale
+const translationByLocale: Record<string, any> = {};
+for (const t of transRows as any[]) {
+  translationByLocale[t.locale] = t;
 }
-
-// Tab from query param
-const tab = Astro.url.searchParams.get('tab') || 'general';
 ---
 
 <AdminLayout title={`Edit: ${product.name}`} currentPath="/admin/plugins/shop/products" user={user}>
-  <div class="col-span-12">
-    <div class="flex items-center gap-4 mb-6">
-      <a href="/admin/plugins/shop/products" class="btn btn-ghost btn-sm">&larr; Back</a>
+  <Breadcrumbs items={[
+    { label: 'Shop', href: '/admin/plugins/shop' },
+    { label: 'Products', href: '/admin/plugins/shop/products' },
+    { label: `Edit: ${product.name}` },
+  ]} />
+
+  <div class="flex items-center justify-between col-span-12 mb-4">
+    <div>
       <h1 class="text-2xl font-bold">Edit: {product.name}</h1>
+      <p class="text-base-content/60 text-xs font-mono">ID: {product.id}</p>
     </div>
-
-    <!-- Tabs -->
-    <div class="tabs tabs-boxed mb-6">
-      <a href={`/admin/plugins/shop/products/${id}?tab=general`} class={`tab ${tab === 'general' ? 'tab-active' : ''}`}>General</a>
-      <a href={`/admin/plugins/shop/products/${id}?tab=translations`} class={`tab ${tab === 'translations' ? 'tab-active' : ''}`}>Translations</a>
-      <a href={`/admin/plugins/shop/products/${id}?tab=prices`} class={`tab ${tab === 'prices' ? 'tab-active' : ''}`}>Prices</a>
-      <a href={`/admin/plugins/shop/products/${id}?tab=images`} class={`tab ${tab === 'images' ? 'tab-active' : ''}`}>Images</a>
-      <a href={`/admin/plugins/shop/products/${id}?tab=options`} class={`tab ${tab === 'options' ? 'tab-active' : ''}`}>Options & Variants</a>
-    </div>
-
-    <!-- General Tab -->
-    {tab === 'general' && (
-      <div class="max-w-2xl">
-        <form id="general-form" class="space-y-4">
-          <div class="form-control">
-            <label class="label"><span class="label-text">Name (RO) *</span></label>
-            <input type="text" name="name" class="input input-bordered" value={product.name} required />
-          </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">Slug *</span></label>
-            <input type="text" name="slug" class="input input-bordered" value={product.slug} required />
-          </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">SKU</span></label>
-            <input type="text" name="sku" class="input input-bordered" value={product.sku || ''} />
-          </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">Description (RO)</span></label>
-            <textarea name="description" class="textarea textarea-bordered h-24">{product.description || ''}</textarea>
-          </div>
-          <div class="grid grid-cols-2 gap-4">
-            <div class="form-control">
-              <label class="label"><span class="label-text">Type *</span></label>
-              <select name="type" class="select select-bordered">
-                <option value="physical" selected={product.type === 'physical'}>Physical</option>
-                <option value="digital" selected={product.type === 'digital'}>Digital</option>
-              </select>
-            </div>
-            <div class="form-control">
-              <label class="label"><span class="label-text">Category</span></label>
-              <select name="category_id" class="select select-bordered">
-                <option value="">None</option>
-                {catList.map(c => (
-                  <option value={c.id} selected={product.category_id === c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div class="grid grid-cols-2 gap-4">
-            <div class="form-control">
-              <label class="label"><span class="label-text">VAT Rate</span></label>
-              <input type="number" name="vat_rate" class="input input-bordered" step="0.01" min="0" max="1" value={product.vat_rate || ''} />
-            </div>
-            <div class="form-control">
-              <label class="label"><span class="label-text">Stock</span></label>
-              <input type="number" name="stock" class="input input-bordered" min="0" value={product.stock || ''} />
-            </div>
-          </div>
-          <label class="cursor-pointer label justify-start gap-4">
-            <input type="checkbox" name="active" class="checkbox" checked={product.active} />
-            <span class="label-text">Active</span>
-          </label>
-          <div id="general-error" class="alert alert-error hidden"></div>
-          <button type="submit" class="btn btn-primary">Save Changes</button>
-        </form>
-        <script>
-          document.getElementById('general-form')!.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const fd = new FormData(e.target as HTMLFormElement);
-            const data: Record<string, any> = {
-              name: fd.get('name'), slug: fd.get('slug'),
-              sku: fd.get('sku') || null, description: fd.get('description') || null,
-              type: fd.get('type'), category_id: fd.get('category_id') || null,
-              vat_rate: fd.get('vat_rate') ? parseFloat(fd.get('vat_rate') as string) : null,
-              stock: fd.get('stock') ? parseInt(fd.get('stock') as string) : null,
-              active: fd.get('active') === 'on',
-            };
-            const res = await fetch(`/api/plugins/shop/products/${id}`, {
-              method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
-            });
-            const result = await res.json();
-            if (result.success) location.reload();
-            else {
-              const err = document.getElementById('general-error')!;
-              err.textContent = result.error || 'Failed to save';
-              err.classList.remove('hidden');
-            }
-          });
-        </script>
-      </div>
-    )}
-
-    <!-- Translations Tab -->
-    {tab === 'translations' && (
-      <div class="max-w-2xl">
-        <h2 class="text-lg font-semibold mb-4">Translations</h2>
-        {['ro', 'en'].map(locale => {
-          const t = (transRows as any[]).find(tr => tr.locale === locale);
-          return (
-            <div class="card bg-base-200 mb-4 p-4">
-              <h3 class="font-medium mb-2">{locale === 'ro' ? 'Română (RO)' : 'English (EN)'}</h3>
-              <div class="space-y-3" data-translation-locale={locale}>
-                <div class="form-control">
-                  <label class="label"><span class="label-text">Name</span></label>
-                  <input type="text" class="input input-bordered trans-name" value={t?.name || ''} placeholder="Name" />
-                </div>
-                <div class="form-control">
-                  <label class="label"><span class="label-text">Description</span></label>
-                  <textarea class="textarea textarea-bordered h-20 trans-desc" placeholder="Description">{t?.description || ''}</textarea>
-                </div>
-                <div class="form-control">
-                  <label class="label"><span class="label-text">Slug</span></label>
-                  <input type="text" class="input input-bordered trans-slug" value={t?.slug || ''} placeholder="slug" />
-                </div>
-                <button class="btn btn-sm btn-outline save-translation" data-locale={locale}>Save {locale.toUpperCase()}</button>
-                <span class={`text-success text-sm hidden trans-ok-${locale}`}>Saved!</span>
-              </div>
-            </div>
-          );
-        })}
-        <script>
-          document.querySelectorAll('.save-translation').forEach(btn => {
-            btn.addEventListener('click', async () => {
-              const locale = (btn as HTMLElement).dataset.locale!;
-              const container = document.querySelector(`[data-translation-locale="${locale}"]`)!;
-              const name = (container.querySelector('.trans-name') as HTMLInputElement).value;
-              const description = (container.querySelector('.trans-desc') as HTMLTextAreaElement).value;
-              const slug = (container.querySelector('.trans-slug') as HTMLInputElement).value;
-              const res = await fetch(`/api/plugins/shop/products/${id}/translations/${locale}`, {
-                method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: name || null, description: description || null, slug: slug || null }),
-              });
-              if ((await res.json()).success) {
-                const ok = document.querySelector(`.trans-ok-${locale}`)!;
-                ok.classList.remove('hidden');
-                setTimeout(() => ok.classList.add('hidden'), 2000);
-              }
-            });
-          });
-        </script>
-      </div>
-    )}
-
-    <!-- Prices Tab -->
-    {tab === 'prices' && (
-      <div class="max-w-2xl">
-        <h2 class="text-lg font-semibold mb-4">Prices</h2>
-        <div id="prices-container">
-          <table class="table table-zebra w-full">
-            <thead>
-              <tr><th>Currency</th><th>Target</th><th>Price (net)</th><th /></tr>
-            </thead>
-            <tbody>
-              {(priceRows as any[]).map(p => (
-                <tr>
-                  <td>{p.currency}</td>
-                  <td>{p.product_id ? 'Product' : `Variant: ${p.variant_id?.slice(0,8)}...`}</td>
-                  <td><input type="number" class="input input-bordered input-sm w-32 price-input" data-id={p.id} value={p.price_net} step="0.01" min="0" /></td>
-                  <td><button class="btn btn-ghost btn-xs save-price" data-id={p.id} data-currency={p.currency} data-product-id={p.product_id || ''} data-variant-id={p.variant_id || ''}>Save</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p class="text-sm text-base-content/60 mt-2">Add new prices via the bulk price API endpoint.</p>
-        </div>
-        <script>
-          document.querySelectorAll('.save-price').forEach(btn => {
-            btn.addEventListener('click', async () => {
-              const el = btn as HTMLElement;
-              const priceId = el.dataset.id!;
-              const currency = el.dataset.currency!;
-              const productId = el.dataset.productId || null;
-              const variantId = el.dataset.variantId || null;
-              const input = document.querySelector(`.price-input[data-id="${priceId}"]`) as HTMLInputElement;
-              const priceNet = parseFloat(input.value);
-              const res = await fetch(`/api/plugins/shop/products/${id}/prices`, {
-                method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prices: [{ product_id: productId, variant_id: variantId, currency, price_net: priceNet }] }),
-              });
-              if ((await res.json()).success) location.reload();
-            });
-          });
-        </script>
-      </div>
-    )}
-
-    <!-- Images Tab -->
-    {tab === 'images' && (
-      <div class="max-w-2xl">
-        <h2 class="text-lg font-semibold mb-4">Images</h2>
-        <div class="grid grid-cols-3 gap-4 mb-6">
-          {(imageRows as any[]).map(img => (
-            <div class="card bg-base-200 p-2">
-              <img src={img.url} alt={img.alt || ''} class="w-full h-32 object-cover rounded" />
-              <p class="text-xs truncate mt-1">{img.url}</p>
-              <button class="btn btn-error btn-xs mt-1 w-full delete-image" data-id={img.id}>Delete</button>
-            </div>
-          ))}
-        </div>
-        <form id="image-upload-form" class="space-y-3">
-          <div class="form-control">
-            <label class="label"><span class="label-text">Upload Image</span></label>
-            <input type="file" name="file" class="file-input file-input-bordered" accept="image/*" />
-          </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">Alt text</span></label>
-            <input type="text" name="alt" class="input input-bordered" placeholder="Image description" />
-          </div>
-          <div id="image-error" class="alert alert-error hidden"></div>
-          <button type="submit" class="btn btn-primary">Upload</button>
-        </form>
-        <script>
-          document.getElementById('image-upload-form')!.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const fd = new FormData(e.target as HTMLFormElement);
-            const res = await fetch(`/api/plugins/shop/products/${id}/images`, { method: 'POST', body: fd });
-            if ((await res.json()).success) location.reload();
-            else { document.getElementById('image-error')!.classList.remove('hidden'); }
-          });
-          document.querySelectorAll('.delete-image').forEach(btn => {
-            btn.addEventListener('click', async () => {
-              const imageId = (btn as HTMLElement).dataset.id!;
-              if (!confirm('Delete this image?')) return;
-              await fetch(`/api/plugins/shop/products/${id}/images/${imageId}`, { method: 'DELETE' });
-              location.reload();
-            });
-          });
-        </script>
-      </div>
-    )}
-
-    <!-- Options & Variants Tab -->
-    {tab === 'options' && (
-      <div class="max-w-2xl">
-        <h2 class="text-lg font-semibold mb-4">Options & Variants</h2>
-
-        <!-- Option Types -->
-        <div class="mb-6">
-          <h3 class="font-medium mb-2">Option Types</h3>
-          {optionTypeRows.map(ot => {
-            const values = optionValueRows.filter(v => v.option_type_id === ot.id);
-            return (
-              <div class="card bg-base-200 p-3 mb-2">
-                <div class="flex justify-between items-center">
-                  <span class="font-medium">{ot.label} <span class="text-xs text-base-content/50">({ot.value_type})</span></span>
-                  <button class="btn btn-error btn-xs delete-option-type" data-id={ot.id}>Delete</button>
-                </div>
-                <div class="flex flex-wrap gap-1 mt-2">
-                  {values.map(v => (
-                    <span class="badge badge-sm">{v.label} <button class="ml-1 delete-option-value" data-id={v.id} data-option-type-id={v.option_type_id}>&times;</button></span>
-                  ))}
-                </div>
-                <form class="flex gap-2 mt-2 add-value-form" data-option-type={ot.id}>
-                  <input type="text" class="input input-bordered input-sm flex-1 add-value-input" placeholder="New value label" required />
-                  <input type="text" class="input input-bordered input-sm w-24 add-value-code" placeholder="Code" required />
-                  <button type="submit" class="btn btn-xs btn-outline">Add</button>
-                </form>
-              </div>
-            );
-          })}
-          <form id="add-option-type" class="flex gap-2 mt-3">
-            <input type="text" name="label" class="input input-bordered input-sm" placeholder="Option name" required />
-            <select name="value_type" class="select select-bordered select-sm">
-              <option value="short_text">Short Text</option>
-              <option value="long_text">Long Text</option>
-              <option value="number">Number</option>
-            </select>
-            <button type="submit" class="btn btn-xs btn-primary">Add Option</button>
-          </form>
-        </div>
-
-        <!-- Variants -->
-        <div>
-          <h3 class="font-medium mb-2">Variants</h3>
-          {variantRows.length > 0 ? (
-            variantRows.map(v => {
-              const vov = variantOptionValues.filter(vo => vo.variant_id === v.id);
-              const vp = variantPrices.filter(p => p.variant_id === v.id);
-              return (
-                <div class="card bg-base-200 p-3 mb-2">
-                  <div class="flex justify-between items-center">
-                    <span class="font-medium">{v.sku || 'No SKU'}</span>
-                    <button class="btn btn-error btn-xs delete-variant" data-id={v.id}>Delete</button>
-                  </div>
-                  <div class="text-sm text-base-content/60">
-                    Options: {vov.map(vo => {
-                      const ov = optionValueRows.find(o => o.id === vo.option_value_id);
-                      return ov?.label || '?';
-                    }).join(', ')}
-                  </div>
-                  <div class="text-sm">Stock: {v.stock ?? '-'} | Active: {v.active ? 'Yes' : 'No'}</div>
-                  {vp.length > 0 && (
-                    <div class="text-sm">Prices: {vp.map(p => `${p.currency} ${p.price_net}`).join(', ')}</div>
-                  )}
-                </div>
-              );
-            })
-          ) : (
-            <p class="text-sm text-base-content/60">No variants yet. Add option types and values, then create variants via the API.</p>
-          )}
-        </div>
-
-        <script>
-          // Add option type
-          document.getElementById('add-option-type')!.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const fd = new FormData(e.target as HTMLFormElement);
-            await fetch(`/api/plugins/shop/products/${id}/options`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ label: fd.get('label'), value_type: fd.get('value_type'), sort_order: 0 }),
-            });
-            location.reload();
-          });
-
-          // Delete option type
-          document.querySelectorAll('.delete-option-type').forEach(btn => {
-            btn.addEventListener('click', async () => {
-              if (!confirm('Delete this option type?')) return;
-              const otId = (btn as HTMLElement).dataset.id!;
-              await fetch(`/api/plugins/shop/products/${id}/options/${otId}`, { method: 'DELETE' });
-              location.reload();
-            });
-          });
-
-          // Add option value
-          document.querySelectorAll('.add-value-form').forEach(form => {
-            form.addEventListener('submit', async (e) => {
-              e.preventDefault();
-              const otId = (form as HTMLElement).dataset.optionType!;
-              const label = (form.querySelector('.add-value-input') as HTMLInputElement).value;
-              const value = (form.querySelector('.add-value-code') as HTMLInputElement).value;
-              await fetch(`/api/plugins/shop/products/${id}/options/${otId}/values`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ value, label, sort_order: 0 }),
-              });
-              location.reload();
-            });
-          });
-
-          // Delete option value
-          document.querySelectorAll('.delete-option-value').forEach(btn => {
-            btn.addEventListener('click', async () => {
-              if (!confirm('Delete this value?')) return;
-              const el = btn as HTMLElement;
-              const ovId = el.dataset.id!;
-              const otId = el.dataset.optionTypeId!;
-              await fetch(`/api/plugins/shop/products/${id}/options/${otId}/values/${ovId}`, { method: 'DELETE' });
-              location.reload();
-            });
-          });
-
-          // Delete variant
-          document.querySelectorAll('.delete-variant').forEach(btn => {
-            btn.addEventListener('click', async () => {
-              if (!confirm('Delete this variant?')) return;
-              const vId = (btn as HTMLElement).dataset.id!;
-              await fetch(`/api/plugins/shop/products/${id}/variants/${vId}`, { method: 'DELETE' });
-              location.reload();
-            });
-          });
-        </script>
-      </div>
-    )}
+    <a href="/admin/plugins/shop/products" class="btn btn-ghost">Back</a>
   </div>
+
+  <div class="card bg-base-100 shadow-lg col-span-12">
+    <div class="card-body">
+      <form id="product-form" class="space-y-6" data-product-id={product.id} data-default-locale={defaultLocale} data-locale-codes={JSON.stringify(otherLocales.map(l => l.code))}>
+
+        <!-- Section: General -->
+        <div class="card bg-base-200/50">
+          <div class="card-body pb-4">
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">General</h4>
+            <div class="grid grid-cols-2 gap-4">
+              <TextField name="sku" label="SKU" value={product.sku || ''} />
+              <SelectField name="type" label="Type" value={product.type} required options={[
+                { value: 'physical', label: 'Physical' },
+                { value: 'digital', label: 'Digital' },
+              ]} />
+              <SelectField name="category_id" label="Category" value={product.category_id || ''} placeholder="None" options={catOptions} />
+              <TextField name="vat_rate" label="VAT Rate" type="number" step="0.01" min="0" max="1" value={product.vat_rate || ''} />
+              <TextField name="stock" label="Stock" type="number" min="0" value={product.stock || ''} />
+              <div class="flex items-end pb-2">
+                <CheckboxField name="active" label="Active" checked={product.active} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Content (locales from settings) -->
+        <div class="card bg-base-200/50">
+          <div class="card-body pb-4">
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Content</h4>
+            <div class="space-y-6">
+
+              <!-- Default locale -->
+              <div>
+                <h5 class="font-medium text-sm mb-3">{defaultLocale.toUpperCase()} (default)</h5>
+                <div class="space-y-4">
+                  <TextField name="name" label={`Name (${defaultLocale.toUpperCase()})`} value={product.name} required />
+                  <TextField name="slug" label={`Slug (${defaultLocale.toUpperCase()})`} value={product.slug} required />
+                  <RichTextEditor name="description" label={`Description (${defaultLocale.toUpperCase()})`} value={product.description || ''} />
+                </div>
+              </div>
+
+              <!-- Other locales -->
+              {otherLocales.map(locale => {
+                const t = translationByLocale[locale.code];
+                return (
+                  <div class="border-t border-base-300 pt-4">
+                    <h5 class="font-medium text-sm mb-3">{locale.name} ({locale.code.toUpperCase()})</h5>
+                    <div class="space-y-4">
+                      <TextField name={`name_${locale.code}`} label={`Name (${locale.code.toUpperCase()})`} value={t?.name || ''} />
+                      <TextField name={`slug_${locale.code}`} label={`Slug (${locale.code.toUpperCase()})`} value={t?.slug || ''} />
+                      <RichTextEditor name={`description_${locale.code}`} label={`Description (${locale.code.toUpperCase()})`} value={t?.description || ''} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Images -->
+        <div class="card bg-base-200/50">
+          <div class="card-body pb-4">
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Images</h4>
+            <ImageUpload
+              productId={product.id}
+              existingFiles={(imageRows as any[]).map(img => ({
+                id: img.id,
+                url: img.url,
+                alt: img.alt || '',
+                sort_order: img.sort_order,
+              }))}
+            />
+          </div>
+        </div>
+
+        <!-- Section: Prices -->
+        <div class="card bg-base-200/50">
+          <div class="card-body pb-4">
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Prices</h4>
+            <div class="overflow-x-auto">
+              <table class="table table-zebra w-full">
+                <thead>
+                  <tr><th>Currency</th><th>Price (net)</th><th /></tr>
+                </thead>
+                <tbody id="prices-table-body">
+                  {(priceRows as any[]).map(p => (
+                    <tr data-price-id={p.id}>
+                      <td><code class="text-sm">{p.currency}</code></td>
+                      <td class="text-right font-mono">{p.price_net}</td>
+                      <td>
+                        <button type="button" class="btn btn-ghost btn-xs text-error delete-price" data-id={p.id}>×</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div class="mt-3">
+              <button type="button" class="btn btn-sm btn-outline" id="open-price-modal">Add Price</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="form-error" class="alert alert-error hidden"></div>
+
+        <div class="flex justify-end gap-2 pt-4 border-t border-base-200">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Price add modal (outside the form to avoid nesting) -->
+  <dialog id="price-modal" class="modal">
+    <div class="modal-box max-w-sm">
+      <h3 class="font-bold text-lg mb-4">Add Price</h3>
+      <form id="add-price-form-inner" class="space-y-4">
+        <SelectField name="price_currency" label="Currency" required options={
+          currencies.map(c => ({ value: c.code, label: `${c.code} — ${c.name}` }))
+        } />
+        <TextField name="price_net" label="Price (net)" type="number" step="0.01" min="0" required />
+        <div id="price-error" class="text-error text-sm hidden"></div>
+        <div class="flex justify-end gap-2 pt-4 border-t border-base-200">
+          <button type="button" class="btn btn-ghost" onclick="document.getElementById('price-modal').close()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Price</button>
+        </div>
+      </form>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
 </AdminLayout>
+
+<script>
+  // Read product ID and source page from data attribute / URL
+  const PRODUCT_ID = document.querySelector('[data-product-id]')?.getAttribute('data-product-id') || '';
+  const FROM_PAGE = new URLSearchParams(window.location.search).get('from_page') || '1';
+  const productForm = document.getElementById('product-form') as HTMLFormElement;
+  const formError = document.getElementById('form-error') as HTMLDivElement;
+
+  productForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    formError.classList.add('hidden');
+
+    const fd = new FormData(e.target as HTMLFormElement);
+    const data: Record<string, any> = {
+      name: fd.get('name'),
+      slug: fd.get('slug'),
+      sku: fd.get('sku') || null,
+      description: fd.get('description') || null,
+      type: fd.get('type'),
+      category_id: fd.get('category_id') || null,
+      vat_rate: fd.get('vat_rate') ? parseFloat(fd.get('vat_rate') as string) : null,
+      stock: fd.get('stock') ? parseInt(fd.get('stock') as string) : null,
+      active: fd.get('active') === 'on',
+      default_locale: document.getElementById('product-form')?.dataset?.defaultLocale || 'ro',
+    };
+
+    // Include all locale fields (name_en, slug_en, description_en, etc.)
+    const localeCodes: string[] = JSON.parse(document.getElementById('product-form')?.dataset?.localeCodes || '[]');
+    for (const loc of localeCodes) {
+      const nameVal = fd.get(`name_${loc}`);
+      const slugVal = fd.get(`slug_${loc}`);
+      const descVal = fd.get(`description_${loc}`);
+      if (nameVal) data[`name_${loc}`] = nameVal;
+      if (slugVal) data[`slug_${loc}`] = slugVal;
+      if (descVal) data[`description_${loc}`] = descVal;
+    }
+
+    const res = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+    });
+    const result = await res.json();
+
+    if (result.success) {
+      window.location.href = `/admin/plugins/shop/products?page=${FROM_PAGE}`;
+    } else {
+      formError.textContent = result.error || 'Failed to save';
+      formError.classList.remove('hidden');
+    }
+  });
+
+  // ── Prices: delete ──
+  document.querySelectorAll('.delete-price').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Delete this price?')) return;
+      const priceId = (btn as HTMLElement).dataset.id!;
+      const res = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/prices`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priceId }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        location.reload();
+      } else {
+        alert(result.error || 'Failed to delete price');
+      }
+    });
+  });
+
+  // ── Price modal ──
+  document.getElementById('open-price-modal')!.addEventListener('click', () => {
+    (document.getElementById('price-modal') as HTMLDialogElement).showModal();
+  });
+
+  document.getElementById('add-price-form-inner')!.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target as HTMLFormElement);
+    const priceErr = document.getElementById('price-error')!;
+    priceErr.classList.add('hidden');
+
+    const currency = fd.get('price_currency') as string;
+    const priceNet = parseFloat(fd.get('price_net') as string);
+
+    const res = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/prices`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prices: [{ product_id: PRODUCT_ID, variant_id: null, currency, price_net: priceNet }] }),
+    });
+    const result = await res.json();
+    if (result.success) {
+      (document.getElementById('price-modal') as HTMLDialogElement).close();
+      location.reload();
+    } else {
+      priceErr.textContent = result.error || 'Failed to add price';
+      priceErr.classList.remove('hidden');
+    }
+  });
+</script>

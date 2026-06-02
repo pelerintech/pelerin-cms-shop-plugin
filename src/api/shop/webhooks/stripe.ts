@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { handleWebhook } from '../../../providers/payment/stripe.ts';
+import { handleWebhook } from '../../../providers/payment/stripe'
 
 /**
  * Stripe webhook endpoint — receives events from Stripe.

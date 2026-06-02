@@ -83,4 +83,20 @@ describe('Orders list API', () => {
     const content = readFileSync(ORDERS_PATH, 'utf-8');
     assert.match(content, /sort|dir|ORDER BY|order by/, 'Should support sorting');
   });
+
+  // GREEN assertions — confirm the fix uses dbSql tagged templates
+  it('uses dbSql tagged template for count query', () => {
+    const content = readFileSync(ORDERS_PATH, 'utf-8');
+    assert.match(content, /dbSql`SELECT COUNT\(\*\) as total FROM/, 'Should use dbSql for count query');
+  });
+
+  it('uses dbSql tagged template for data query', () => {
+    const content = readFileSync(ORDERS_PATH, 'utf-8');
+    assert.match(content, /dbSql`SELECT \* FROM \$\{orders\}/, 'Should use dbSql for data query');
+  });
+
+  it('uses dbSql.join for combining conditions', () => {
+    const content = readFileSync(ORDERS_PATH, 'utf-8');
+    assert.match(content, /dbSql\.join\(conditions/, 'Should use dbSql.join for conditions');
+  });
 });

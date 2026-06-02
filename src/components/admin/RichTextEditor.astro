@@ -1,0 +1,245 @@
+---
+interface Props {
+  name: string;
+  value?: string;
+  label?: string;
+  required?: boolean;
+}
+
+const { name, value = '', label = '', required = false } = Astro.props;
+
+// Generate a unique ID for multiple editors on the same page
+const editorId = `${name}-${Math.random().toString(36).substring(2, 9)}`;
+---
+
+<div class="form-control" data-field-type="rich-text">
+  {
+    label && (
+      <label class="label">
+        <span class="label-text font-medium">
+          {label}
+          {required && <span class="text-error ml-1">*</span>}
+        </span>
+      </label>
+    )
+  }
+
+  <div class="border border-base-300 rounded-lg overflow-hidden">
+    <div class="flex border-b border-base-300 bg-base-200 p-2 gap-1 flex-wrap">
+      <button
+        type="button"
+        class="btn btn-xs btn-ghost"
+        onclick="insertMarkdown('**', '**')"
+        title="Bold"
+      >
+        <strong>B</strong>
+      </button>
+      <button
+        type="button"
+        class="btn btn-xs btn-ghost"
+        onclick="insertMarkdown('*', '*')"
+        title="Italic"
+      >
+        <em>I</em>
+      </button>
+      <button
+        type="button"
+        class="btn btn-xs btn-ghost"
+        onclick="insertMarkdown('### ', '')"
+        title="Heading"
+      >
+        H
+      </button>
+      <button
+        type="button"
+        class="btn btn-xs btn-ghost"
+        onclick="insertMarkdown('[', '](url)')"
+        title="Link"
+      >
+        🔗
+      </button>
+      <button
+        type="button"
+        class="btn btn-xs btn-ghost"
+        onclick="insertMarkdown('- ', '')"
+        title="List"
+      >
+        •
+      </button>
+      <button
+        type="button"
+        class="btn btn-xs btn-ghost"
+        onclick="insertMarkdown('`', '`')"
+        title="Code"
+      >
+        &lt;/&gt;
+      </button>
+      <button
+        type="button"
+        class="btn btn-xs btn-ghost"
+        onclick="insertMarkdown('\n```\n', '\n```\n')"
+        title="Code Block"
+      >
+        {}
+      </button>
+    </div>
+
+    <div class="flex flex-col md:flex-row">
+      <div class="flex-1 min-h-[200px]">
+        <textarea
+          id={`markdown-editor-${editorId}`}
+          name={name}
+          data-editor-id={editorId}
+          class="w-full h-[200px] p-3 resize-y font-mono text-sm bg-base-100"
+          placeholder="Enter markdown content..."
+          {required}>{value}</textarea
+        >
+      </div>
+      <div
+        class="flex-1 border-t md:border-t-0 md:border-l border-base-300 min-h-[200px] bg-base-100"
+      >
+        <div
+          id={`markdown-preview-${editorId}`}
+          class="prose prose-sm max-w-none p-3 h-[200px] overflow-auto"
+        >
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <label class="label">
+    <span class="label-text-alt opacity-60">Markdown supported. Preview shown on the right.</span>
+  </label>
+</div>
+
+<script is:inline>
+  let marked = null;
+
+  async function loadMarked() {
+    if (marked) return marked;
+    try {
+      const module = await import('marked');
+      marked = module.marked || module['default'] || module;
+
+      // Configure marked with GFM and proper options
+      // gfm: GitHub Flavored Markdown (enables tables, strikethrough, etc.)
+      // breaks: Convert \n to <br> (like GitHub comments)
+      marked.setOptions({
+        gfm: true,
+        breaks: true,
+      });
+
+      return marked;
+    } catch (e) {
+      console.error('Failed to load marked library:', e);
+      return null;
+    }
+  }
+
+  const markdownEditors = {};
+
+  async function initMarkdownEditor(editorId) {
+    // Skip if already initialized
+    if (markdownEditors[editorId]) return;
+
+    const textarea = document.getElementById(`markdown-editor-${editorId}`);
+    const preview = document.getElementById(`markdown-preview-${editorId}`);
+
+    if (!textarea || !preview) {
+      console.warn(`RichTextEditor: Elements not found for editorId: ${editorId}`);
+      return;
+    }
+
+    const m = await loadMarked();
+
+    const updatePreview = () => {
+      const text = textarea.value;
+      if (m) {
+        try {
+          const html = m.parse(text);
+          preview.innerHTML = html;
+        } catch (e) {
+          preview.innerHTML = '<span class="text-error">Preview error</span>';
+        }
+      } else {
+        preview.textContent = text.substring(0, 200) + (text.length > 200 ? '...' : '');
+      }
+    };
+
+    textarea.addEventListener('input', updatePreview);
+
+    markdownEditors[editorId] = { textarea, preview, updatePreview };
+
+    // Initial preview update
+    updatePreview();
+  }
+
+  window.insertMarkdown = function (prefix, suffix) {
+    const activeTextarea = document.activeElement;
+    if (!activeTextarea || activeTextarea.tagName !== 'TEXTAREA') return;
+
+    const editorId = activeTextarea.dataset.editorId;
+    if (!editorId || !markdownEditors[editorId]) return;
+
+    const activeEditor = markdownEditors[editorId];
+    const textarea = activeEditor.textarea;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selection = text.substring(start, end);
+
+    const newText = text.substring(0, start) + prefix + selection + suffix + text.substring(end);
+    textarea.value = newText;
+
+    const newCursorPos = start + prefix.length + selection.length + suffix.length;
+    textarea.focus();
+    textarea.setSelectionRange(newCursorPos, newCursorPos);
+
+    activeEditor.updatePreview();
+  };
+
+  function initAllEditors() {
+    const textareas = document.querySelectorAll(
+      '[data-field-type="rich-text"] textarea[data-editor-id]'
+    );
+    textareas.forEach((textarea) => {
+      const editorId = textarea.dataset.editorId;
+      if (editorId && !markdownEditors[editorId]) {
+        initMarkdownEditor(editorId);
+      }
+    });
+  }
+
+  // Initialize on DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAllEditors);
+  } else {
+    // DOM already loaded, initialize after a small delay to ensure all components rendered
+    setTimeout(initAllEditors, 0);
+  }
+
+  // Also observe for dynamically added editors (e.g., after client-side navigation)
+  const observer = new MutationObserver((mutations) => {
+    let shouldInit = false;
+    for (const mutation of mutations) {
+      if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+        for (const node of mutation.addedNodes) {
+          if (
+            node.nodeType === Node.ELEMENT_NODE &&
+            (node.matches?.('[data-field-type="rich-text"]') ||
+              node.querySelector?.('[data-field-type="rich-text"]'))
+          ) {
+            shouldInit = true;
+            break;
+          }
+        }
+      }
+      if (shouldInit) break;
+    }
+    if (shouldInit) {
+      setTimeout(initAllEditors, 100);
+    }
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+</script>

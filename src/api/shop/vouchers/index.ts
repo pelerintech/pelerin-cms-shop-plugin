@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { db, eq, vouchers, sql as dbSql } from 'astro:db';
-import { CreateVoucherSchema } from '../../../../schemas/voucher.schema.ts';
+import { CreateVoucherSchema } from '../../../schemas/voucher.schema'
 
 /**
  * Derive voucher status from its fields
@@ -37,9 +37,11 @@ export const GET: APIRoute = async (context) => {
         conditions.push(dbSql`(${vouchers.valid_until} IS NULL OR ${vouchers.valid_until} >= ${now.toISOString()})`);
         conditions.push(dbSql`(${vouchers.max_uses} IS NULL OR ${vouchers.uses_count} < ${vouchers.max_uses})`);
       } else {
-        conditions.push(dbSql`${vouchers.active} = 0`);
-        conditions.push(dbSql`(${vouchers.valid_until} IS NOT NULL AND ${vouchers.valid_until} < ${now.toISOString()})`);
-        conditions.push(dbSql`(${vouchers.max_uses} IS NOT NULL AND ${vouchers.uses_count} >= ${vouchers.max_uses})`);
+        conditions.push(dbSql`(
+          ${vouchers.active} = 0
+          OR (${vouchers.valid_until} IS NOT NULL AND ${vouchers.valid_until} < ${now.toISOString()})
+          OR (${vouchers.max_uses} IS NOT NULL AND ${vouchers.uses_count} >= ${vouchers.max_uses})
+        )`);
       }
     }
 

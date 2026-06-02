@@ -3,99 +3,113 @@
 // Route: /admin/plugins/shop/products/new
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db, categories } from 'astro:db';
+import { db, categories, shop_settings, sql as dbSql } from 'astro:db';
+import Breadcrumbs from '../../../components/admin/Breadcrumbs.astro';
+import TextField from '../../../components/admin/TextField.astro';
+import SelectField from '../../../components/admin/SelectField.astro';
+import CheckboxField from '../../../components/admin/CheckboxField.astro';
+import RichTextEditor from '../../../components/admin/RichTextEditor.astro';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
 
-// Fetch categories for select
 const catList = await db.select().from(categories).orderBy(categories.name);
+const catOptions = catList.map(c => ({ value: c.id, label: c.name }));
+
+// Fetch locales from settings
+const localesResult = await db.run(
+  dbSql`SELECT ${shop_settings.value} FROM ${shop_settings} WHERE ${shop_settings.key} = 'locales' LIMIT 1`
+);
+let locales: { code: string; name: string; isDefault: boolean }[] = [];
+if (localesResult.rows.length > 0) {
+  try {
+    locales = JSON.parse((localesResult.rows[0] as any).value);
+  } catch {}
+}
+const defaultLocale = locales.find(l => l.isDefault)?.code || 'ro';
+const otherLocales = locales.filter(l => !l.isDefault);
 ---
 
 <AdminLayout title="New Product" currentPath="/admin/plugins/shop/products" user={user}>
-  <div class="col-span-12 max-w-2xl">
-    <div class="flex items-center gap-4 mb-6">
-      <a href="/admin/plugins/shop/products" class="btn btn-ghost btn-sm">&larr; Back</a>
+  <Breadcrumbs items={[
+    { label: 'Shop', href: '/admin/plugins/shop' },
+    { label: 'Products', href: '/admin/plugins/shop/products' },
+    { label: 'New Product' },
+  ]} />
+
+  <div class="flex items-center justify-between col-span-12 mb-4">
+    <div>
       <h1 class="text-2xl font-bold">New Product</h1>
+      <p class="text-base-content/60">Create a new product</p>
     </div>
+    <a href="/admin/plugins/shop/products" class="btn btn-ghost">Back</a>
+  </div>
 
-    <form id="product-form" class="space-y-4">
-      <div class="form-control">
-        <label class="label"><span class="label-text">Name (RO) *</span></label>
-        <input type="text" name="name" class="input input-bordered" required placeholder="Product name in Romanian" />
-        <span class="text-error text-sm hidden" data-field="name"></span>
-      </div>
+  <div class="card bg-base-100 shadow-lg col-span-12">
+    <div class="card-body">
+      <form id="product-form" class="space-y-6" data-default-locale={defaultLocale} data-locale-codes={JSON.stringify(otherLocales.map(l => l.code))}>
 
-      <div class="form-control">
-        <label class="label"><span class="label-text">Slug *</span></label>
-        <input type="text" name="slug" class="input input-bordered" required placeholder="product-slug" />
-        <span class="text-error text-sm hidden" data-field="slug"></span>
-      </div>
-
-      <div class="form-control">
-        <label class="label"><span class="label-text">SKU</span></label>
-        <input type="text" name="sku" class="input input-bordered" placeholder="PROD-001" />
-        <span class="text-error text-sm hidden" data-field="sku"></span>
-      </div>
-
-      <div class="form-control">
-        <label class="label"><span class="label-text">Description (RO)</span></label>
-        <textarea name="description" class="textarea textarea-bordered h-24" placeholder="Product description in Romanian"></textarea>
-      </div>
-
-      <div class="form-control">
-        <label class="label"><span class="label-text">Name (EN)</span></label>
-        <input type="text" name="name_en" class="input input-bordered" placeholder="Product name in English" />
-      </div>
-
-      <div class="form-control">
-        <label class="label"><span class="label-text">Description (EN)</span></label>
-        <textarea name="description_en" class="textarea textarea-bordered h-24" placeholder="Product description in English"></textarea>
-      </div>
-
-      <div class="grid grid-cols-2 gap-4">
-        <div class="form-control">
-          <label class="label"><span class="label-text">Type *</span></label>
-          <select name="type" class="select select-bordered" required>
-            <option value="physical">Physical</option>
-            <option value="digital">Digital</option>
-          </select>
+        <!-- Section: General -->
+        <div class="card bg-base-200/50">
+          <div class="card-body pb-4">
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">General</h4>
+            <div class="space-y-4">
+              <TextField name="sku" label="SKU" placeholder="PROD-001" />
+              <div class="grid grid-cols-2 gap-4">
+                <SelectField name="type" label="Type" required options={[
+                  { value: 'physical', label: 'Physical' },
+                  { value: 'digital', label: 'Digital' },
+                ]} />
+                <SelectField name="category_id" label="Category" placeholder="None" options={catOptions} />
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <TextField name="vat_rate" label="VAT Rate" type="number" step="0.01" min="0" max="1" placeholder="0.19" />
+                <TextField name="stock" label="Stock" type="number" min="0" placeholder="100" />
+              </div>
+              <CheckboxField name="active" label="Active (visible in store)" checked={true} />
+              <CheckboxField name="has_variants" label="Has variants (configurable product)" />
+            </div>
+          </div>
         </div>
 
-        <div class="form-control">
-          <label class="label"><span class="label-text">Category</span></label>
-          <select name="category_id" class="select select-bordered">
-            <option value="">None</option>
-            {catList.map(c => (
-              <option value={c.id}>{c.name}</option>
-            ))}
-          </select>
+        <!-- Section: Content -->
+        <div class="card bg-base-200/50">
+          <div class="card-body pb-4">
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Content</h4>
+            <div class="space-y-6">
+              <!-- Default locale -->
+              <div>
+                <h5 class="font-medium text-sm mb-3">{defaultLocale.toUpperCase()} (default)</h5>
+                <div class="space-y-4">
+                  <TextField name="name" label={`Name (${defaultLocale.toUpperCase()})`} required placeholder="Product name" />
+                  <TextField name="slug" label={`Slug (${defaultLocale.toUpperCase()})`} required placeholder="product-slug" />
+                  <RichTextEditor name="description" label={`Description (${defaultLocale.toUpperCase()})`} />
+                </div>
+              </div>
+
+              <!-- Other locales -->
+              {otherLocales.map(locale => (
+                <div class="border-t border-base-300 pt-4">
+                  <h5 class="font-medium text-sm mb-3">{locale.name} ({locale.code.toUpperCase()})</h5>
+                  <div class="space-y-4">
+                    <TextField name={`name_${locale.code}`} label={`Name (${locale.code.toUpperCase()})`} placeholder={`Product name in ${locale.name}`} />
+                    <TextField name={`slug_${locale.code}`} label={`Slug (${locale.code.toUpperCase()})`} placeholder={`product-slug-${locale.code}`} />
+                    <RichTextEditor name={`description_${locale.code}`} label={`Description (${locale.code.toUpperCase()})`} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div class="grid grid-cols-2 gap-4">
-        <div class="form-control">
-          <label class="label"><span class="label-text">VAT Rate</span></label>
-          <input type="number" name="vat_rate" class="input input-bordered" step="0.01" min="0" max="1" placeholder="0.19" />
+        <div id="form-error" class="alert alert-error hidden"></div>
+
+        <div class="flex justify-end gap-2 pt-4 border-t border-base-200">
+          <a href="/admin/plugins/shop/products" class="btn btn-ghost">Cancel</a>
+          <button type="submit" class="btn btn-primary">Create Product</button>
         </div>
-
-        <div class="form-control">
-          <label class="label"><span class="label-text">Stock</span></label>
-          <input type="number" name="stock" class="input input-bordered" min="0" placeholder="100" />
-        </div>
-      </div>
-
-      <div class="form-control">
-        <label class="cursor-pointer label justify-start gap-4">
-          <input type="checkbox" name="active" class="checkbox" checked />
-          <span class="label-text">Active (visible in store)</span>
-        </label>
-      </div>
-
-      <div id="form-error" class="alert alert-error hidden"></div>
-
-      <button type="submit" class="btn btn-primary">Create Product</button>
-    </form>
+      </form>
+    </div>
   </div>
 </AdminLayout>
 
@@ -106,9 +120,6 @@ const catList = await db.select().from(categories).orderBy(categories.name);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     errorDiv.classList.add('hidden');
-
-    // Clear previous field errors
-    document.querySelectorAll('[data-field]').forEach(el => el.classList.add('hidden'));
 
     const formData = new FormData(form);
     const data: Record<string, any> = {
@@ -121,11 +132,20 @@ const catList = await db.select().from(categories).orderBy(categories.name);
       vat_rate: formData.get('vat_rate') ? parseFloat(formData.get('vat_rate') as string) : null,
       stock: formData.get('stock') ? parseInt(formData.get('stock') as string) : null,
       active: formData.get('active') === 'on',
+      has_variants: formData.get('has_variants') === 'on',
+      default_locale: document.getElementById('product-form')?.dataset?.defaultLocale || 'ro',
     };
 
-    // EN translation data (upserted after creation if provided)
-    const nameEn = formData.get('name_en') as string;
-    const descriptionEn = formData.get('description_en') as string;
+    // Include all locale fields (name_en, slug_en, description_en, etc.)
+    const localeCodes: string[] = JSON.parse(form.dataset.localeCodes || '[]');
+    for (const loc of localeCodes) {
+      const nameVal = formData.get(`name_${loc}`);
+      const slugVal = formData.get(`slug_${loc}`);
+      const descVal = formData.get(`description_${loc}`);
+      if (nameVal) data[`name_${loc}`] = nameVal;
+      if (slugVal) data[`slug_${loc}`] = slugVal;
+      if (descVal) data[`description_${loc}`] = descVal;
+    }
 
     try {
       const res = await fetch('/api/plugins/shop/products', {
@@ -137,14 +157,6 @@ const catList = await db.select().from(categories).orderBy(categories.name);
       const result = await res.json();
 
       if (result.success) {
-        // Upsert EN translation if provided
-        if (nameEn || descriptionEn) {
-          await fetch(`/api/plugins/shop/products/${result.data.id}/translations/en`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: nameEn || null, description: descriptionEn || null, slug: null }),
-          });
-        }
         window.location.href = `/admin/plugins/shop/products/${result.data.id}`;
       } else {
         if (result.fields) {
@@ -165,3 +177,4 @@ const catList = await db.select().from(categories).orderBy(categories.name);
     }
   });
 </script>
+

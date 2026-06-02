@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { handleWebhook } from '../../../providers/payment/euplatesc.ts';
+import { handleWebhook } from '../../../providers/payment/euplatesc'
 
 /**
  * euPlatesc IPN (Instant Payment Notification) endpoint.

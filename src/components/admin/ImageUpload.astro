@@ -1,0 +1,247 @@
+---
+// Plugin-adapted image upload component
+// Based on CMS MediaUpload but uses shop product image API
+interface Props {
+  productId: string;
+  existingFiles?: Array<{
+    id: string;
+    url: string;
+    alt?: string;
+    sort_order?: number;
+  }>;
+  maxItems?: number;
+  maxFileSize?: number;
+}
+
+const {
+  productId,
+  existingFiles = [],
+  maxItems = 10,
+  maxFileSize = 5242880,
+} = Astro.props;
+
+const fieldName = `product-images-${productId || 'new'}`;
+---
+
+<div class="media-upload-field form-control">
+  <div
+    id={`${fieldName}-dropzone`}
+    class="dropzone border-2 border-dashed border-primary/30 hover:border-primary rounded-lg p-6 text-center transition-colors cursor-pointer"
+    data-product-id={productId}
+    data-max-items={maxItems}
+    data-max-file-size={maxFileSize}
+    data-field-name={fieldName}
+  >
+    <input
+      type="file"
+      id={fieldName}
+      class="hidden"
+      accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.avif"
+      multiple={maxItems > 1}
+    />
+
+    <div class="flex flex-col items-center gap-3">
+      <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+      </div>
+
+      <div class="text-sm">
+        <span class="font-medium text-base-content"> Click to upload </span>
+        <span class="text-base-content/60"> or drag and drop</span>
+      </div>
+
+      <div class="text-xs text-base-content/50">
+        PNG, JPG, GIF, WEBP
+        {` up to ${(maxFileSize / 1024 / 1024).toFixed(0)}MB`}
+        {maxItems > 1 && ` (max ${maxItems} files)`}
+      </div>
+    </div>
+  </div>
+
+  <div
+    id={`${fieldName}-preview-grid`}
+    class="preview-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-4"
+  >
+    {
+      existingFiles.map((file) => (
+        <div class="existing-file" data-id={file.id}>
+          <div class="media-preview card bg-base-100 shadow-sm border border-base-300 overflow-hidden">
+            <figure class="relative bg-base-200 h-24 flex items-center justify-center">
+              <img src={file.url} alt={file.alt || ''} class="h-full w-full object-cover" />
+              <button
+                type="button"
+                class="btn btn-circle btn-xs absolute top-1 right-1 bg-error text-error-content hover:bg-error/80 remove-existing"
+                data-id={file.id}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </figure>
+            <div class="card-body p-2">
+              <div class="text-xs font-medium truncate">{file.alt || file.url?.split('/').pop()}</div>
+            </div>
+          </div>
+        </div>
+      ))
+    }
+  </div>
+
+  <div id={`${fieldName}-error`} class="text-error text-sm mt-2 hidden"></div>
+</div>
+
+<script is:inline define:vars={{ fieldName, maxItems, maxFileSize, productId }}>
+  (function () {
+    const fName = fieldName;
+    const max = parseInt(maxItems);
+    const maxSize = parseInt(maxFileSize);
+
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function getDropzone() { return document.querySelector(`#${fName}-dropzone`); }
+    function getInput() { return document.querySelector(`#${fName}`); }
+    function getPreviewContainer() { return document.querySelector(`#${fName}-preview-grid`); }
+    function getErrorContainer() { return document.querySelector(`#${fName}-error`); }
+
+    function showError(message) {
+      const el = getErrorContainer();
+      if (el) { el.textContent = message; el.classList.remove('hidden'); }
+    }
+
+    function hideError() {
+      const el = getErrorContainer();
+      if (el) { el.textContent = ''; el.classList.add('hidden'); }
+    }
+
+    async function uploadFiles(files) {
+      const previewContainer = getPreviewContainer();
+      hideError();
+
+      const existingFiles = previewContainer.querySelectorAll('.existing-file').length;
+      const currentNewFiles = previewContainer.querySelectorAll('.new-file-item').length;
+      const totalFiles = existingFiles + currentNewFiles + files.length;
+
+      if (totalFiles > max) {
+        showError(`Maximum ${max} files allowed.`);
+        return;
+      }
+
+      for (const file of files) {
+        if (file.size > maxSize) {
+          showError(`File "${file.name}" exceeds maximum size of ${formatBytes(maxSize)}`);
+          return;
+        }
+
+        const fd = new FormData();
+        fd.append('file', file);
+
+        try {
+          const res = await fetch(`/api/plugins/shop/products/${productId}/images`, { method: 'POST', body: fd });
+          const result = await res.json();
+
+          if (!result.success) {
+            showError(result.error || 'Upload failed');
+            return;
+          }
+
+          const fileData = result.data;
+          const fileItem = document.createElement('div');
+          fileItem.className = 'new-file-item';
+          fileItem.dataset.id = fileData.id;
+          fileItem.innerHTML = `
+            <div class="media-preview card bg-base-100 shadow-sm border border-base-300 overflow-hidden">
+              <figure class="relative bg-base-200 h-24 flex items-center justify-center">
+                <img src="${fileData.url}" alt="${file.name}" class="h-full w-full object-cover" />
+                <button type="button" class="btn btn-circle btn-xs absolute top-1 right-1 bg-error text-error-content hover:bg-error/80 remove-new" data-id="${fileData.id}">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </figure>
+              <div class="card-body p-2">
+                <div class="text-xs font-medium truncate">${file.name}</div>
+              </div>
+            </div>
+          `;
+          previewContainer.appendChild(fileItem);
+        } catch (err) {
+          console.error('Upload error:', err);
+          showError('Failed to upload. Please try again.');
+          return;
+        }
+      }
+    }
+
+    function removeExistingFile(id) {
+      if (confirm('Delete this image?')) {
+        fetch(`/api/plugins/shop/products/${productId}/images/${id}`, { method: 'DELETE' })
+          .then(res => res.json())
+          .then(result => {
+            if (result.success) {
+              const fileItem = getPreviewContainer().querySelector(`.existing-file[data-id="${id}"]`);
+              if (fileItem) fileItem.remove();
+            }
+          });
+      }
+    }
+
+    function removeNewFile(id) {
+      const fileItem = getPreviewContainer().querySelector(`.new-file-item[data-id="${id}"]`);
+      if (fileItem) fileItem.remove();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const dropzone = getDropzone();
+      const input = getInput();
+      if (!dropzone || !input) return;
+
+      dropzone.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        input.click();
+      });
+
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('border-primary', 'bg-primary/5');
+      });
+
+      dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('border-primary', 'bg-primary/5');
+      });
+
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('border-primary', 'bg-primary/5');
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length > 0) uploadFiles(files);
+      });
+
+      input.addEventListener('change', () => {
+        const files = Array.from(input.files);
+        if (files.length > 0) { uploadFiles(files); input.value = ''; }
+      });
+
+      document.addEventListener('click', (e) => {
+        const removeBtn = e.target.closest('.remove-new, .remove-existing');
+        if (removeBtn) {
+          const id = removeBtn.dataset.id;
+          if (removeBtn.classList.contains('remove-existing')) {
+            removeExistingFile(id);
+          } else {
+            removeNewFile(id);
+          }
+        }
+      });
+    });
+  })();
+</script>
+
+<style>
+  .dropzone { transition: all 0.2s ease; }
+</style>

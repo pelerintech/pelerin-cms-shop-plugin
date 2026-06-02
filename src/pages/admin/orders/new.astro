@@ -9,7 +9,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
 ---
 
 <AdminLayout title="New Order" currentPath="/admin/plugins/shop/orders" user={user}>
-  <div class="p-6 max-w-3xl mx-auto">
+  <div class="col-span-12 p-6">
     <h1 class="text-2xl font-bold mb-6">Create Order</h1>
 
     <!-- Step indicator -->

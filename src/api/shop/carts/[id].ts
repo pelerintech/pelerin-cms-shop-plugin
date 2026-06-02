@@ -1,8 +1,8 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { db, carts, cart_items, products, product_variants, product_prices, sql as dbSql } from 'astro:db';
-import { computeCartTotals } from '../../../../lib/cart-totals.ts';
-import type { CartItemInput } from '../../../../lib/cart-totals.ts';
+import { computeCartTotals } from '../../../lib/cart-totals'
+import type { CartItemInput } from '../../../lib/cart-totals'
 
 export const GET: APIRoute = async (context) => {
   const sdk = createPluginContext();

@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { db, eq, and, products, translations, product_prices, sql as dbSql } from 'astro:db';
-import { CreateProductSchema } from '../../../../schemas/product.schema.ts';
+import { CreateProductSchema } from '../../../schemas/product.schema';
 
 export const GET: APIRoute = async (context) => {
   const sdk = createPluginContext();
@@ -119,6 +119,18 @@ export const POST: APIRoute = async (context) => {
 
     const { sku, type, has_variants, vat_rate, stock, category_id, active, name, description, slug } = result.data;
 
+    // Extract locale fields from body (name_en, slug_en, description_en, etc.)
+    const defaultLocale = (body as any).default_locale || 'ro';
+    const localeFields: Record<string, { name?: string; slug?: string; description?: string }> = {};
+    for (const [key, val] of Object.entries(body)) {
+      const match = key.match(/^(name|slug|description)_(\w+)$/);
+      if (match && val) {
+        const [, field, locale] = match;
+        if (!localeFields[locale]) localeFields[locale] = {};
+        localeFields[locale][field as keyof typeof localeFields[locale]] = val as string;
+      }
+    }
+
     // Check for duplicate SKU
     if (sku) {
       const existingSku = await db.run(
@@ -134,6 +146,7 @@ export const POST: APIRoute = async (context) => {
 
     const id = crypto.randomUUID();
 
+    const now = new Date();
     await db.insert(products).values({
       id,
       sku,
@@ -146,19 +159,36 @@ export const POST: APIRoute = async (context) => {
       name,
       description,
       slug,
+      created_at: now,
+      updated_at: now,
     });
 
-    // Insert default locale translation (RO)
+    // Insert default locale translation
     await db.insert(translations).values({
       id: crypto.randomUUID(),
       entity_type: 'product',
       entity_id: id,
-      locale: 'ro',
+      locale: defaultLocale,
       name,
       description,
       slug,
       label: null,
     });
+
+    // Insert translations for non-default locales
+    for (const [locale, fields] of Object.entries(localeFields)) {
+      if (locale === defaultLocale) continue;
+      await db.insert(translations).values({
+        id: crypto.randomUUID(),
+        entity_type: 'product',
+        entity_id: id,
+        locale,
+        name: fields.name || null,
+        description: fields.description || null,
+        slug: fields.slug || null,
+        label: null,
+      });
+    }
 
     return new Response(
       JSON.stringify({

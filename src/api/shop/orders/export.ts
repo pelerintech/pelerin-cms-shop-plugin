@@ -25,41 +25,37 @@ export const GET: APIRoute = async (context) => {
   const to = url.searchParams.get('to');
   const search = url.searchParams.get('search');
 
-  const conditions: string[] = [];
-  const params: any[] = [];
+  const conditions: any[] = [];
 
   if (statusFilter) {
     const statuses = statusFilter.split(',').map((s) => s.trim()).filter(Boolean);
     if (statuses.length > 0) {
-      const placeholders = statuses.map(() => '?').join(', ');
-      conditions.push(`${orders.status.name} IN (${placeholders})`);
-      params.push(...statuses);
+      conditions.push(
+        dbSql`${orders.status} IN (${dbSql.join(statuses.map(s => dbSql`${s}`))})`
+      );
     }
   }
 
   if (from) {
-    conditions.push(`${orders.created_at.name} >= ?`);
-    params.push(from);
+    conditions.push(dbSql`${orders.created_at} >= ${from}`);
   }
 
   if (to) {
-    conditions.push(`${orders.created_at.name} <= ?`);
-    params.push(to);
+    conditions.push(dbSql`${orders.created_at} <= ${to}`);
   }
 
   if (search) {
-    const pattern = `%${search}%`;
-    conditions.push(
-      `(${orders.order_number.name} LIKE ? OR ${orders.customer_name.name} LIKE ? OR ${orders.customer_email.name} LIKE ?)`,
-    );
-    params.push(pattern, pattern, pattern);
+    conditions.push(dbSql`(${orders.order_number} LIKE ${'%' + search + '%'} OR ${orders.customer_name} LIKE ${'%' + search + '%'} OR ${orders.customer_email} LIKE ${'%' + search + '%'})`);
   }
 
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const whereClause = dbSql.join(conditions, ' AND ');
 
   // Fetch all matching orders (no pagination)
-  const dataSql = `SELECT * FROM ${orders} ${whereClause} ORDER BY ${orders.created_at.name} DESC`;
-  const dataResult = await db.run(dataSql, params);
+  const dataResult = await db.run(
+    conditions.length > 0
+      ? dbSql`SELECT * FROM ${orders} WHERE ${whereClause} ORDER BY ${orders.created_at} DESC`
+      : dbSql`SELECT * FROM ${orders} ORDER BY ${orders.created_at} DESC`
+  );
 
   const rows = dataResult.rows as any[];
 

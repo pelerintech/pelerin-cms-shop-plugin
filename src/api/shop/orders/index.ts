@@ -1,8 +1,8 @@
 import type { APIRoute } from 'astro';
 import { db, orders, order_items, order_status_history, products, product_variants, sql as dbSql } from 'astro:db';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { generateOrderNumber } from '../../../lib/order-number.ts';
-import { CreateOrderSchema } from '../../../schemas/order.schema.ts';
+import { generateOrderNumber } from '../../../lib/order-number'
+import { CreateOrderSchema } from '../../../schemas/order.schema'
 
 /**
  * GET /api/plugins/shop/orders — list orders with filters, search, pagination.
@@ -42,48 +42,58 @@ export const GET: APIRoute = async (context) => {
   const allowedSortColumns = ['created_at', 'updated_at', 'order_number', 'total', 'status'];
   const sortColumn = allowedSortColumns.includes(sort) ? sort : 'created_at';
 
-  // Build WHERE clauses
-  const conditions: string[] = [];
-  const params: any[] = [];
+  // Build WHERE clauses using dbSql fragments
+  const conditions: any[] = [];
 
   if (statusFilter) {
     const statuses = statusFilter.split(',').map((s) => s.trim()).filter(Boolean);
     if (statuses.length > 0) {
-      const placeholders = statuses.map(() => '?').join(', ');
-      conditions.push(`${orders.status.name} IN (${placeholders})`);
-      params.push(...statuses);
+      conditions.push(
+        dbSql`${orders.status} IN (${dbSql.join(statuses.map(s => dbSql`${s}`))})`
+      );
     }
   }
 
   if (from) {
-    conditions.push(`${orders.created_at.name} >= ?`);
-    params.push(from);
+    conditions.push(dbSql`${orders.created_at} >= ${from}`);
   }
 
   if (to) {
-    conditions.push(`${orders.created_at.name} <= ?`);
-    params.push(to);
+    conditions.push(dbSql`${orders.created_at} <= ${to}`);
   }
 
   if (search) {
-    const pattern = `%${search}%`;
-    conditions.push(
-      `(${orders.order_number.name} LIKE ? OR ${orders.customer_name.name} LIKE ? OR ${orders.customer_email.name} LIKE ?)`,
-    );
-    params.push(pattern, pattern, pattern);
+    conditions.push(dbSql`(${orders.order_number} LIKE ${'%' + search + '%'} OR ${orders.customer_name} LIKE ${'%' + search + '%'} OR ${orders.customer_email} LIKE ${'%' + search + '%'})`);
   }
 
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const whereClause = dbSql.join(conditions, ' AND ');
+
+  // Sort — map validated column name to column object
+  const sortColMap: Record<string, any> = {
+    created_at: orders.created_at,
+    updated_at: orders.updated_at,
+    order_number: orders.order_number,
+    total: orders.total,
+    status: orders.status,
+  };
+  const sortCol = sortColMap[sortColumn] ?? orders.created_at;
+
+  const offset = (page - 1) * limit;
 
   // Count total matching rows
-  const countSql = `SELECT COUNT(*) as total FROM ${orders} ${whereClause}`;
-  const countResult = await db.run(countSql, params);
+  const countResult = await db.run(
+    conditions.length > 0
+      ? dbSql`SELECT COUNT(*) as total FROM ${orders} WHERE ${whereClause}`
+      : dbSql`SELECT COUNT(*) as total FROM ${orders}`
+  );
   const total = (countResult.rows[0] as any).total;
 
   // Fetch paginated rows
-  const offset = (page - 1) * limit;
-  const dataSql = `SELECT * FROM ${orders} ${whereClause} ORDER BY ${sortColumn} ${dir} LIMIT ${limit} OFFSET ${offset}`;
-  const dataResult = await db.run(dataSql, params);
+  const dataResult = await db.run(
+    conditions.length > 0
+      ? dbSql`SELECT * FROM ${orders} WHERE ${whereClause} ORDER BY ${sortCol} ${dbSql.raw(dir)} LIMIT ${limit} OFFSET ${offset}`
+      : dbSql`SELECT * FROM ${orders} ORDER BY ${sortCol} ${dbSql.raw(dir)} LIMIT ${limit} OFFSET ${offset}`
+  );
 
   return new Response(
     JSON.stringify({

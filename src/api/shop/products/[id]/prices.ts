@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { db, eq, and, product_prices, sql as dbSql } from 'astro:db';
-import { CreatePriceSchema } from '../../../../../schemas/product.schema.ts';
+import { CreatePriceSchema } from '../../../../schemas/product.schema'
 
 export const GET: APIRoute = async (context) => {
   const sdk = createPluginContext();
@@ -10,12 +10,10 @@ export const GET: APIRoute = async (context) => {
     await sdk.auth.requireAdmin(context.request);
     const { id } = context.params;
 
-    // Get all prices for this product (product-level and variant-level)
     const rows = await db.run(
       dbSql`SELECT * FROM ${product_prices} WHERE ${product_prices.product_id} = ${id} OR ${product_prices.variant_id} IN (SELECT id FROM product_variants WHERE product_id = ${id})`
     );
 
-    // Group by currency
     const grouped: Record<string, any[]> = {};
     for (const row of rows.rows as any[]) {
       if (!grouped[row.currency]) grouped[row.currency] = [];
@@ -51,7 +49,6 @@ export const PUT: APIRoute = async (context) => {
       );
     }
 
-    // Validate each price entry
     for (const price of body.prices) {
       const result = CreatePriceSchema.safeParse(price);
       if (!result.success) {
@@ -68,11 +65,9 @@ export const PUT: APIRoute = async (context) => {
       }
     }
 
-    // Bulk upsert
     for (const price of body.prices) {
       const { product_id, variant_id, currency, price_net } = price;
 
-      // Check if a price for this combination already exists
       let existing;
       if (product_id) {
         [existing] = await db
@@ -97,13 +92,11 @@ export const PUT: APIRoute = async (context) => {
       }
 
       if (existing) {
-        // Update existing
         await db
           .update(product_prices)
           .set({ price_net })
           .where(eq(product_prices.id, existing.id));
       } else {
-        // Insert new
         await db.insert(product_prices).values({
           id: crypto.randomUUID(),
           product_id,
@@ -114,12 +107,42 @@ export const PUT: APIRoute = async (context) => {
       }
     }
 
-    // Return updated prices
     const updated = await db.run(
       dbSql`SELECT * FROM ${product_prices} WHERE ${product_prices.product_id} = ${id} OR ${product_prices.variant_id} IN (SELECT id FROM product_variants WHERE product_id = ${id})`
     );
 
     return new Response(JSON.stringify({ success: true, data: updated.rows }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err: any) {
+    const status = err.status ?? 500;
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+};
+
+export const DELETE: APIRoute = async (context) => {
+  const sdk = createPluginContext();
+
+  try {
+    await sdk.auth.requireAdmin(context.request);
+
+    const body = await context.request.json();
+    const priceId = body.priceId;
+
+    if (!priceId) {
+      return new Response(JSON.stringify({ success: false, error: 'priceId is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    await db.delete(product_prices).where(eq(product_prices.id, priceId));
+
+    return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

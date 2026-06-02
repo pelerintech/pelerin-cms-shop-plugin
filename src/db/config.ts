@@ -32,6 +32,8 @@ const products = defineTable({
     name: column.text(),
     description: column.text({ optional: true }),
     slug: column.text(),
+    created_at: column.date({ mode: 'timestamp' }),
+    updated_at: column.date({ mode: 'timestamp', optional: true }),
   },
 });
 

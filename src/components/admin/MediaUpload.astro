@@ -1,0 +1,493 @@
+---
+interface Props {
+  fieldName: string;
+  displayName: string;
+  description?: string;
+  collectionId: string;
+  itemId: string;
+  maxItems?: number;
+  maxFileSize?: number;
+  allowedFormats?: string[];
+  fieldType?: 'image' | 'video' | 'file';
+  existingFiles?: Array<{
+    id: string;
+    originalName: string;
+    url: string;
+    mimeType: string;
+    size: number;
+    width?: number;
+    height?: number;
+  }>;
+  required?: boolean;
+}
+
+const {
+  fieldName,
+  displayName,
+  description,
+  collectionId,
+  itemId,
+  maxItems = 10,
+  maxFileSize = 5242880,
+  allowedFormats = [],
+  fieldType = 'image',
+  existingFiles = [],
+  required = false,
+} = Astro.props;
+
+const isImage = fieldType === 'image';
+const isVideo = fieldType === 'video';
+const acceptFormats =
+  allowedFormats.length > 0
+    ? allowedFormats.map((f) => `.${f}`).join(', ')
+    : isImage
+      ? '.jpg,.jpeg,.png,.gif,.webp,.svg,.avif'
+      : isVideo
+        ? '.mp4,.webm,.mov,.avi,.mkv'
+        : '*/*';
+---
+
+<div class="media-upload-field form-control" data-field={fieldName}>
+  <label class="label" for={fieldName}>
+    <span class="label-text font-medium">
+      {displayName}
+      {required && <span class="text-error ml-1">*</span>}
+    </span>
+  </label>
+
+  <div
+    id={`${fieldName}-dropzone`}
+    class={`dropzone border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
+      isImage
+        ? 'border-primary/30 hover:border-primary'
+        : isVideo
+          ? 'border-accent/30 hover:border-accent'
+          : 'border-secondary/30 hover:border-secondary'
+    }`}
+    data-field={fieldName}
+    data-collection-id={collectionId}
+    data-item-id={itemId}
+    data-max-items={maxItems}
+    data-max-file-size={maxFileSize}
+    data-allowed-formats={JSON.stringify(allowedFormats)}
+    data-field-type={fieldType}
+  >
+    <input
+      type="file"
+      id={fieldName}
+      name={fieldName}
+      class="hidden"
+      accept={acceptFormats}
+      multiple={maxItems > 1}
+      data-field={fieldName}
+    />
+
+    <div class="flex flex-col items-center gap-3">
+      <div
+        class={`icon-wrapper w-12 h-12 rounded-full flex items-center justify-center ${
+          isImage ? 'bg-primary/10' : isVideo ? 'bg-accent/10' : 'bg-secondary/10'
+        }`}
+      >
+        {
+          isVideo ? (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class={`h-6 w-6 ${isVideo ? 'text-accent' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class={`h-6 w-6 ${isImage ? 'text-primary' : 'text-secondary'}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+              />
+            </svg>
+          )
+        }
+      </div>
+
+      <div class="text-sm">
+        <span class="font-medium text-base-content"> Click to upload </span>
+        <span class="text-base-content/60"> or drag and drop</span>
+      </div>
+
+      <div class="text-xs text-base-content/50">
+        {isImage ? 'PNG, JPG, GIF, WEBP' : isVideo ? 'MP4, WEBM, MOV, AVI' : 'Any file'}
+        {` up to ${(maxFileSize / 1024 / 1024).toFixed(0)}MB`}
+        {maxItems > 1 && ` (max ${maxItems} files)`}
+      </div>
+    </div>
+  </div>
+
+  {
+    description && (
+      <label class="label">
+        <span class="label-text-alt text-base-content/60">{description}</span>
+      </label>
+    )
+  }
+
+  <div
+    id={`${fieldName}-preview-grid`}
+    class="preview-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-4"
+  >
+    {
+      existingFiles.map((file) => (
+        <div class="existing-file" data-id={file.id}>
+          <input type="hidden" name={`${fieldName}_existing`} value={JSON.stringify(file)} />
+          <div class="media-preview card bg-base-100 shadow-sm border border-base-300 overflow-hidden">
+            <figure class="relative bg-base-200 h-24 flex items-center justify-center">
+              {(file.mimeType || '').startsWith('image/') ? (
+                <img src={file.url} alt={file.originalName} class="h-full w-full object-contain" />
+              ) : (
+                <div class="flex flex-col items-center text-base-content/60">
+                  <span class="text-2xl">📎</span>
+                </div>
+              )}
+              <button
+                type="button"
+                class="btn btn-circle btn-xs absolute top-1 right-1 bg-error text-error-content hover:bg-error/80 remove-existing"
+                data-id={file.id}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-3 w-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </figure>
+            <div class="card-body p-2">
+              <div class="text-xs font-medium truncate" title={file.originalName}>
+                {file.originalName}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))
+    }
+  </div>
+
+  <div id={`${fieldName}-files-container`} class="files-container hidden"></div>
+
+  <div id={`${fieldName}-uploaded-inputs`} class="uploaded-inputs hidden"></div>
+
+  <div id={`${fieldName}-error`} class="text-error text-sm mt-2 hidden"></div>
+</div>
+
+<script
+  is:inline
+  define:vars={{ fieldName, maxItems, maxFileSize, allowedFormats, isImage, isVideo }}
+>
+  (function () {
+    const fieldConfig = {
+      maxItems: parseInt(maxItems),
+      maxFileSize: parseInt(maxFileSize),
+      allowedFormats:
+        typeof allowedFormats === 'string' ? JSON.parse(allowedFormats) : allowedFormats,
+      isImage: isImage === 'true' || isImage === true,
+      isVideo: isVideo === 'true' || isVideo === true,
+      fieldName,
+    };
+
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function validateFile(file) {
+      const errors = [];
+
+      if (file.size > fieldConfig.maxFileSize) {
+        errors.push(
+          `File "${file.name}" exceeds maximum size of ${formatBytes(fieldConfig.maxFileSize)}`
+        );
+      }
+
+      if (fieldConfig.allowedFormats.length > 0) {
+        const extension = file.name.split('.').pop()?.toLowerCase();
+        if (!extension || !fieldConfig.allowedFormats.includes(extension)) {
+          errors.push(
+            `File "${file.name}" has invalid format. Allowed: ${fieldConfig.allowedFormats.join(', ')}`
+          );
+        }
+      }
+
+      return errors;
+    }
+
+    function getDropzone() {
+      return document.querySelector(`#${fieldConfig.fieldName}-dropzone`);
+    }
+
+    function getInput() {
+      return document.querySelector(`#${fieldConfig.fieldName}`);
+    }
+
+    function getPreviewContainer() {
+      return document.querySelector(`#${fieldConfig.fieldName}-preview-grid`);
+    }
+
+    function getUploadedInputsContainer() {
+      return document.querySelector(`#${fieldConfig.fieldName}-uploaded-inputs`);
+    }
+
+    function getErrorContainer() {
+      return document.querySelector(`#${fieldConfig.fieldName}-error`);
+    }
+
+    function showError(message) {
+      const errorEl = getErrorContainer();
+      if (errorEl) {
+        errorEl.textContent = message;
+        errorEl.classList.remove('hidden');
+      }
+    }
+
+    function hideError() {
+      const errorEl = getErrorContainer();
+      if (errorEl) {
+        errorEl.textContent = '';
+        errorEl.classList.add('hidden');
+      }
+    }
+
+    async function uploadFiles(files) {
+      const dropzone = getDropzone();
+      const uploadedInputsContainer = getUploadedInputsContainer();
+      const previewContainer = getPreviewContainer();
+
+      hideError();
+
+      const existingFiles = previewContainer.querySelectorAll('.existing-file').length;
+      const currentNewFiles = previewContainer.querySelectorAll('.new-file-item').length;
+      const totalFiles = existingFiles + currentNewFiles + files.length;
+
+      if (totalFiles > fieldConfig.maxItems) {
+        showError(`Maximum ${fieldConfig.maxItems} files allowed. Please remove some files first.`);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('collectionId', dropzone.dataset.collectionId);
+      formData.append('itemId', dropzone.dataset.itemId);
+      formData.append('fieldName', fieldConfig.fieldName);
+
+      files.forEach((file) => {
+        formData.append('files', file);
+      });
+
+      try {
+        const response = await fetch('/api/media/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+          showError(result.error || 'Upload failed');
+          return;
+        }
+
+        result.data.forEach((fileData) => {
+          const fileItem = document.createElement('div');
+          fileItem.className = 'new-file-item';
+          fileItem.dataset.id = fileData.id;
+
+          const previewHTML = `
+            <div class="media-preview card bg-base-100 shadow-sm border border-base-300 overflow-hidden">
+              <figure class="relative bg-base-200 h-24 flex items-center justify-center">
+                ${
+                  fileData.mimeType.startsWith('image/')
+                    ? `<img src="${fileData.url}" alt="${fileData.originalName}" class="h-full w-full object-contain" />`
+                    : `<div class="flex flex-col items-center text-base-content/60">
+                      <span class="text-2xl">📎</span>
+                     </div>`
+                }
+                <button type="button" class="btn btn-circle btn-xs absolute top-1 right-1 bg-error text-error-content hover:bg-error/80 remove-new" data-id="${fileData.id}">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </figure>
+              <div class="card-body p-2">
+                <div class="text-xs font-medium truncate" title="${fileData.originalName}">${fileData.originalName}</div>
+                <div class="text-xs text-base-content/60">${formatBytes(fileData.size)}</div>
+              </div>
+            </div>
+          `;
+
+          fileItem.innerHTML = previewHTML;
+          previewContainer.appendChild(fileItem);
+
+          const hiddenInput = document.createElement('input');
+          hiddenInput.type = 'hidden';
+          hiddenInput.name = `${fieldConfig.fieldName}_uploaded`;
+          hiddenInput.value = JSON.stringify(fileData);
+          uploadedInputsContainer.appendChild(hiddenInput);
+        });
+
+        const event = new CustomEvent('files-uploaded', {
+          detail: { fieldName: fieldConfig.fieldName, files: result.data },
+        });
+        document.dispatchEvent(event);
+      } catch (error) {
+        console.error('Upload error:', error);
+        showError('Failed to upload files. Please try again.');
+      }
+    }
+
+    function removeFile(id) {
+      const previewContainer = getPreviewContainer();
+      const uploadedInputsContainer = getUploadedInputsContainer();
+
+      const fileItem = previewContainer.querySelector(`[data-id="${id}"]`);
+      if (fileItem) {
+        const isNew = fileItem.classList.contains('new-file-item');
+        const isExisting = fileItem.classList.contains('existing-file');
+
+        if (isNew) {
+          const input = uploadedInputsContainer.querySelector(`input[value*="${id}"]`);
+          if (input) input.remove();
+        } else if (isExisting) {
+          const removedInput = document.createElement('input');
+          removedInput.type = 'hidden';
+          removedInput.name = `${fieldConfig.fieldName}_removed`;
+          removedInput.value = id;
+          uploadedInputsContainer.appendChild(removedInput);
+        }
+
+        fileItem.remove();
+
+        const event = new CustomEvent('file-removed', {
+          detail: { fieldName: fieldConfig.fieldName, id },
+        });
+        document.dispatchEvent(event);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const dropzone = getDropzone();
+      const input = getInput();
+
+      if (!dropzone || !input) return;
+
+      dropzone.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        input.click();
+      });
+
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('border-primary', 'bg-primary/5');
+      });
+
+      dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('border-primary', 'bg-primary/5');
+      });
+
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('border-primary', 'bg-primary/5');
+
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length > 0) {
+          const invalidFiles = [];
+          const validFiles = [];
+
+          files.forEach((file) => {
+            const errors = validateFile(file);
+            if (errors.length > 0) {
+              invalidFiles.push(...errors);
+            } else {
+              validFiles.push(file);
+            }
+          });
+
+          if (invalidFiles.length > 0) {
+            showError(invalidFiles[0]);
+          }
+
+          if (validFiles.length > 0) {
+            uploadFiles(validFiles);
+          }
+        }
+      });
+
+      input.addEventListener('change', () => {
+        const files = Array.from(input.files);
+        if (files.length > 0) {
+          const invalidFiles = [];
+          const validFiles = [];
+
+          files.forEach((file) => {
+            const errors = validateFile(file);
+            if (errors.length > 0) {
+              invalidFiles.push(...errors);
+            } else {
+              validFiles.push(file);
+            }
+          });
+
+          if (invalidFiles.length > 0) {
+            showError(invalidFiles[0]);
+          }
+
+          if (validFiles.length > 0) {
+            uploadFiles(validFiles);
+          }
+
+          input.value = '';
+        }
+      });
+
+      document.addEventListener('click', (e) => {
+        const removeBtn = e.target.closest('.remove-new, .remove-existing');
+        if (removeBtn) {
+          const id = removeBtn.dataset.id;
+          if (id) {
+            removeFile(id);
+          }
+        }
+      });
+    });
+  })();
+</script>
+
+<style>
+  .dropzone {
+    transition: all 0.2s ease;
+  }
+  .dropzone:hover {
+    background-color: rgba(var(--primary-rgb), 0.05);
+  }
+</style>

@@ -1,8 +1,8 @@
 import type { APIRoute } from 'astro';
 import { db, orders, sql as dbSql } from 'astro:db';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { transitionOrder } from '../../../../lib/order-transitions.ts';
-import { UpdateOrderStatusSchema } from '../../../../schemas/order.schema.ts';
+import { transitionOrder } from '../../../../lib/order-transitions'
+import { UpdateOrderStatusSchema } from '../../../../schemas/order.schema'
 
 /**
  * PUT /api/plugins/shop/orders/[id]/status — transition order status.

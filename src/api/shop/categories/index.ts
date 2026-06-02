@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { db, eq, categories, translations, products, sql as dbSql } from 'astro:db';
-import { CreateCategorySchema } from '../../../schemas/category.schema.ts';
+import { CreateCategorySchema } from '../../../schemas/category.schema'
 
 /**
  * Build a category tree from flat rows

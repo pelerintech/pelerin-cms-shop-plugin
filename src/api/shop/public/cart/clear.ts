@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { db, cart_items, sql as dbSql } from 'astro:db';
-import { getOrCreateCart } from '../../../../../lib/cart-session.ts';
+import { getOrCreateCart } from '../../../../lib/cart-session'
 
 export const DELETE: APIRoute = async (context) => {
   try {

@@ -1,10 +1,10 @@
 import type { APIRoute } from 'astro';
 import { db, orders, sql as dbSql } from 'astro:db';
-import { getProvider } from '../../../../providers/payment/registry.ts';
+import { getProvider } from '../../../../../providers/payment/registry'
 // Import adapters to ensure they are registered
-import '../../../../providers/payment/stripe.ts';
-import '../../../../providers/payment/euplatesc.ts';
-import type { PaymentOrder, PaymentOptions } from '../../../../providers/payment/interface.ts';
+import '../../../../providers/payment/stripe'
+import '../../../../providers/payment/euplatesc'
+import type { PaymentOrder, PaymentOptions } from '../../../../../providers/payment/interface'
 
 export const POST: APIRoute = async (context) => {
   try {

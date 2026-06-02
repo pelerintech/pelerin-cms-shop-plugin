@@ -1,0 +1,39 @@
+---
+// Admin: Payment providers listing
+// Route: /admin/plugins/shop/settings/payments
+import AdminLayout from 'pelerin:admin-layout';
+import { createPluginContext } from 'pelerin:plugin-sdk';
+
+const sdk = createPluginContext();
+const user = await sdk.auth.requireAdmin(Astro.request);
+---
+
+<AdminLayout title="Payment Providers" currentPath="/admin/plugins/shop/settings/payments" user={user}>
+  <div class="col-span-12 p-6">
+    <h1 class="text-2xl font-bold mb-6">Payment Providers</h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Stripe Card -->
+      <a href="/admin/plugins/shop/settings/payments/stripe" class="card bg-base-200 hover:bg-base-300 transition-colors no-underline">
+        <div class="card-body">
+          <h2 class="card-title text-xl">💳 Stripe</h2>
+          <p class="text-base-content/70">Accept credit card payments via Stripe.</p>
+          <div class="card-actions justify-end mt-4">
+            <span class="btn btn-primary btn-sm">Configure</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- EuPlatesc Card -->
+      <a href="/admin/plugins/shop/settings/payments/euplatesc" class="card bg-base-200 hover:bg-base-300 transition-colors no-underline">
+        <div class="card-body">
+          <h2 class="card-title text-xl">🏦 EuPlatesc</h2>
+          <p class="text-base-content/70">Accept Romanian card payments via EuPlatesc.</p>
+          <div class="card-actions justify-end mt-4">
+            <span class="btn btn-primary btn-sm">Configure</span>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+</AdminLayout>

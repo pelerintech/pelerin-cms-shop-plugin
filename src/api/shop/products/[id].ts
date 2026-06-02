@@ -7,7 +7,7 @@ import {
   product_option_types,
   sql as dbSql,
 } from 'astro:db';
-import { UpdateProductSchema } from '../../../../schemas/product.schema.ts';
+import { UpdateProductSchema } from '../../../schemas/product.schema'
 
 export const GET: APIRoute = async (context) => {
   const sdk = createPluginContext();
@@ -167,7 +167,64 @@ export const PUT: APIRoute = async (context) => {
     if (result.data.slug !== undefined) updateData.slug = result.data.slug;
 
     if (Object.keys(updateData).length > 0) {
+      updateData.updated_at = new Date();
       await db.update(products).set(updateData).where(eq(products.id, id));
+    }
+
+    // Handle locale translations from body (name_en, slug_en, description_en, etc.)
+    const defaultLocale = (body as any).default_locale || 'ro';
+    const localeFields: Record<string, { name?: string; slug?: string; description?: string }> = {};
+    for (const [key, val] of Object.entries(body)) {
+      const match = key.match(/^(name|slug|description)_(\w+)$/);
+      if (match && val) {
+        const [, field, locale] = match;
+        if (!localeFields[locale]) localeFields[locale] = {};
+        localeFields[locale][field as keyof typeof localeFields[locale]] = val as string;
+      }
+    }
+
+    for (const [locale, fields] of Object.entries(localeFields)) {
+      if (locale === defaultLocale) continue;
+      const existing = await db
+        .select()
+        .from(translations)
+        .where(
+          and(
+            eq(translations.entity_type, 'product'),
+            eq(translations.entity_id, id),
+            eq(translations.locale, locale)
+          )
+        );
+
+      if (existing.length > 0) {
+        // Update existing translation
+        await db
+          .update(translations)
+          .set({
+            name: fields.name || null,
+            description: fields.description || null,
+            slug: fields.slug || null,
+          })
+          .where(
+            and(
+              eq(translations.entity_type, 'product'),
+              eq(translations.entity_id, id),
+              eq(translations.locale, locale)
+            )
+          );
+      } else {
+        // Insert new translation
+        await db.insert(translations).values({
+          id: crypto.randomUUID(),
+          entity_type: 'product',
+          entity_id: id,
+          locale,
+          name: fields.name || null,
+          description: fields.description || null,
+          slug: fields.slug || null,
+          label: null,
+        });
+      }
     }
 
     const [updated] = await db.select().from(products).where(eq(products.id, id));

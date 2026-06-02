@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { db, eq, product_option_values } from 'astro:db';
-import { CreateOptionValueSchema } from '../../../../../../../schemas/product.schema.ts';
+import { CreateOptionValueSchema } from '../../../../../../../schemas/product.schema'
 
 export const POST: APIRoute = async (context) => {
   const sdk = createPluginContext();

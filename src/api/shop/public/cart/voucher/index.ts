@@ -1,9 +1,9 @@
 import type { APIRoute } from 'astro';
 import { db, cart_items, vouchers, carts, products, product_variants, product_prices, sql as dbSql } from 'astro:db';
-import { getOrCreateCart } from '../../../../../lib/cart-session.ts';
-import { computeCartTotals } from '../../../../../lib/cart-totals.ts';
-import type { CartItemInput } from '../../../../../lib/cart-totals.ts';
-import { ApplyCartVoucherSchema } from '../../../../../schemas/cart.schema.ts';
+import { getOrCreateCart } from '../../../../../lib/cart-session'
+import { computeCartTotals } from '../../../../../lib/cart-totals'
+import type { CartItemInput } from '../../../../../lib/cart-totals'
+import { ApplyCartVoucherSchema } from '../../../../../schemas/cart.schema'
 
 export const POST: APIRoute = async (context) => {
   try {

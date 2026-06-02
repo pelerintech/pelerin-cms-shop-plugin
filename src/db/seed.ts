@@ -62,10 +62,11 @@ export default async function seed() {
   const prodSimple = crypto.randomUUID();
   const prodVariant = crypto.randomUUID();
 
+  const now = new Date().toISOString();
   await db.run(sql`
-    INSERT INTO products (id, sku, type, has_variants, vat_rate, stock, category_id, active, name, description, slug) VALUES
-      (${prodSimple}, 'BOOK-001', 'physical', 0, 0.05, 100, ${catElectronics}, 1, 'Carte de programare', 'O carte excelentă', 'carte-programare'),
-      (${prodVariant}, NULL, 'physical', 1, 0.19, NULL, ${catPhones}, 1, 'Telefon Smart X', 'Telefon inteligent', 'telefon-smart-x')
+    INSERT INTO products (id, sku, type, has_variants, vat_rate, stock, category_id, active, name, description, slug, created_at, updated_at) VALUES
+      (${prodSimple}, 'BOOK-001', 'physical', 0, 0.05, 100, ${catElectronics}, 1, 'Carte de programare', 'O carte excelentă', 'carte-programare', ${now}, ${now}),
+      (${prodVariant}, NULL, 'physical', 1, 0.19, NULL, ${catPhones}, 1, 'Telefon Smart X', 'Telefon inteligent', 'telefon-smart-x', ${now}, ${now})
   `);
 
   await db.run(sql`
