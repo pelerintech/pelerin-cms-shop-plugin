@@ -13,6 +13,7 @@ export const GET: APIRoute = async (context) => {
     const category = url.searchParams.get('category');
     const type = url.searchParams.get('type');
     const active = url.searchParams.get('active');
+    const search = url.searchParams.get('search');
     const locale = url.searchParams.get('locale') || 'ro';
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '20');
@@ -30,15 +31,19 @@ export const GET: APIRoute = async (context) => {
     if (active !== null && active !== undefined) {
       conditions.push(dbSql`${products.active} = ${active === 'true' ? 1 : 0}`);
     }
+    if (search) {
+      const s = search.replace(/'/g, "''");
+      conditions.push(dbSql.raw(`(LOWER(p.name) LIKE LOWER('%${s}%') OR LOWER(p.sku) LIKE LOWER('%${s}%') OR p.id LIKE '%${s}%')`));
+    }
 
     // Get total count
     let countResult;
     if (conditions.length > 0) {
       countResult = await db.run(
-        dbSql`SELECT COUNT(*) as total FROM ${products} WHERE ${dbSql.join(conditions, ' AND ')}`
+        dbSql`SELECT COUNT(*) as total FROM ${products} p WHERE ${dbSql.join(conditions, ' AND ')}`
       );
     } else {
-      countResult = await db.run(dbSql`SELECT COUNT(*) as total FROM ${products}`);
+      countResult = await db.run(dbSql`SELECT COUNT(*) as total FROM ${products} p`);
     }
     const total = (countResult.rows[0] as any).total as number;
 
@@ -46,11 +51,11 @@ export const GET: APIRoute = async (context) => {
     let productRows;
     if (conditions.length > 0) {
       productRows = await db.run(
-        dbSql`SELECT * FROM ${products} WHERE ${dbSql.join(conditions, ' AND ')} ORDER BY ${products.name} LIMIT ${limit} OFFSET ${offset}`
+        dbSql`SELECT p.* FROM ${products} p WHERE ${dbSql.join(conditions, ' AND ')} ORDER BY p.name LIMIT ${limit} OFFSET ${offset}`
       );
     } else {
       productRows = await db.run(
-        dbSql`SELECT * FROM ${products} ORDER BY ${products.name} LIMIT ${limit} OFFSET ${offset}`
+        dbSql`SELECT p.* FROM ${products} p ORDER BY p.name LIMIT ${limit} OFFSET ${offset}`
       );
     }
 

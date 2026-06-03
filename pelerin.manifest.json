@@ -11,6 +11,8 @@
     { "pattern": "/admin/plugins/shop/products/new", "entrypoint": "./src/pages/admin/products/new.astro" },
     { "pattern": "/admin/plugins/shop/products/[id]", "entrypoint": "./src/pages/admin/products/[id].astro" },
     { "pattern": "/admin/plugins/shop/categories", "entrypoint": "./src/pages/admin/categories/index.astro" },
+    { "pattern": "/admin/plugins/shop/categories/new", "entrypoint": "./src/pages/admin/categories/new.astro" },
+    { "pattern": "/admin/plugins/shop/categories/[id]", "entrypoint": "./src/pages/admin/categories/[id].astro" },
     { "pattern": "/admin/plugins/shop/carts", "entrypoint": "./src/pages/admin/carts/index.astro" },
     { "pattern": "/admin/plugins/shop/orders", "entrypoint": "./src/pages/admin/orders/index.astro" },
     { "pattern": "/admin/plugins/shop/orders/new", "entrypoint": "./src/pages/admin/orders/new.astro" },

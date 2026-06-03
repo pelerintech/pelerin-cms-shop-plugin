@@ -9,6 +9,6 @@ const { name, label, checked = false } = Astro.props;
 ---
 
 <label class="cursor-pointer label justify-start gap-4">
-  <input type="checkbox" name={name} class="checkbox" checked={checked} />
+  <input id={name} type="checkbox" name={name} class="checkbox" checked={checked} />
   <span class="label-text">{label}</span>
 </label>

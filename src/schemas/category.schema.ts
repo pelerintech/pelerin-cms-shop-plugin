@@ -25,8 +25,8 @@ export type UpdateCategoryInput = z.infer<typeof UpdateCategorySchema>;
  */
 export const CategoryOutputSchema = CreateCategorySchema.extend({
   id: z.string(),
-  created_at: z.date().optional(),
-  updated_at: z.date().optional(),
+  created_at: z.date().optional().nullable(),
+  updated_at: z.date().optional().nullable(),
 });
 
 export type CategoryOutput = z.infer<typeof CategoryOutputSchema>;

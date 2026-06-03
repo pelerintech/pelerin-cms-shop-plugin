@@ -3,63 +3,57 @@
 // Route: /admin/plugins/shop/settings/general
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
+import Breadcrumbs from '../../../components/admin/Breadcrumbs.astro';
+import TextField from '../../../components/admin/TextField.astro';
+import SelectField from '../../../components/admin/SelectField.astro';
+import CheckboxField from '../../../components/admin/CheckboxField.astro';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
 ---
 
 <AdminLayout title="General Settings" currentPath="/admin/plugins/shop/settings/general" user={user}>
-  <div class="col-span-12 p-6">
-    <h1 class="text-2xl font-bold mb-6">General Shop Settings</h1>
+  <Breadcrumbs items={[
+    { label: 'Shop', href: '/admin/plugins/shop' },
+    { label: 'Settings', href: '/admin/plugins/shop/settings' },
+    { label: 'General' },
+  ]} />
 
-    <form id="settings-form" class="space-y-4">
-      <div class="form-control">
-        <label class="label" for="shop_name"><span class="label-text">Shop Name</span></label>
-        <input type="text" id="shop_name" name="shop_name" class="input input-bordered w-full" placeholder="My Shop" />
-      </div>
+  <div class="flex items-center justify-between col-span-12 mb-4">
+    <div>
+      <h1 class="text-2xl font-bold">General Shop Settings</h1>
+      <p class="text-base-content/60">Configuration for the shop</p>
+    </div>
+    <a href="/admin/plugins/shop" class="btn btn-ghost">Back</a>
+  </div>
 
-      <div class="form-control">
-        <label class="label" for="order_number_prefix"><span class="label-text">Order Number Prefix</span></label>
-        <input type="text" id="order_number_prefix" name="order_number_prefix" class="input input-bordered w-full" placeholder="ORD" />
-      </div>
+  <div class="card bg-base-100 shadow-lg col-span-12">
+    <div class="card-body">
+      <form id="settings-form" class="space-y-6">
+        <div class="space-y-4">
+          <TextField name="shop_name" label="Shop Name" placeholder="My Shop" />
+          <TextField name="order_number_prefix" label="Order Number Prefix" placeholder="ORD" />
+          <CheckboxField name="order_number_year" label="Include Year in Order Number" />
+          <TextField name="order_number_padding" label="Order Number Padding" type="number" min="1" max="10" value="5" />
+          <SelectField name="default_currency" label="Default Currency" placeholder="None" options={[
+            { value: 'RON', label: 'RON' },
+            { value: 'EUR', label: 'EUR' },
+            { value: 'USD', label: 'USD' },
+          ]} />
+          <SelectField name="default_locale" label="Default Locale" placeholder="None" options={[
+            { value: 'ro', label: 'Romanian (ro)' },
+            { value: 'en', label: 'English (en)' },
+          ]} />
+        </div>
 
-      <div class="form-control">
-        <label class="label cursor-pointer">
-          <span class="label-text">Include Year in Order Number</span>
-          <input type="checkbox" id="order_number_year" name="order_number_year" value="true" class="checkbox" />
-        </label>
-      </div>
+        <div id="form-error" class="alert alert-error hidden"></div>
+        <div id="form-success" class="alert alert-success hidden"></div>
 
-      <div class="form-control">
-        <label class="label" for="order_number_padding"><span class="label-text">Order Number Padding</span></label>
-        <input type="number" id="order_number_padding" name="order_number_padding" class="input input-bordered w-full" value="5" min="1" max="10" />
-      </div>
-
-      <div class="form-control">
-        <label class="label" for="default_currency"><span class="label-text">Default Currency</span></label>
-        <select id="default_currency" name="default_currency" class="select select-bordered">
-          <option value="">None</option>
-          <option value="RON">RON</option>
-          <option value="EUR">EUR</option>
-          <option value="USD">USD</option>
-        </select>
-      </div>
-
-      <div class="form-control">
-        <label class="label" for="default_locale"><span class="label-text">Default Locale</span></label>
-        <select id="default_locale" name="default_locale" class="select select-bordered">
-          <option value="">None</option>
-          <option value="ro">Romanian (ro)</option>
-          <option value="en">English (en)</option>
-        </select>
-      </div>
-
-      <div class="form-control mt-6">
-        <button type="submit" class="btn btn-primary" id="save-btn">Save Settings</button>
-      </div>
-    </form>
-
-    <div id="status-message" class="mt-4 hidden"></div>
+        <div class="flex justify-end gap-2 pt-4 border-t border-base-200">
+          <button type="submit" class="btn btn-primary" id="save-btn">Save Settings</button>
+        </div>
+      </form>
+    </div>
   </div>
 </AdminLayout>
 
@@ -71,13 +65,14 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       var res = await fetch(API_URL);
       var json = await res.json();
       if (json.success && json.data) {
+        var form = document.getElementById('settings-form');
         for (var key in json.data) {
-          if (key === 'order_number_year') {
-            var cb = document.getElementById(key);
-            if (cb) cb.checked = json.data[key] === 'true';
+          var input = form.elements[key];
+          if (!input) continue;
+          if (input.type === 'checkbox') {
+            input.checked = json.data[key] === 'true' || json.data[key] === true;
           } else {
-            var input = document.getElementById(key);
-            if (input && json.data[key] !== null && json.data[key] !== undefined) {
+            if (json.data[key] !== null && json.data[key] !== undefined) {
               input.value = json.data[key];
             }
           }
@@ -94,34 +89,38 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     var formData = new FormData(form);
     var body = {};
     formData.forEach(function(value, key) {
-      if (key === 'order_number_year') {
-        body[key] = String(formData.get(key) === 'true');
-      } else if (value) {
-        body[key] = value;
-      }
+      if (value) body[key] = value;
     });
+    // Always include checkbox value
+    if (form.order_number_year.checked) {
+      body.order_number_year = 'true';
+    } else {
+      body.order_number_year = 'false';
+    }
 
-    var statusEl = document.getElementById('status-message');
+    var errorEl = document.getElementById('form-error');
+    var successEl = document.getElementById('form-success');
     var saveBtn = document.getElementById('save-btn');
     saveBtn.disabled = true;
     saveBtn.textContent = 'Saving...';
+    errorEl.classList.add('hidden');
+    successEl.classList.add('hidden');
 
     try {
       var res = await fetch(API_URL, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       var json = await res.json();
-      statusEl.classList.remove('hidden');
       if (json.success) {
-        statusEl.className = 'mt-4 alert alert-success';
-        statusEl.textContent = 'Settings saved.';
+        successEl.classList.remove('hidden');
+        successEl.textContent = 'Settings saved.';
+        setTimeout(function() { successEl.classList.add('hidden'); }, 3000);
         await loadSettings();
       } else {
-        statusEl.className = 'mt-4 alert alert-error';
-        statusEl.textContent = json.error || 'Failed to save.';
+        errorEl.classList.remove('hidden');
+        errorEl.textContent = json.error || 'Failed to save.';
       }
     } catch (err) {
-      statusEl.classList.remove('hidden');
-      statusEl.className = 'mt-4 alert alert-error';
-      statusEl.textContent = err.message || 'Network error.';
+      errorEl.classList.remove('hidden');
+      errorEl.textContent = err.message || 'Network error.';
     } finally {
       saveBtn.disabled = false;
       saveBtn.textContent = 'Save Settings';

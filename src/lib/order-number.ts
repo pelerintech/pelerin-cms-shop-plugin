@@ -16,7 +16,7 @@ async function setSetting(key: string, value: string): Promise<void> {
   );
   if (existing.rows.length > 0) {
     await db.run(
-      dbSql`UPDATE ${shop_settings} SET ${shop_settings.value} = ${value} WHERE ${shop_settings.key} = ${key}`
+      dbSql`UPDATE ${shop_settings} SET ${dbSql.raw('value')} = ${value} WHERE ${dbSql.raw('key')} = ${key}`
     );
   } else {
     await db.insert(shop_settings).values({

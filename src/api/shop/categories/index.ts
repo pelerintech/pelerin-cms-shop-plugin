@@ -99,6 +99,7 @@ export const POST: APIRoute = async (context) => {
     }
 
     const id = crypto.randomUUID();
+    const now = new Date();
     const { name, description, slug, sort_order, parent_id } = result.data;
 
     await db.insert(categories).values({
@@ -108,6 +109,8 @@ export const POST: APIRoute = async (context) => {
       description,
       slug,
       sort_order,
+      created_at: now,
+      updated_at: now,
     });
 
     // Insert default locale translation

@@ -1,127 +1,152 @@
 ---
-// Admin: category tree
+// Admin: category list
 // Route: /admin/plugins/shop/categories
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db, categories } from 'astro:db';
+import { db, categories, sql as dbSql } from 'astro:db';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
 
-const allCats = await db.select().from(categories).orderBy(categories.sort_order);
+// Parse query params
+const url = new URL(Astro.request.url);
+const filterName = url.searchParams.get('name') || '';
+const filterParent = url.searchParams.get('parent') || '';
+const page = parseInt(url.searchParams.get('page') || '1');
+const limit = 20;
+const offset = (page - 1) * limit;
 
-// Build tree with depth
-function buildTree(cats: any[]): any[] {
-  const map = new Map(cats.map(c => [c.id, { ...c, children: [] as any[], depth: 0 }]));
-  const roots: any[] = [];
-  for (const c of map.values()) {
-    if (c.parent_id) {
-      const parent = map.get(c.parent_id);
-      if (parent) {
-        c.depth = (parent.depth || 0) + 1;
-        parent.children.push(c);
-      } else {
-        roots.push(c);
-      }
-    } else {
-      roots.push(c);
-    }
-  }
-  return roots;
-}
+// Build where clause
+const conditions: string[] = [];
+if (filterName) conditions.push(`c.name ILIKE '%${filterName}%'`);
+if (filterParent === '__none__') conditions.push('c.parent_id IS NULL');
+else if (filterParent) conditions.push(`c.parent_id = '${filterParent}'`);
 
-function flattenTree(nodes: any[], depth = 0): any[] {
-  return nodes.flatMap(n => [n, ...flattenTree(n.children, depth + 1)]);
-}
+const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-const tree = buildTree(allCats);
-const flat = flattenTree(tree);
+// Fetch categories with parent names
+const result = await db.run(dbSql`
+  SELECT c.*, p.name as parent_name
+  FROM ${categories} c
+  LEFT JOIN ${categories} p ON c.parent_id = p.id
+  ${dbSql.raw(whereClause)}
+  ORDER BY c.created_at DESC
+  LIMIT ${limit} OFFSET ${offset}
+`);
+
+const categoryList = result.rows as any[];
+
+// Count total
+const countResult = await db.run(dbSql`
+  SELECT COUNT(*) as total FROM ${categories} c
+  ${dbSql.raw(whereClause)}
+`);
+const total = (countResult.rows[0] as any).total as number;
+const totalPages = Math.ceil(total / limit);
+
+// Fetch all categories for parent filter dropdown (exclude current to avoid self-reference)
+const allCats = await db.select().from(categories).orderBy(categories.name);
 ---
 
 <AdminLayout title="Categories" currentPath="/admin/plugins/shop/categories" user={user}>
   <div class="col-span-12">
-    <h1 class="text-2xl font-bold mb-6">Categories</h1>
-
-    <!-- Add Category Form -->
-    <div class="card bg-base-200 p-4 mb-6">
-      <h2 class="font-semibold mb-3">Add Category</h2>
-      <form id="add-category-form" class="space-y-3">
-        <div class="form-control">
-          <label class="label"><span class="label-text">Name *</span></label>
-          <input type="text" name="name" class="input input-bordered" required />
-        </div>
-        <div class="form-control">
-          <label class="label"><span class="label-text">Slug *</span></label>
-          <input type="text" name="slug" class="input input-bordered" required />
-        </div>
-        <div class="form-control">
-          <label class="label"><span class="label-text">Description</span></label>
-          <input type="text" name="description" class="input input-bordered" />
-        </div>
-        <div class="form-control">
-          <label class="label"><span class="label-text">Parent Category</span></label>
-          <select name="parent_id" class="select select-bordered">
-            <option value="">None (top-level)</option>
-            {allCats.map(c => (
-              <option value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </div>
-        <div id="add-error" class="alert alert-error hidden"></div>
-        <button type="submit" class="btn btn-primary">Create Category</button>
-      </form>
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold">Categories</h1>
+      <a href="/admin/plugins/shop/categories/new" class="btn btn-primary">New Category</a>
     </div>
 
-    <!-- Category Tree -->
-    <h2 class="font-semibold mb-3">Category Tree</h2>
-    {flat.length === 0 ? (
-      <p class="text-base-content/60">No categories yet.</p>
+    <!-- Filters -->
+    <form method="GET" class="flex gap-4 mb-6 flex-wrap items-end">
+      <div class="form-control">
+        <label class="label"><span class="label-text">Name</span></label>
+        <input type="text" name="name" value={filterName} placeholder="Search..." class="input input-bordered w-full" />
+      </div>
+      <div class="form-control">
+        <label class="label"><span class="label-text">Parent</span></label>
+        <select name="parent" class="select select-bordered">
+          <option value="">All</option>
+          <option value="__none__" selected={filterParent === '__none__'}>None (top-level)</option>
+          {allCats.map(c => (
+            <option value={c.id} selected={filterParent === c.id}>{c.name}</option>
+          ))}
+        </select>
+      </div>
+      <div class="form-control">
+        <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
+        <button type="submit" class="btn btn-outline">Filter</button>
+      </div>
+      {(filterName || filterParent) && (
+        <div class="form-control">
+          <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
+          <a href="/admin/plugins/shop/categories" class="btn btn-ghost">Clear</a>
+        </div>
+      )}
+    </form>
+
+    <!-- Category Table -->
+    {categoryList.length === 0 ? (
+      <p class="text-base-content/60">No categories found.</p>
     ) : (
-      <div class="space-y-1">
-        {flat.map(c => (
-          <div class="flex items-center justify-between p-2 hover:bg-base-200 rounded" style={`padding-left: ${(c.depth || 0) * 24 + 8}px`}>
-            <div>
-              <span class="font-medium">{c.name}</span>
-              <span class="text-xs text-base-content/50 ml-2">/{c.slug}</span>
-            </div>
-            <div class="flex gap-1">
-              <button class="btn btn-error btn-xs delete-category" data-id={c.id}>Delete</button>
-            </div>
-          </div>
-        ))}
+      <div class="overflow-x-auto">
+        <table class="table table-zebra w-full">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Slug</th>
+              <th>Parent</th>
+              <th>Created</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {categoryList.map(c => (
+              <tr>
+                <td class="font-medium">{c.name}</td>
+                <td><code class="text-xs">/{c.slug}</code></td>
+                <td>{c.parent_name || '-'}</td>
+                <td>{c.created_at ? new Date(c.created_at).toLocaleDateString() : '-'}</td>
+                <td>
+                  <div class="flex gap-2">
+                    <a href={`/admin/plugins/shop/categories/${c.id}?from_page=${page}`} class="btn btn-ghost btn-xs">Edit</a>
+                    <button class="btn btn-error btn-xs delete-category" data-id={c.id} data-name={c.name}>Delete</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+
+    <!-- Pagination -->
+    {totalPages > 1 && (
+      <div class="join mt-4">
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => {
+          const params = new URLSearchParams();
+          if (filterName) params.set('name', filterName);
+          if (filterParent) params.set('parent', filterParent);
+          params.set('page', String(p));
+          return (
+            <a
+              href={`/admin/plugins/shop/categories?${params.toString()}`}
+              class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
+            >
+              {p}
+            </a>
+          );
+        })}
       </div>
     )}
   </div>
 </AdminLayout>
 
 <script>
-  // Add category
-  document.getElementById('add-category-form')!.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target as HTMLFormElement);
-    const data: Record<string, any> = {
-      name: fd.get('name'), slug: fd.get('slug'),
-      description: fd.get('description') || null,
-      parent_id: fd.get('parent_id') || null,
-      sort_order: 0,
-    };
-    const res = await fetch('/api/plugins/shop/categories', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
-    });
-    const result = await res.json();
-    if (result.success) location.reload();
-    else {
-      const err = document.getElementById('add-error')!;
-      err.textContent = result.error || 'Failed to create category';
-      err.classList.remove('hidden');
-    }
-  });
-
   // Delete category
   document.querySelectorAll('.delete-category').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Delete this category?')) return;
       const catId = (btn as HTMLElement).dataset.id!;
+      const catName = (btn as HTMLElement).dataset.name!;
+      if (!confirm(`Delete category "${catName}"?`)) return;
       const res = await fetch(`/api/plugins/shop/categories/${catId}`, { method: 'DELETE' });
       const result = await res.json();
       if (result.success) location.reload();

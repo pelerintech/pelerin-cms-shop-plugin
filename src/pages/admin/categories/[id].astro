@@ -1,0 +1,107 @@
+---
+// Admin: edit category form
+// Route: /admin/plugins/shop/categories/[id]
+import AdminLayout from 'pelerin:admin-layout';
+import { createPluginContext } from 'pelerin:plugin-sdk';
+import { db, eq, and, categories, translations } from 'astro:db';
+import Breadcrumbs from '../../../components/admin/Breadcrumbs.astro';
+import TextField from '../../../components/admin/TextField.astro';
+import SelectField from '../../../components/admin/SelectField.astro';
+import TextareaField from '../../../components/admin/TextareaField.astro';
+
+const sdk = createPluginContext();
+const user = await sdk.auth.requireAdmin(Astro.request);
+
+const { id } = Astro.params;
+const fromPage = new URL(Astro.request.url).searchParams.get('from_page') || '1';
+
+// Fetch category from DB directly
+const [category] = await db.select().from(categories).where(eq(categories.id, id));
+if (!category) {
+  return Astro.redirect('/admin/plugins/shop/categories');
+}
+
+// Fetch all categories for parent dropdown
+const allCats = await db.select().from(categories).orderBy(categories.name);
+const parentOptions = allCats
+  .filter(c => c.id !== id) // exclude self
+  .map(c => ({ value: c.id, label: c.name }));
+---
+
+<AdminLayout title={`Edit: ${category.name}`} currentPath="/admin/plugins/shop/categories" user={user}>
+  <Breadcrumbs items={[
+    { label: 'Shop', href: '/admin/plugins/shop' },
+    { label: 'Categories', href: '/admin/plugins/shop/categories' },
+    { label: `Edit: ${category.name}` },
+  ]} />
+
+  <div class="flex items-center justify-between col-span-12 mb-4">
+    <div>
+      <h1 class="text-2xl font-bold">Edit: {category.name}</h1>
+      <p class="text-base-content/60">ID: {id}</p>
+    </div>
+    <a href="/admin/plugins/shop/categories" class="btn btn-ghost">Back</a>
+  </div>
+
+  <div class="card bg-base-100 shadow-lg col-span-12">
+    <div class="card-body">
+      <form id="category-form" class="space-y-6">
+        <div class="space-y-4">
+          <TextField name="name" label="Name" value={category.name} required placeholder="e.g. Electronics" />
+          <TextField name="slug" label="Slug" value={category.slug} required placeholder="e.g. electronics" />
+          <TextareaField name="description" label="Description" value={category.description || ''} placeholder="Optional description" rows={3} />
+          <SelectField name="parent_id" label="Parent Category" value={category.parent_id || ''} placeholder="None (top-level)" options={parentOptions} />
+          <TextField name="sort_order" label="Sort Order" type="number" value={String(category.sort_order)} placeholder="0" />
+        </div>
+
+        <div id="form-error" class="alert alert-error hidden"></div>
+
+        <div class="flex justify-end gap-2 pt-4 border-t border-base-200">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</AdminLayout>
+
+<script>
+  const fromPage = new URLSearchParams(window.location.search).get('from_page') || '1';
+
+  document.getElementById('category-form')!.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target as HTMLFormElement);
+    const data: Record<string, any> = {
+      name: fd.get('name'),
+      slug: fd.get('slug'),
+      description: fd.get('description') || null,
+      parent_id: fd.get('parent_id') || null,
+      sort_order: parseInt(fd.get('sort_order') as string) || 0,
+    };
+
+    const id = window.location.pathname.split('/').pop();
+    const res = await fetch(`/api/plugins/shop/categories/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const result = await res.json();
+    if (result.success) {
+      window.location.href = `/admin/plugins/shop/categories?page=${fromPage}`;
+    } else {
+      const err = document.getElementById('form-error')!;
+      err.textContent = result.error || 'Failed to update category';
+      err.classList.remove('hidden');
+
+      // Show field-level errors
+      if (result.fields) {
+        for (const [field, message] of Object.entries(result.fields as Record<string, string>)) {
+          const span = document.querySelector(`[data-field="${field}"]`);
+          if (span) {
+            span.textContent = message;
+            span.classList.remove('hidden');
+          }
+        }
+      }
+    }
+  });
+</script>
