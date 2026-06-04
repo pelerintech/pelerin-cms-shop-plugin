@@ -50,26 +50,6 @@ const product_images = defineTable({
   },
 });
 
-const product_option_types = defineTable({
-  columns: {
-    id: column.text({ primaryKey: true }),
-    product_id: column.text(),
-    label: column.text(),
-    value_type: column.text(),
-    sort_order: column.number(),
-  },
-});
-
-const product_option_values = defineTable({
-  columns: {
-    id: column.text({ primaryKey: true }),
-    option_type_id: column.text(),
-    value: column.text(),
-    label: column.text(),
-    sort_order: column.number(),
-  },
-});
-
 const product_variants = defineTable({
   columns: {
     id: column.text({ primaryKey: true }),
@@ -80,11 +60,45 @@ const product_variants = defineTable({
   },
 });
 
-const product_variant_option_values = defineTable({
+const product_attributes = defineTable({
   columns: {
     id: column.text({ primaryKey: true }),
-    variant_id: column.text(),
-    option_value_id: column.text(),
+    name: column.text(),
+    type: column.text(),
+    sort_order: column.number(),
+  },
+});
+
+const product_attribute_options = defineTable({
+  columns: {
+    id: column.text({ primaryKey: true }),
+    attribute_id: column.text(),
+    value: column.text(),
+    sort_order: column.number(),
+  },
+});
+
+const product_attribute_assignments = defineTable({
+  columns: {
+    id: column.text({ primaryKey: true }),
+    product_id: column.text(),
+    attribute_id: column.text(),
+    role: column.text(),
+    sort_order: column.number(),
+    offered_option_ids: column.text(),
+  },
+});
+
+const product_attribute_values = defineTable({
+  columns: {
+    id: column.text({ primaryKey: true }),
+    entity_type: column.text(),
+    entity_id: column.text(),
+    assignment_id: column.text(),
+    option_id: column.text({ optional: true }),
+    value_text: column.text({ optional: true }),
+    value_number: column.number({ optional: true }),
+    value_boolean: column.boolean({ optional: true }),
   },
 });
 
@@ -255,10 +269,11 @@ export {
   categories,
   products,
   product_images,
-  product_option_types,
-  product_option_values,
   product_variants,
-  product_variant_option_values,
+  product_attributes,
+  product_attribute_options,
+  product_attribute_assignments,
+  product_attribute_values,
   product_prices,
   translations,
   carts,
@@ -276,10 +291,11 @@ export default defineDb({
     categories,
     products,
     product_images,
-    product_option_types,
-    product_option_values,
     product_variants,
-    product_variant_option_values,
+    product_attributes,
+    product_attribute_options,
+    product_attribute_assignments,
+    product_attribute_values,
     product_prices,
     translations,
     carts,

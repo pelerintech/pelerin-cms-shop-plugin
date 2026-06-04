@@ -26,11 +26,22 @@
     { "pattern": "/admin/plugins/shop/vouchers/[id]", "entrypoint": "./src/pages/admin/vouchers/[id].astro" },
     { "pattern": "/admin/plugins/shop/referral-codes", "entrypoint": "./src/pages/admin/referral-codes/index.astro" },
     { "pattern": "/admin/plugins/shop/referral-codes/new", "entrypoint": "./src/pages/admin/referral-codes/new.astro" },
-    { "pattern": "/admin/plugins/shop/referral-codes/[id]", "entrypoint": "./src/pages/admin/referral-codes/[id].astro" }
+    { "pattern": "/admin/plugins/shop/referral-codes/[id]", "entrypoint": "./src/pages/admin/referral-codes/[id].astro" },
+    { "pattern": "/admin/plugins/shop/settings/attributes", "entrypoint": "./src/pages/admin/settings/attributes/index.astro" },
+    { "pattern": "/admin/plugins/shop/settings/attributes/new", "entrypoint": "./src/pages/admin/settings/attributes/new.astro" },
+    { "pattern": "/admin/plugins/shop/settings/attributes/[id]", "entrypoint": "./src/pages/admin/settings/attributes/[id].astro" }
   ],
   "apiEndpoints": [
     { "pattern": "/api/plugins/shop/categories", "entrypoint": "./src/api/shop/categories/index.ts" },
     { "pattern": "/api/plugins/shop/categories/[id]", "entrypoint": "./src/api/shop/categories/[id].ts" },
+    { "pattern": "/api/plugins/shop/attributes", "entrypoint": "./src/api/shop/attributes/index.ts" },
+    { "pattern": "/api/plugins/shop/attributes/[id]", "entrypoint": "./src/api/shop/attributes/[id].ts" },
+    { "pattern": "/api/plugins/shop/attributes/[id]/options", "entrypoint": "./src/api/shop/attributes/[id]/options/index.ts" },
+    { "pattern": "/api/plugins/shop/attributes/[id]/options/[optionId]", "entrypoint": "./src/api/shop/attributes/[id]/options/[optionId].ts" },
+    { "pattern": "/api/plugins/shop/products/[id]/attributes", "entrypoint": "./src/api/shop/products/[id]/attributes/index.ts" },
+    { "pattern": "/api/plugins/shop/products/[id]/attributes/[assignmentId]", "entrypoint": "./src/api/shop/products/[id]/attributes/[assignmentId].ts" },
+    { "pattern": "/api/plugins/shop/products/[id]/attribute-values", "entrypoint": "./src/api/shop/products/[id]/attribute-values.ts" },
+    { "pattern": "/api/plugins/shop/variants/[variantId]/attribute-values", "entrypoint": "./src/api/shop/variants/[variantId]/attribute-values.ts" },
     { "pattern": "/api/plugins/shop/vouchers", "entrypoint": "./src/api/shop/vouchers/index.ts" },
     { "pattern": "/api/plugins/shop/vouchers/[id]", "entrypoint": "./src/api/shop/vouchers/[id].ts" },
     { "pattern": "/api/plugins/shop/referral-codes", "entrypoint": "./src/api/shop/referral-codes/index.ts" },
@@ -44,10 +55,6 @@
     { "pattern": "/api/plugins/shop/products/[id]/images", "entrypoint": "./src/api/shop/products/[id]/images/index.ts" },
     { "pattern": "/api/plugins/shop/products/[id]/images/[imageId]", "entrypoint": "./src/api/shop/products/[id]/images/[imageId].ts" },
     { "pattern": "/api/plugins/shop/products/[id]/images/reorder", "entrypoint": "./src/api/shop/products/[id]/images/reorder.ts" },
-    { "pattern": "/api/plugins/shop/products/[id]/options", "entrypoint": "./src/api/shop/products/[id]/options/index.ts" },
-    { "pattern": "/api/plugins/shop/products/[id]/options/[optionTypeId]", "entrypoint": "./src/api/shop/products/[id]/options/[optionTypeId].ts" },
-    { "pattern": "/api/plugins/shop/products/[id]/options/[optionTypeId]/values", "entrypoint": "./src/api/shop/products/[id]/options/[optionTypeId]/values/index.ts" },
-    { "pattern": "/api/plugins/shop/products/[id]/options/[optionTypeId]/values/[valueId]", "entrypoint": "./src/api/shop/products/[id]/options/[optionTypeId]/values/[valueId].ts" },
     { "pattern": "/api/plugins/shop/products/[id]/variants", "entrypoint": "./src/api/shop/products/[id]/variants/index.ts" },
     { "pattern": "/api/plugins/shop/products/[id]/variants/[variantId]", "entrypoint": "./src/api/shop/products/[id]/variants/[variantId].ts" },
     { "pattern": "/api/plugins/shop/public/products", "entrypoint": "./src/api/shop/public/products/index.ts" },
@@ -84,6 +91,7 @@
     { "label": "Referral Codes", "href": "/admin/plugins/shop/referral-codes", "icon": "link" },
     { "label": "Carts", "href": "/admin/plugins/shop/carts", "icon": "shopping-cart" },
     { "label": "Payments", "href": "/admin/plugins/shop/settings/payments", "icon": "credit-card" },
+    { "label": "Attributes", "href": "/admin/plugins/shop/settings/attributes", "icon": "sliders-h" },
     { "label": "Settings", "href": "/admin/plugins/shop/settings/general", "icon": "cog" }
   ]
 }

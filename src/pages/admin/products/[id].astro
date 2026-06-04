@@ -192,6 +192,62 @@ for (const t of transRows as any[]) {
           </div>
         </div>
 
+        <!-- Section: Attributes -->
+        <div class="card bg-base-200/50">
+          <div class="card-body pb-4">
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Attributes</h4>
+            <div id="attributes-list" class="space-y-2 mb-4">
+              <p class="text-base-content/60 text-sm">Loading...</p>
+            </div>
+            <div class="flex gap-2 items-end">
+              <div class="form-control flex-1">
+                <label class="label"><span class="label-text font-semibold">Attribute</span></label>
+                <select id="assign-attribute-select" class="select select-bordered">
+                  <option value="">Select an attribute...</option>
+                </select>
+              </div>
+              <div class="form-control w-40">
+                <label class="label"><span class="label-text font-semibold">Role</span></label>
+                <select id="assign-role-select" class="select select-bordered">
+                  <option value="dimension">Dimension</option>
+                  <option value="field">Field</option>
+                </select>
+              </div>
+              <div id="assign-options-container" class="form-control w-64 hidden">
+                <label class="label"><span class="label-text font-semibold">Offered Options</span></label>
+                <select id="assign-options-select" class="select select-bordered select-multiple h-24" multiple>
+                </select>
+              </div>
+              <button type="button" id="assign-attribute-btn" class="btn btn-primary">Assign</button>
+            </div>
+            <div id="assign-error" class="text-error text-sm mt-2 hidden"></div>
+          </div>
+        </div>
+
+        <!-- Section: Variants -->
+        <div class="card bg-base-200/50">
+          <div class="card-body pb-4">
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Variants</h4>
+            <div id="variants-section">
+              <p class="text-base-content/60 text-sm">Loading...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Custom Fields -->
+        <div class="card bg-base-200/50">
+          <div class="card-body pb-4">
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Custom Fields</h4>
+            <div id="custom-fields-section" class="space-y-4">
+              <p class="text-base-content/60 text-sm">Loading...</p>
+            </div>
+            <div id="fields-error" class="text-error text-sm mt-2 hidden"></div>
+            <div class="flex justify-end mt-4">
+              <button type="button" id="save-fields-btn" class="btn btn-primary btn-sm">Save Field Values</button>
+            </div>
+          </div>
+        </div>
+
         <div id="form-error" class="alert alert-error hidden"></div>
 
         <div class="flex justify-end gap-2 pt-4 border-t border-base-200">
@@ -316,4 +372,398 @@ for (const t of transRows as any[]) {
       priceErr.classList.remove('hidden');
     }
   });
+
+  // ── Attributes Section ──
+  const assignSelect = document.getElementById('assign-attribute-select') as HTMLSelectElement;
+  const roleSelect = document.getElementById('assign-role-select') as HTMLSelectElement;
+  const optionsContainer = document.getElementById('assign-options-container') as HTMLDivElement;
+  const optionsSelect = document.getElementById('assign-options-select') as HTMLSelectElement;
+  const assignBtn = document.getElementById('assign-attribute-btn') as HTMLButtonElement;
+  const assignError = document.getElementById('assign-error') as HTMLDivElement;
+
+  // Fetch available attributes (not yet assigned)
+  async function loadAvailableAttributes() {
+    const [allRes, assignedRes] = await Promise.all([
+      fetch('/api/plugins/shop/attributes'),
+      fetch(`/api/plugins/shop/products/${PRODUCT_ID}/attributes`),
+    ]);
+    const allData = await allRes.json();
+    const assignedData = await assignedRes.json();
+
+    const assignedIds = new Set((assignedData.data || []).map((a: any) => a.attribute_id));
+    const available = (allData.data || []).filter((a: any) => !assignedIds.has(a.id));
+
+    assignSelect.innerHTML = '<option value="">Select an attribute...</option>';
+    for (const attr of available) {
+      const opt = document.createElement('option');
+      opt.value = attr.id;
+      opt.textContent = `${attr.name} (${attr.type})`;
+      opt.dataset.type = attr.type;
+      assignSelect.appendChild(opt);
+    }
+  }
+
+  // Load assigned attributes
+  async function loadAssignedAttributes() {
+    const res = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/attributes`);
+    const data = await res.json();
+    const list = document.getElementById('attributes-list') as HTMLDivElement;
+
+    if (!data.data || data.data.length === 0) {
+      list.innerHTML = '<p class="text-base-content/60 text-sm">No attributes assigned yet.</p>';
+      return;
+    }
+
+    list.innerHTML = data.data.map((a: any) => `
+      <div class="flex items-center gap-3 p-2 bg-base-200 rounded" data-assignment-id="${a.id}">
+        <span class="font-medium flex-1">${a.attribute_name}</span>
+        <span class="badge ${a.role === 'dimension' ? 'badge-primary' : 'badge-ghost'} badge-sm">${a.role}</span>
+        <span class="text-sm text-base-content/60">${a.attribute_type}</span>
+        <button type="button" class="btn btn-xs btn-error ghost" data-remove-assignment="${a.id}">×</button>
+      </div>
+    `).join('');
+
+    // Wire remove buttons
+    list.querySelectorAll('[data-remove-assignment]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const assignmentId = (btn as HTMLElement).dataset.removeAssignment!;
+        if (!confirm('Remove this attribute assignment?')) return;
+
+        const res = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/attributes/${assignmentId}`, {
+          method: 'DELETE',
+        });
+        const result = await res.json();
+        if (result.success) {
+          loadAssignedAttributes();
+          loadAvailableAttributes();
+          loadCustomFields();
+        } else {
+          alert(result.error || 'Failed to remove assignment');
+        }
+      });
+    });
+  }
+
+  // Toggle options container based on role
+  roleSelect.addEventListener('change', async () => {
+    if (roleSelect.value === 'dimension') {
+      optionsContainer.classList.remove('hidden');
+      // Load options for selected attribute
+      const attrId = assignSelect.value;
+      if (attrId) {
+        const res = await fetch(`/api/plugins/shop/attributes/${attrId}/options`);
+        const data = await res.json();
+        optionsSelect.innerHTML = (data.data || []).map((o: any) =>
+          `<option value="${o.id}">${o.label || o.value}</option>`
+        ).join('');
+      }
+    } else {
+      optionsContainer.classList.add('hidden');
+    }
+  });
+
+  // Assign attribute
+  assignBtn.addEventListener('click', async () => {
+    assignError.classList.add('hidden');
+    const attrId = assignSelect.value;
+    if (!attrId) {
+      assignError.textContent = 'Select an attribute';
+      assignError.classList.remove('hidden');
+      return;
+    }
+
+    const body: Record<string, any> = {
+      attribute_id: attrId,
+      role: roleSelect.value,
+    };
+
+    if (roleSelect.value === 'dimension') {
+      const selected = Array.from((optionsSelect as HTMLSelectElement).selectedOptions).map(o => o.value);
+      if (selected.length === 0) {
+        assignError.textContent = 'Select at least one option for dimension';
+        assignError.classList.remove('hidden');
+        return;
+      }
+      body.offered_option_ids = selected;
+    }
+
+    const res = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/attributes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const result = await res.json();
+    if (result.success) {
+      loadAssignedAttributes();
+      loadAvailableAttributes();
+      loadCustomFields();
+      loadVariants();
+    } else {
+      assignError.textContent = result.error || 'Failed to assign attribute';
+      assignError.classList.remove('hidden');
+    }
+  });
+
+  // ── Variants Section ──
+  async function loadVariants() {
+    const section = document.getElementById('variants-section') as HTMLDivElement;
+
+    // Check if product has dimension assignments
+    const attrRes = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/attributes`);
+    const attrData = await attrRes.json();
+    const dimensions = (attrData.data || []).filter((a: any) => a.role === 'dimension');
+
+    // Fetch existing variants
+    const varRes = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/variants`);
+    const varData = await varRes.json();
+    const variants = varData.data || [];
+
+    let html = '';
+    if (dimensions.length > 0) {
+      html += '<button type="button" id="generate-variants-btn" class="btn btn-sm btn-outline mb-4">Generate Variants</button>';
+    }
+
+    if (variants.length > 0) {
+      html += '<div class="overflow-x-auto"><table class="table w-full"><thead><tr><th>SKU</th><th>Stock</th><th>Active</th><th>Attributes</th><th class="text-right">Actions</th></tr></thead><tbody>';
+      for (const v of variants) {
+        const attrLabels = (v.attributes || []).map((a: any) => `${a.attribute_name}: ${a.value}`).join(', ');
+        html += `<tr>
+          <td class="font-mono text-sm">${v.sku || '—'}</td>
+          <td>${v.stock ?? '—'}</td>
+          <td>${v.active ? '✓' : '✗'}</td>
+          <td class="text-sm">${attrLabels || '—'}</td>
+          <td class="text-right">
+            <button type="button" class="btn btn-sm btn-ghost" data-edit-variant="${v.id}">Edit</button>
+            <button type="button" class="btn btn-sm btn-error ghost" data-delete-variant="${v.id}">×</button>
+          </td>
+        </tr>`;
+      }
+      html += '</tbody></table></div>';
+    } else {
+      html += '<p class="text-base-content/60 text-sm">No variants yet.</p>';
+    }
+
+    section.innerHTML = html;
+
+    // Wire generate button
+    const genBtn = document.getElementById('generate-variants-btn');
+    if (genBtn) {
+      genBtn.addEventListener('click', () => openGenerateModal(dimensions));
+    }
+
+    // Wire edit/delete buttons
+    section.querySelectorAll('[data-edit-variant]').forEach(btn => {
+      btn.addEventListener('click', () => openVariantEditModal((btn as HTMLElement).dataset.editVariant!));
+    });
+    section.querySelectorAll('[data-delete-variant]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const variantId = (btn as HTMLElement).dataset.deleteVariant!;
+        if (!confirm('Delete this variant?')) return;
+        const res = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/variants/${variantId}`, { method: 'DELETE' });
+        const result = await res.json();
+        if (result.success) loadVariants();
+        else alert(result.error || 'Failed to delete variant');
+      });
+    });
+  }
+
+  // Generate variants modal
+  async function openGenerateModal(dimensions: any[]) {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'modal';
+    dialog.innerHTML = `
+      <div class="modal-box max-w-4xl">
+        <h3 class="font-bold text-lg mb-4">Generate Variants</h3>
+        <p class="text-sm text-base-content/60 mb-4">Check the combinations you want to create. Auto-SKU is based on product slug + option values.</p>
+        <div id="combinations-list" class="overflow-x-auto max-h-96 overflow-y-auto mb-4"></div>
+        <div class="flex justify-end gap-2">
+          <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Cancel</button>
+          <button type="button" id="submit-variants" class="btn btn-primary">Create Selected</button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop"><button>close</button></form>
+    `;
+    document.body.appendChild(dialog);
+    dialog.showModal();
+
+    // Compute Cartesian product
+    const combos = cartesianProduct(dimensions.map(d => d.offered_options || []));
+    const productSlug = product.slug || '';
+    const container = dialog.querySelector('#combinations-list') as HTMLDivElement;
+
+    container.innerHTML = '<table class="table w-full"><thead><tr><th>Select</th>' +
+      dimensions.map(d => `<th>${d.attribute_name}</th>`).join('') +
+      '<th>SKU</th><th>Stock</th></tr></thead><tbody>' +
+      combos.map((c, i) => {
+        const optionValues = c.map(o => o.value).join('-').toLowerCase();
+        const autoSku = `${productSlug}-${optionValues}`;
+        return `<tr>
+          <td><input type="checkbox" class="checkbox" data-combo-idx="${i}" checked /></td>
+          ${dimensions.map((d, di) => `<td class="text-sm">${c[di].label || c[di].value}</td>`).join('')}
+          <td><input type="text" class="input input-sm input-bordered w-40" data-combo-sku="${i}" value="${autoSku}" /></td>
+          <td><input type="number" class="input input-sm input-bordered w-20" data-combo-stock="${i}" value="0" min="0" /></td>
+        </tr>`;
+      }).join('') +
+      '</tbody></table>';
+
+    dialog.querySelector('#submit-variants')!.addEventListener('click', async () => {
+      const selected = Array.from(container.querySelectorAll('input[data-combo-idx]:checked')).map(cb => parseInt(cb.dataset.comboIdx!));
+      const combinations = selected.map(idx => {
+        const option_ids = combos[idx].map((o: any) => o.id);
+        const sku = (container.querySelector(`input[data-combo-sku="${idx}"]`) as HTMLInputElement)?.value || '';
+        const stock = parseInt((container.querySelector(`input[data-combo-stock="${idx}"]`) as HTMLInputElement)?.value || '0');
+        return { option_ids, sku, stock };
+      });
+
+      const res = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/variants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ combinations }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        dialog.close();
+        loadVariants();
+      } else {
+        alert(result.error || 'Failed to create variants');
+      }
+    });
+  }
+
+  // Variant edit modal
+  async function openVariantEditModal(variantId: string) {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'modal';
+    dialog.innerHTML = `
+      <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">Edit Variant</h3>
+        <div class="space-y-4">
+          <div class="form-control"><label class="label"><span class="label-text">SKU</span></label><input type="text" id="edit-variant-sku" class="input input-bordered" /></div>
+          <div class="form-control"><label class="label"><span class="label-text">Stock</span></label><input type="number" id="edit-variant-stock" class="input input-bordered" min="0" /></div>
+          <div class="form-control"><label class="label cursor-pointer justify-start"><input type="checkbox" id="edit-variant-active" class="checkbox" /><span class="label-text ml-2">Active</span></label></div>
+        </div>
+        <div class="flex justify-end gap-2 mt-6">
+          <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Cancel</button>
+          <button type="button" id="save-variant" class="btn btn-primary">Save</button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop"><button>close</button></form>
+    `;
+    document.body.appendChild(dialog);
+    dialog.showModal();
+
+    // Fetch variant data
+    const res = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/variants`);
+    const data = await res.json();
+    const variant = (data.data || []).find((v: any) => v.id === variantId);
+    if (!variant) {
+      dialog.close();
+      return;
+    }
+
+    (dialog.querySelector('#edit-variant-sku') as HTMLInputElement).value = variant.sku || '';
+    (dialog.querySelector('#edit-variant-stock') as HTMLInputElement).value = variant.stock ?? '';
+    (dialog.querySelector('#edit-variant-active') as HTMLInputElement).checked = variant.active;
+
+    dialog.querySelector('#save-variant')!.addEventListener('click', async () => {
+      const body: Record<string, any> = {
+        sku: (dialog.querySelector('#edit-variant-sku') as HTMLInputElement).value || null,
+        stock: parseInt((dialog.querySelector('#edit-variant-stock') as HTMLInputElement).value) || null,
+        active: (dialog.querySelector('#edit-variant-active') as HTMLInputElement).checked,
+      };
+
+      const res = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/variants/${variantId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const result = await res.json();
+      if (result.success) {
+        dialog.close();
+        loadVariants();
+      } else {
+        alert(result.error || 'Failed to update variant');
+      }
+    });
+  }
+
+  // ── Custom Fields Section ──
+  async function loadCustomFields() {
+    const section = document.getElementById('custom-fields-section') as HTMLDivElement;
+    const res = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/attribute-values`);
+    const data = await res.json();
+
+    if (!data.data || data.data.length === 0) {
+      section.innerHTML = '<p class="text-base-content/60 text-sm">No field attributes assigned. Add field attributes in the Attributes section above.</p>';
+      return;
+    }
+
+    section.innerHTML = data.data.map((f: any) => {
+      let input = '';
+      switch (f.attribute_type) {
+        case 'text':
+          input = `<input type="text" class="input input-bordered" data-field-value="${f.assignment_id}" value="${f.value || ''}" />`;
+          break;
+        case 'number':
+          input = `<input type="number" class="input input-bordered" data-field-value="${f.assignment_id}" value="${f.value || ''}" />`;
+          break;
+        case 'boolean':
+          input = `<input type="checkbox" class="checkbox" data-field-value="${f.assignment_id}" ${f.value ? 'checked' : ''} />`;
+          break;
+        case 'select':
+          input = `<select class="select select-bordered" data-field-value="${f.assignment_id}"><option value="">Select...</option></select>`;
+          break;
+        default:
+          input = `<input type="text" class="input input-bordered" data-field-value="${f.assignment_id}" value="${f.value || ''}" />`;
+      }
+      return `<div class="form-control">
+        <label class="label"><span class="label-text">${f.attribute_name}</span></label>
+        ${input}
+      </div>`;
+    }).join('');
+  }
+
+  // Save custom fields
+  document.getElementById('save-fields-btn')!.addEventListener('click', async () => {
+    const fieldsError = document.getElementById('fields-error') as HTMLDivElement;
+    fieldsError.classList.add('hidden');
+
+    const values: any[] = [];
+    document.querySelectorAll('[data-field-value]').forEach(el => {
+      const assignmentId = el.dataset.fieldValue!;
+      let value: any;
+      if (el instanceof HTMLInputElement && el.type === 'checkbox') {
+        value = { assignment_id: assignmentId, value_boolean: el.checked };
+      } else if (el instanceof HTMLInputElement && el.type === 'number') {
+        value = { assignment_id: assignmentId, value_number: el.value ? parseFloat(el.value) : null };
+      } else {
+        value = { assignment_id: assignmentId, value_text: (el as HTMLInputElement | HTMLSelectElement).value || null };
+      }
+      values.push(value);
+    });
+
+    const res = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/attribute-values`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values }),
+    });
+    const result = await res.json();
+    if (result.success) {
+      alert('Field values saved');
+    } else {
+      fieldsError.textContent = result.error || 'Failed to save field values';
+      fieldsError.classList.remove('hidden');
+    }
+  });
+
+  // Helper: Cartesian product
+  function cartesianProduct(arrays: any[]) {
+    return arrays.reduce((a, b) => a.flatMap(x => b.map(y => [...x, y])), [[]]);
+  }
+
+  // Initialize sections
+  loadAvailableAttributes();
+  loadAssignedAttributes();
+  loadVariants();
+  loadCustomFields();
 </script>
