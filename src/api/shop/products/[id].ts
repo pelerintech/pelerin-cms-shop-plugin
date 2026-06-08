@@ -3,8 +3,8 @@ import { createPluginContext } from 'pelerin:plugin-sdk';
 import {
   db, eq, and,
   products, translations, product_prices, product_images,
-  product_variants, product_variant_option_values, product_option_values,
-  product_option_types,
+  product_variants,
+  product_attribute_values, product_attribute_assignments, product_attributes,
   sql as dbSql,
 } from 'astro:db';
 import { UpdateProductSchema } from '../../../schemas/product.schema'
@@ -15,6 +15,8 @@ export const GET: APIRoute = async (context) => {
   try {
     await sdk.auth.requireAdmin(context.request);
     const { id } = context.params;
+    const url = new URL(context.request.url);
+    const locale = url.searchParams.get('locale') || 'ro';
 
     const [product] = await db.select().from(products).where(eq(products.id, id));
     if (!product) {
@@ -45,21 +47,21 @@ export const GET: APIRoute = async (context) => {
       .where(eq(product_images.product_id, id))
       .orderBy(product_images.sort_order);
 
-    // Fetch variants with option values
+    // Fetch variants
     const variantRows = await db
       .select()
       .from(product_variants)
       .where(eq(product_variants.product_id, id));
 
-    // Fetch variant option values
-    let variantOptionValues: any[] = [];
+    // Fetch variant-level attribute values and prices
+    let variantAttrValues: any[] = [];
     let variantPrices: any[] = [];
     if (variantRows.length > 0) {
       const variantIds = variantRows.map(v => v.id);
-      const vovResult = await db.run(
-        dbSql`SELECT * FROM ${product_variant_option_values} WHERE ${product_variant_option_values.variant_id} IN (${dbSql.join(variantIds.map(vid => dbSql`${vid}`))})`
+      const vavResult = await db.run(
+        dbSql`SELECT * FROM ${product_attribute_values} WHERE ${product_attribute_values.entity_type} = 'variant' AND ${product_attribute_values.entity_id} IN (${dbSql.join(variantIds.map(vid => dbSql`${vid}`))})`
       );
-      variantOptionValues = vovResult.rows as any[];
+      variantAttrValues = vavResult.rows as any[];
 
       const vpResult = await db.run(
         dbSql`SELECT * FROM ${product_prices} WHERE ${product_prices.variant_id} IN (${dbSql.join(variantIds.map(vid => dbSql`${vid}`))})`
@@ -67,35 +69,169 @@ export const GET: APIRoute = async (context) => {
       variantPrices = vpResult.rows as any[];
     }
 
-    // Fetch option types and values for this product
-    const optionTypeRows = await db
-      .select()
-      .from(product_option_types)
-      .where(eq(product_option_types.product_id, id))
-      .orderBy(product_option_types.sort_order);
-
-    let optionValues: any[] = [];
-    if (optionTypeRows.length > 0) {
-      const otIds = optionTypeRows.map(ot => ot.id);
-      const ovResult = await db.run(
-        dbSql`SELECT * FROM ${product_option_values} WHERE ${product_option_values.option_type_id} IN (${dbSql.join(otIds.map(oid => dbSql`${oid}`))})`
-      );
-      optionValues = ovResult.rows as any[];
+    // Fetch assignment details for variant values
+    const assignmentIds = Array.from(new Set(variantAttrValues.map(v => v.assignment_id)));
+    const assignmentsMap = new Map<string, any>();
+    if (assignmentIds.length > 0) {
+      const assignments = await db
+        .select()
+        .from(product_attribute_assignments)
+        .where(
+          dbSql`${product_attribute_assignments.id} IN (${dbSql.join(assignmentIds.map(aid => dbSql`${aid}`))})`
+        );
+      for (const a of assignments) {
+        assignmentsMap.set(a.id, a);
+      }
     }
 
-    // Enrich variants with option values and prices
+    // Fetch attribute details
+    const attributeIds = Array.from(new Set(
+      Array.from(assignmentsMap.values()).map(a => a.attribute_id)
+    ));
+    const attributesMap = new Map<string, any>();
+    const attrTransMap = new Map<string, string>();
+    if (attributeIds.length > 0) {
+      const attrs = await db
+        .select()
+        .from(product_attributes)
+        .where(
+          dbSql`${product_attributes.id} IN (${dbSql.join(attributeIds.map(aid => dbSql`${aid}`))})`
+        );
+      for (const attr of attrs) {
+        attributesMap.set(attr.id, attr);
+      }
+
+      const attrTransRows = await db
+        .select()
+        .from(translations)
+        .where(
+          dbSql`${translations.entity_type} = 'product_attribute' AND ${translations.locale} = ${locale} AND ${translations.entity_id} IN (${dbSql.join(attributeIds.map(aid => dbSql`${aid}`))})`
+        );
+      for (const t of attrTransRows) {
+        if (t.name) attrTransMap.set(t.entity_id, t.name);
+      }
+    }
+
+    // Fetch option labels for select-type values
+    const optionIds = Array.from(new Set(
+      variantAttrValues.filter(v => v.option_id).map(v => v.option_id)
+    ));
+    const optionLabelsMap = new Map<string, string>();
+    if (optionIds.length > 0) {
+      const optTransRows = await db
+        .select()
+        .from(translations)
+        .where(
+          dbSql`${translations.entity_type} = 'product_attribute_option' AND ${translations.locale} = ${locale} AND ${translations.entity_id} IN (${dbSql.join(optionIds.map(oid => dbSql`${oid}`))})`
+        );
+      for (const t of optTransRows) {
+        if (t.label) optionLabelsMap.set(t.entity_id, t.label);
+      }
+    }
+
+    // Enrich variants with attribute values and prices
     const enrichedVariants = variantRows.map(v => {
-      const vov = variantOptionValues.filter(vo => vo.variant_id === v.id);
+      const vav = variantAttrValues.filter(val => val.entity_id === v.id);
       const vp = variantPrices.filter(p => p.variant_id === v.id);
+
+      const attributes = vav.map(val => {
+        const assignment = assignmentsMap.get(val.assignment_id);
+        const attr = assignment ? attributesMap.get(assignment.attribute_id) : null;
+        const attrName = attr ? (attrTransMap.get(attr.id) || attr.name) : '';
+
+        let value: string | number | boolean | null = null;
+        if (val.option_id) {
+          value = optionLabelsMap.get(val.option_id) || val.option_id;
+        } else if (val.value_text !== null) {
+          value = val.value_text;
+        } else if (val.value_number !== null) {
+          value = val.value_number;
+        } else if (val.value_boolean !== null) {
+          value = val.value_boolean;
+        }
+
+        return {
+          attribute_id: attr?.id || '',
+          attribute_name: attrName,
+          attribute_type: attr?.type || '',
+          role: assignment?.role || '',
+          value,
+        };
+      });
+
       return {
-        ...v,
-        option_values: vov.map(vo => {
-          const ov = optionValues.find(o => o.id === vo.option_value_id);
-          return ov ? { id: ov.id, value: ov.value, label: ov.label } : null;
-        }).filter(Boolean),
+        id: v.id,
+        product_id: v.product_id,
+        sku: v.sku,
+        stock: v.stock,
+        active: v.active,
+        attributes,
         prices: vp.map(p => ({ currency: p.currency, price_net: p.price_net })),
       };
     });
+
+    // Fetch product-level attribute assignments (both dimension and field)
+    const productAssignments = await db
+      .select()
+      .from(product_attribute_assignments)
+      .where(eq(product_attribute_assignments.product_id, id))
+      .orderBy(product_attribute_assignments.sort_order);
+
+    const productAssignmentsData: any[] = [];
+    if (productAssignments.length > 0) {
+      const pAssignmentIds = productAssignments.map(a => a.id);
+      const pAttributeIds = productAssignments.map(a => a.attribute_id);
+
+      const pAttrs = await db
+        .select()
+        .from(product_attributes)
+        .where(
+          dbSql`${product_attributes.id} IN (${dbSql.join(pAttributeIds.map(aid => dbSql`${aid}`))})`
+        );
+      const pAttrsMap = new Map(pAttrs.map(a => [a.id, a]));
+
+      const pAttrTransRows = await db
+        .select()
+        .from(translations)
+        .where(
+          dbSql`${translations.entity_type} = 'product_attribute' AND ${translations.locale} = ${locale} AND ${translations.entity_id} IN (${dbSql.join(pAttributeIds.map(aid => dbSql`${aid}`))})`
+        );
+      const pAttrTransMap = new Map(pAttrTransRows.filter(t => t.name).map(t => [t.entity_id, t.name]));
+
+      // Fetch product-level field values
+      const pValResult = await db.run(
+        dbSql`SELECT * FROM ${product_attribute_values} WHERE ${product_attribute_values.entity_type} = 'product' AND ${product_attribute_values.entity_id} = ${id} AND ${product_attribute_values.assignment_id} IN (${dbSql.join(pAssignmentIds.map(aid => dbSql`${aid}`))})`
+      );
+      const pValues = pValResult.rows as any[];
+
+      for (const assignment of productAssignments) {
+        const attr = pAttrsMap.get(assignment.attribute_id);
+        const val = pValues.find(v => v.assignment_id === assignment.id);
+
+        let value: string | number | boolean | null = null;
+        if (val) {
+          if (val.option_id) {
+            value = optionLabelsMap.get(val.option_id) || val.option_id;
+          } else if (val.value_text !== null) {
+            value = val.value_text;
+          } else if (val.value_number !== null) {
+            value = val.value_number;
+          } else if (val.value_boolean !== null) {
+            value = val.value_boolean;
+          }
+        }
+
+        productAssignmentsData.push({
+          assignment_id: assignment.id,
+          attribute_id: assignment.attribute_id,
+          attribute_name: pAttrTransMap.get(assignment.attribute_id) || attr?.name || '',
+          attribute_type: attr?.type || '',
+          role: assignment.role,
+          offered_option_ids: assignment.offered_option_ids ? JSON.parse(assignment.offered_option_ids) : [],
+          value,
+        });
+      }
+    }
 
     return new Response(
       JSON.stringify({
@@ -106,10 +242,7 @@ export const GET: APIRoute = async (context) => {
           prices: priceRows.map(p => ({ currency: p.currency, price_net: p.price_net })),
           images: imageRows,
           variants: enrichedVariants,
-          options: optionTypeRows.map(ot => ({
-            ...ot,
-            values: optionValues.filter(ov => ov.option_type_id === ot.id),
-          })),
+          attribute_assignments: productAssignmentsData,
         },
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
