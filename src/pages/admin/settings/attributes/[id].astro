@@ -1,0 +1,296 @@
+---
+// Admin: edit attribute
+// Route: /admin/plugins/shop/settings/attributes/[id]
+import AdminLayout from 'pelerin:admin-layout';
+import { createPluginContext } from 'pelerin:plugin-sdk';
+import { db, product_attributes, product_attribute_options, shop_settings, sql as dbSql } from 'astro:db';
+import Breadcrumbs from '../../../../components/admin/Breadcrumbs.astro';
+import TextField from '../../../../components/admin/TextField.astro';
+import SelectField from '../../../../components/admin/SelectField.astro';
+
+const sdk = createPluginContext();
+const user = await sdk.auth.requireAdmin(Astro.request);
+
+const id = Astro.params.id;
+
+// Fetch attribute
+const [attribute] = await db
+  .select()
+  .from(product_attributes)
+  .where(dbSql`${product_attributes.id} = ${id}`);
+
+if (!attribute) {
+  return Astro.redirect('/admin/plugins/shop/settings/attributes');
+}
+
+// Fetch locales from settings
+const localesResult = await db.run(
+  dbSql`SELECT ${shop_settings.value} FROM ${shop_settings} WHERE ${shop_settings.key} = 'locales' LIMIT 1`
+);
+let locales: { code: string; name: string; isDefault: boolean }[] = [];
+if (localesResult.rows.length > 0) {
+  try {
+    locales = JSON.parse((localesResult.rows[0] as any).value);
+  } catch {}
+}
+const defaultLocale = locales.find(l => l.isDefault)?.code || 'ro';
+const otherLocales = locales.filter(l => !l.isDefault);
+
+// Fetch translations for this attribute
+const transResult = await db.run(
+  dbSql`SELECT * FROM translations WHERE entity_type = 'product_attribute' AND entity_id = ${id}`
+);
+const transRows = transResult.rows as any[];
+const transByLocale = new Map(transRows.map(t => [t.locale, t]));
+
+// Fetch options for select-type attributes
+let options: any[] = [];
+if (attribute.type === 'select') {
+  const optResult = await db
+    .select()
+    .from(product_attribute_options)
+    .where(dbSql`${product_attribute_options.attribute_id} = ${id}`)
+    .orderBy(product_attribute_options.sort_order);
+  options = optResult;
+}
+
+// Fetch option translations
+const optionTransMap = new Map<string, Map<string, any>>();
+if (options.length > 0) {
+  const optIds = options.map(o => o.id);
+  const placeholders = optIds.map(() => '?').join(',');
+  const optTransResult = await db.run(
+    dbSql`SELECT * FROM translations WHERE entity_type = 'product_attribute_option' AND entity_id IN (${dbSql.raw(placeholders)})`,
+    ...optIds
+  );
+  for (const row of optTransResult.rows) {
+    const r = row as any;
+    if (!optionTransMap.has(r.entity_id)) optionTransMap.set(r.entity_id, new Map());
+    optionTransMap.get(r.entity_id)!.set(r.locale, r);
+  }
+}
+
+const typeOptions = [
+  { value: 'select', label: 'Select (dropdown)' },
+  { value: 'text', label: 'Text' },
+  { value: 'rich_text', label: 'Rich Text' },
+  { value: 'number', label: 'Number' },
+  { value: 'boolean', label: 'Boolean (checkbox)' },
+];
+---
+
+<AdminLayout title="Edit Attribute" currentPath="/admin/plugins/shop/settings/attributes" user={user}>
+  <Breadcrumbs items={[
+    { label: 'Shop', href: '/admin/plugins/shop' },
+    { label: 'Settings', href: '/admin/plugins/shop/settings' },
+    { label: 'Attributes', href: '/admin/plugins/shop/settings/attributes' },
+    { label: attribute.name },
+  ]} />
+
+  <div class="flex items-center justify-between col-span-12 mb-4">
+    <div>
+      <h1 class="text-2xl font-bold">Edit Attribute</h1>
+      <p class="text-base-content/60">{attribute.name} ({attribute.type})</p>
+    </div>
+    <a href="/admin/plugins/shop/settings/attributes" class="btn btn-ghost">Back</a>
+  </div>
+
+  <!-- Attribute Details -->
+  <div class="card bg-base-100 shadow-lg col-span-12">
+    <div class="card-body">
+      <form id="attribute-form" class="space-y-6" data-default-locale={defaultLocale} data-locale-codes={JSON.stringify(otherLocales.map(l => l.code))}>
+
+        <SelectField
+          name="type"
+          label="Type"
+          options={typeOptions}
+          value={attribute.type}
+        />
+        <p class="text-base-content/60 text-sm -mt-4 mb-4">Type cannot be changed after creation</p>
+
+        <div class="divider">Name</div>
+
+        <TextField
+          name="name"
+          label={`Name (${defaultLocale.toUpperCase()})`}
+          value={attribute.name}
+          required
+        />
+
+        {otherLocales.map(locale => (
+          <TextField
+            name={`name_${locale.code}`}
+            label={`Name (${locale.code.toUpperCase()})`}
+            value={(transByLocale.get(locale.code) as any)?.name || ''}
+          />
+        ))}
+
+        <TextField
+          name="sort_order"
+          label="Sort Order"
+          type="number"
+          value={String(attribute.sort_order)}
+        />
+
+        <div class="flex justify-end gap-2 pt-4 border-t border-base-200">
+          <a href="/admin/plugins/shop/settings/attributes" class="btn btn-ghost">Cancel</a>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+
+      <div id="error-message" class="alert alert-error mt-4 hidden">
+        <span id="error-text"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Options (select-type only) -->
+  {attribute.type === 'select' && (
+    <div class="card bg-base-100 shadow-lg col-span-12 mt-6">
+      <div class="card-body">
+        <h2 class="card-title mb-4">Options</h2>
+
+        <div id="options-list" class="space-y-2 mb-6">
+          {options.map(opt => {
+            const defaultTrans = optionTransMap.get(opt.id)?.get(defaultLocale);
+            return (
+              <div class="flex items-center gap-4 p-3 bg-base-200 rounded" data-option-id={opt.id}>
+                <span class="font-mono text-sm flex-1">{opt.value}</span>
+                <span class="flex-1">{(defaultTrans as any)?.label || opt.value}</span>
+                <span class="text-sm text-base-content/60 w-16 text-center">#{opt.sort_order}</span>
+                <div class="join">
+                  <button class="btn btn-sm join-item" data-edit-option={opt.id}>Edit</button>
+                  <button class="btn btn-sm btn-error join-item" data-delete-option={opt.id}>Delete</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div class="divider">Add Option</div>
+
+        <form id="add-option-form" class="flex gap-2 items-end">
+          <div class="form-control flex-1">
+            <label class="label"><span class="label-text font-semibold">Value</span></label>
+            <input type="text" name="value" class="input input-bordered" placeholder="e.g. red, blue" required />
+          </div>
+          <div class="form-control flex-1">
+            <label class="label"><span class="label-text font-semibold">Label ({defaultLocale.toUpperCase()})</span></label>
+            <input type="text" name="label" class="input input-bordered" placeholder="e.g. Red" required />
+          </div>
+          {otherLocales.map(locale => (
+            <div class="form-control w-40">
+              <label class="label"><span class="label-text">Label ({locale.code.toUpperCase()})</span></label>
+              <input type="text" name={`label_${locale.code}`} class="input input-bordered" />
+            </div>
+          ))}
+          <div class="form-control w-24">
+            <label class="label"><span class="label-text">Sort</span></label>
+            <input type="number" name="sort_order" class="input input-bordered" value="0" />
+          </div>
+          <button type="submit" class="btn btn-primary">Add</button>
+        </form>
+
+        <div id="option-error" class="alert alert-error mt-4 hidden">
+          <span id="option-error-text"></span>
+        </div>
+      </div>
+    </div>
+  )}
+</AdminLayout>
+
+<script is:inline>
+  const form = document.getElementById('attribute-form');
+  const errorMessage = document.getElementById('error-message');
+  const errorText = document.getElementById('error-text');
+  const attributeId = window.location.pathname.split('/').pop();
+
+  // Save attribute
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorMessage.classList.add('hidden');
+
+    const formData = new FormData(form);
+    const body: Record<string, any> = {};
+
+    for (const [key, value] of formData.entries()) {
+      if (key === 'sort_order') {
+        body[key] = parseInt(value as string) || 0;
+      } else if (key !== 'type') {
+        body[key] = value;
+      }
+    }
+
+    const response = await fetch(`/api/plugins/shop/attributes/${attributeId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      window.location.reload();
+    } else {
+      errorText.textContent = data.error || 'Failed to update attribute';
+      errorMessage.classList.remove('hidden');
+    }
+  });
+
+  // Add option
+  const addOptionForm = document.getElementById('add-option-form');
+  if (addOptionForm) {
+    const optionError = document.getElementById('option-error');
+    const optionErrorText = document.getElementById('option-error-text');
+
+    addOptionForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (optionError) optionError.classList.add('hidden');
+
+      const formData = new FormData(addOptionForm);
+      const body: Record<string, any> = {
+        value: formData.get('value'),
+        label: formData.get('label'),
+        sort_order: parseInt(formData.get('sort_order') as string) || 0,
+      };
+
+      const response = await fetch(`/api/plugins/shop/attributes/${attributeId}/options`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        window.location.reload();
+      } else {
+        if (optionError && optionErrorText) {
+          optionErrorText.textContent = data.error || 'Failed to add option';
+          optionError.classList.remove('hidden');
+        }
+      }
+    });
+  }
+
+  // Delete option
+  document.querySelectorAll('[data-delete-option]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const optionId = btn.dataset.deleteOption;
+      if (!confirm('Delete this option? This will fail if it is used in product assignments.')) return;
+
+      const response = await fetch(`/api/plugins/shop/attributes/${attributeId}/options/${optionId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        window.location.reload();
+      } else {
+        alert(data.error || 'Failed to delete option');
+      }
+    });
+  });
+</script>

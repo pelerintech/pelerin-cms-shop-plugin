@@ -1,3 +1,10 @@
+export interface CartItemAttribute {
+  attribute_name: string;
+  attribute_type: string;
+  role: string;
+  value: string | number | boolean | null;
+}
+
 export interface CartItemLine {
   id: string;
   product_id: string;
@@ -12,6 +19,7 @@ export interface CartItemLine {
   line_total_net: number;
   line_total_gross: number;
   currency: string;
+  attributes: CartItemAttribute[];
 }
 
 export interface VatBreakdown {
@@ -41,6 +49,7 @@ export interface CartItemInput {
   price_net: number;
   vat_rate: number | null;
   currency: string;
+  attributes: CartItemAttribute[];
 }
 
 /**
@@ -78,6 +87,7 @@ export function computeCartTotals(
       line_total_net: lineTotalNet,
       line_total_gross: lineTotalGross,
       currency: effectiveCurrency,
+      attributes: item.attributes || [],
     };
   });
 

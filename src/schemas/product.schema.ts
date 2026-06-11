@@ -2,6 +2,80 @@ import { z } from 'zod';
 import { ProductType, OptionValueType } from './enums'
 
 /**
+ * Schema for creating a global product attribute
+ */
+export const CreateAttributeSchema = z.object({
+  name: z.string().min(1),
+  type: z.enum(['select', 'text', 'rich_text', 'number', 'boolean']),
+  sort_order: z.number().int().default(0),
+});
+
+export type CreateAttributeInput = z.infer<typeof CreateAttributeSchema>;
+
+/**
+ * Schema for updating a global product attribute — all fields optional
+ */
+export const UpdateAttributeSchema = CreateAttributeSchema.partial();
+
+export type UpdateAttributeInput = z.infer<typeof UpdateAttributeSchema>;
+
+/**
+ * Schema for creating an attribute option (select-type only)
+ */
+export const CreateAttributeOptionSchema = z.object({
+  attribute_id: z.string().min(1),
+  value: z.string().min(1),
+  sort_order: z.number().int().default(0),
+});
+
+export type CreateAttributeOptionInput = z.infer<typeof CreateAttributeOptionSchema>;
+
+/**
+ * Schema for updating an attribute option — all fields optional
+ */
+export const UpdateAttributeOptionSchema = CreateAttributeOptionSchema.partial();
+
+export type UpdateAttributeOptionInput = z.infer<typeof UpdateAttributeOptionSchema>;
+
+/**
+ * Schema for assigning an attribute to a product
+ */
+export const CreateAttributeAssignmentSchema = z.object({
+  attribute_id: z.string().min(1),
+  role: z.enum(['dimension', 'field']),
+  sort_order: z.number().int().default(0),
+  offered_option_ids: z.array(z.string().min(1)).default([]),
+});
+
+export type CreateAttributeAssignmentInput = z.infer<typeof CreateAttributeAssignmentSchema>;
+
+/**
+ * Schema for setting an attribute value on a product or variant
+ */
+export const CreateAttributeValueSchema = z.object({
+  entity_type: z.enum(['product', 'variant']),
+  entity_id: z.string().min(1),
+  assignment_id: z.string().min(1),
+  option_id: z.string().min(1).nullable().default(null),
+  value_text: z.string().nullable().default(null),
+  value_number: z.number().nullable().default(null),
+  value_boolean: z.boolean().nullable().default(null),
+});
+
+export type CreateAttributeValueInput = z.infer<typeof CreateAttributeValueSchema>;
+
+/**
+ * Schema for updating a variant (PUT)
+ */
+export const UpdateVariantSchema = z.object({
+  sku: z.string().min(1).nullable().default(null),
+  stock: z.number().int().min(0).nullable().default(null),
+  active: z.boolean().optional(),
+});
+
+export type UpdateVariantInput = z.infer<typeof UpdateVariantSchema>;
+
+/**
  * Schema for creating a new product
  */
 export const CreateProductSchema = z.object({
@@ -38,30 +112,6 @@ export const CreateVariantSchema = z.object({
 });
 
 export type CreateVariantInput = z.infer<typeof CreateVariantSchema>;
-
-/**
- * Schema for creating a product option type
- */
-export const CreateOptionTypeSchema = z.object({
-  product_id: z.string().min(1),
-  label: z.string().min(1),
-  value_type: OptionValueType,
-  sort_order: z.number().int().default(0),
-});
-
-export type CreateOptionTypeInput = z.infer<typeof CreateOptionTypeSchema>;
-
-/**
- * Schema for creating a product option value
- */
-export const CreateOptionValueSchema = z.object({
-  option_type_id: z.string().min(1),
-  value: z.string().min(1),
-  label: z.string().min(1),
-  sort_order: z.number().int().default(0),
-});
-
-export type CreateOptionValueInput = z.infer<typeof CreateOptionValueSchema>;
 
 /**
  * Schema for creating a product price
@@ -111,7 +161,7 @@ export type CreateProductImageInput = z.infer<typeof CreateProductImageSchema>;
  * Schema for creating a translation
  */
 export const CreateTranslationSchema = z.object({
-  entity_type: z.enum(['product', 'category', 'option_type', 'option_value']),
+  entity_type: z.enum(['product', 'category', 'option_type', 'option_value', 'product_attribute', 'product_attribute_option']),
   entity_id: z.string().min(1),
   locale: z.string().min(1),
   name: z.string().nullable().default(null),

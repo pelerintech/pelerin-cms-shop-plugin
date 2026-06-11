@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { db, cart_items, carts, products, product_prices, product_variants, vouchers, referral_codes, sql as dbSql } from 'astro:db';
+import { db, cart_items, carts, products, product_prices, product_variants, vouchers, referral_codes, product_attribute_values, product_attribute_assignments, product_attributes, translations, sql as dbSql } from 'astro:db';
 import { getOrCreateCart } from '../../../../lib/cart-session'
 import { computeCartTotals } from '../../../../lib/cart-totals'
 import type { CartItemInput } from '../../../../lib/cart-totals'
@@ -137,6 +137,91 @@ async function enrichItemsWithPrices(items: any[], currency: string): Promise<Ca
     }
   }
 
+  // Fetch variant-level attribute values for all variants in cart
+  const variantAttributesMap = new Map<string, any[]>();
+  if (variantIds.length > 0) {
+    const vavResult = await db.run(
+      dbSql`SELECT * FROM ${product_attribute_values} WHERE ${product_attribute_values.entity_type} = 'variant' AND ${product_attribute_values.entity_id} IN (${dbSql.join(variantIds.map((id: string) => dbSql`${id}`))})`
+    );
+    const vavRows = vavResult.rows as any[];
+
+    // Fetch assignment details
+    const assignmentIds = Array.from(new Set(vavRows.map(v => v.assignment_id)));
+    const assignmentsMap = new Map<string, any>();
+    if (assignmentIds.length > 0) {
+      const assignments = await db
+        .select()
+        .from(product_attribute_assignments)
+        .where(
+          dbSql`${product_attribute_assignments.id} IN (${dbSql.join(assignmentIds.map(aid => dbSql`${aid}`))})`
+        );
+      for (const a of assignments) {
+        assignmentsMap.set(a.id, a);
+      }
+    }
+
+    // Fetch attribute details
+    const attributeIds = Array.from(new Set(
+      Array.from(assignmentsMap.values()).map(a => a.attribute_id)
+    ));
+    const attributesMap = new Map<string, any>();
+    if (attributeIds.length > 0) {
+      const attrs = await db
+        .select()
+        .from(product_attributes)
+        .where(
+          dbSql`${product_attributes.id} IN (${dbSql.join(attributeIds.map(aid => dbSql`${aid}`))})`
+        );
+      for (const attr of attrs) {
+        attributesMap.set(attr.id, attr);
+      }
+    }
+
+    // Fetch option labels for select-type values
+    const optionIds = Array.from(new Set(
+      vavRows.filter(v => v.option_id).map(v => v.option_id)
+    ));
+    const optionLabelsMap = new Map<string, string>();
+    if (optionIds.length > 0) {
+      const optTransRows = await db
+        .select()
+        .from(translations)
+        .where(
+          dbSql`${translations.entity_type} = 'product_attribute_option' AND ${translations.locale} = 'ro' AND ${translations.entity_id} IN (${dbSql.join(optionIds.map(oid => dbSql`${oid}`))})`
+        );
+      for (const t of optTransRows) {
+        if (t.label) optionLabelsMap.set(t.entity_id, t.label);
+      }
+    }
+
+    // Build variant → attributes map
+    for (const val of vavRows) {
+      if (!variantAttributesMap.has(val.entity_id)) {
+        variantAttributesMap.set(val.entity_id, []);
+      }
+      const assignment = assignmentsMap.get(val.assignment_id);
+      const attr = assignment ? attributesMap.get(assignment.attribute_id) : null;
+
+      let value: string | number | boolean | null = null;
+      if (val.option_id) {
+        value = optionLabelsMap.get(val.option_id) || val.option_id;
+      } else if (val.value_text !== null) {
+        value = val.value_text;
+      } else if (val.value_number !== null) {
+        value = val.value_number;
+      } else if (val.value_boolean !== null) {
+        value = val.value_boolean;
+      }
+
+      variantAttributesMap.get(val.entity_id)!.push({
+        attribute_name: attr?.name || '',
+        attribute_type: attr?.type || '',
+        role: assignment?.role || '',
+        value,
+      });
+    }
+  }
+
   const result: CartItemInput[] = [];
 
   for (const item of items) {
@@ -171,6 +256,7 @@ async function enrichItemsWithPrices(items: any[], currency: string): Promise<Ca
       price_net: priceNet,
       vat_rate: product?.vat_rate ?? null,
       currency,
+      attributes: variantAttributesMap.get(item.variant_id) || [],
     });
   }
 

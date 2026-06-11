@@ -1,0 +1,151 @@
+---
+// Admin: global attributes list
+// Route: /admin/plugins/shop/settings/attributes
+import AdminLayout from 'pelerin:admin-layout';
+import Breadcrumbs from '../../../../components/admin/Breadcrumbs.astro';
+import { createPluginContext } from 'pelerin:plugin-sdk';
+import { db, product_attributes, product_attribute_options, product_attribute_assignments, sql as dbSql } from 'astro:db';
+
+const sdk = createPluginContext();
+const user = await sdk.auth.requireAdmin(Astro.request);
+
+// Fetch all attributes
+const attributes = await db
+  .select()
+  .from(product_attributes)
+  .orderBy(product_attributes.sort_order);
+
+// Fetch option counts for select-type attributes
+const selectAttributes = attributes.filter(a => a.type === 'select');
+const optionCounts = new Map<string, number>();
+if (selectAttributes.length > 0) {
+  const placeholders = selectAttributes.map(() => '?').join(',');
+  const optionsResult = await db.run(
+    dbSql`SELECT * FROM ${product_attribute_options} WHERE ${product_attribute_options.attribute_id} IN (${dbSql.raw(placeholders)})`,
+    ...selectAttributes.map(a => a.id)
+  );
+  for (const row of optionsResult.rows) {
+    const opt = row as any;
+    const count = optionCounts.get(opt.attribute_id) || 0;
+    optionCounts.set(opt.attribute_id, count + 1);
+  }
+}
+
+// Fetch assignment counts
+const assignmentCounts = new Map<string, number>();
+if (attributes.length > 0) {
+  const placeholders = attributes.map(() => '?').join(',');
+  const assignmentsResult = await db.run(
+    dbSql`SELECT * FROM ${product_attribute_assignments} WHERE ${product_attribute_assignments.attribute_id} IN (${dbSql.raw(placeholders)})`,
+    ...attributes.map(a => a.id)
+  );
+  for (const row of assignmentsResult.rows) {
+    const a = row as any;
+    const count = assignmentCounts.get(a.attribute_id) || 0;
+    assignmentCounts.set(a.attribute_id, count + 1);
+  }
+}
+
+const typeLabels: Record<string, string> = {
+  select: 'Select',
+  text: 'Text',
+  rich_text: 'Rich Text',
+  number: 'Number',
+  boolean: 'Boolean',
+};
+---
+
+<AdminLayout title="Attributes" currentPath="/admin/plugins/shop/settings/attributes" user={user}>
+  <div class="col-span-12">
+    <Breadcrumbs items={[
+      { label: 'Shop', href: '/admin/plugins/shop' },
+      { label: 'Settings', href: '/admin/plugins/shop/settings' },
+      { label: 'Attributes' },
+    ]} />
+
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold">Attributes</h1>
+        <p class="text-base-content/60 mt-1">Global attribute definitions for products</p>
+      </div>
+      <a href="/admin/plugins/shop/settings/attributes/new" class="btn btn-primary">New Attribute</a>
+    </div>
+
+    <div class="card bg-base-100 shadow-lg">
+      <div class="card-body">
+        {
+          attributes.length === 0
+            ? <p class="text-base-content/60">No attributes defined yet. Create one to get started.</p>
+            : <div class="overflow-x-auto">
+                <table class="table w-full">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Type</th>
+                      <th>Options</th>
+                      <th>Used by</th>
+                      <th>Sort</th>
+                      <th class="text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {attributes.map(attr => (
+                      <tr>
+                        <td class="font-medium">
+                          <a href={`/admin/plugins/shop/settings/attributes/${attr.id}`}>{attr.name}</a>
+                        </td>
+                        <td>
+                          <span class="badge badge-ghost badge-sm">{typeLabels[attr.type] || attr.type}</span>
+                        </td>
+                        <td>
+                          {attr.type === 'select'
+                            ? <span class="text-sm">{optionCounts.get(attr.id) || 0} options</span>
+                            : <span class="text-base-content/40">—</span>
+                          }
+                        </td>
+                        <td>
+                          <span class="text-sm">{assignmentCounts.get(attr.id) || 0} product{assignmentCounts.get(attr.id) !== 1 ? 's' : ''}</span>
+                        </td>
+                        <td class="text-sm">{attr.sort_order}</td>
+                        <td class="text-right">
+                          <div class="join">
+                            <a href={`/admin/plugins/shop/settings/attributes/${attr.id}`} class="btn btn-sm join-item">Edit</a>
+                            <button
+                              class="btn btn-sm btn-error join-item"
+                              data-delete-attribute={attr.id}
+                              data-attribute-name={attr.name}
+                            >Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+        }
+      </div>
+    </div>
+  </div>
+</AdminLayout>
+
+<script is:inline>
+  document.querySelectorAll('[data-delete-attribute]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.deleteAttribute;
+      const name = btn.dataset.attributeName;
+      if (!confirm(`Delete attribute "${name}"? This will fail if it is assigned to any products.`)) return;
+
+      const response = await fetch(`/api/plugins/shop/attributes/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        window.location.reload();
+      } else {
+        alert(data.error || 'Failed to delete attribute');
+      }
+    });
+  });
+</script>
