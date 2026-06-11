@@ -52,6 +52,14 @@ describe('GET /api/plugins/shop/vouchers', () => {
     const content = readFileSync(VOUCHERS_PATH, 'utf-8');
     assert.match(content, /expired|valid_until/, 'Should support expired filter (valid_until check)');
   });
+
+  // GREEN assertion — confirm inactive branch uses OR logic
+  it('inactive branch uses OR to combine deactivated, expired, exhausted', () => {
+    const content = readFileSync(VOUCHERS_PATH, 'utf-8');
+    // The inactive branch should combine the three sub-conditions with OR
+    assert.match(content, /OR \(\$\{vouchers\.valid_until\}/, 'inactive branch should use OR for expired check');
+    assert.match(content, /OR \(\$\{vouchers\.max_uses\}/, 'inactive branch should use OR for exhausted check');
+  });
 });
 
 describe('POST /api/plugins/shop/vouchers', () => {

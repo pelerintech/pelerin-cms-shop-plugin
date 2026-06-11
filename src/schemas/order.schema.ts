@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { OrderStatus, CustomerType, ShippingType } from './enums.ts';
+import { OrderStatus, CustomerType, ShippingType } from './enums'
 
 /**
  * Address schema — used for both billing and shipping
@@ -58,6 +58,7 @@ export const CreateOrderSchema = z
     billing_first_name: z.string().min(1),
     billing_last_name: z.string().min(1),
     billing_address: z.string().min(1),
+    billing_address_extra: z.string().nullable().default(null),
     billing_city: z.string().min(1),
     billing_postal_code: z.string().min(1),
     billing_country: z.string().min(1),
@@ -68,6 +69,7 @@ export const CreateOrderSchema = z
     shipping_first_name: z.string().nullable().default(null),
     shipping_last_name: z.string().nullable().default(null),
     shipping_address: z.string().nullable().default(null),
+    shipping_address_extra: z.string().nullable().default(null),
     shipping_city: z.string().nullable().default(null),
     shipping_postal_code: z.string().nullable().default(null),
     shipping_country: z.string().nullable().default(null),
@@ -203,6 +205,7 @@ export const OrderOutputSchema = z.object({
   billing_first_name: z.string().min(1),
   billing_last_name: z.string().min(1),
   billing_address: z.string().min(1),
+  billing_address_extra: z.string().nullable(),
   billing_city: z.string().min(1),
   billing_postal_code: z.string().min(1),
   billing_country: z.string().min(1),
@@ -213,6 +216,7 @@ export const OrderOutputSchema = z.object({
   shipping_first_name: z.string().nullable(),
   shipping_last_name: z.string().nullable(),
   shipping_address: z.string().nullable(),
+  shipping_address_extra: z.string().nullable(),
   shipping_city: z.string().nullable(),
   shipping_postal_code: z.string().nullable(),
   shipping_country: z.string().nullable(),

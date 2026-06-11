@@ -1,15 +1,15 @@
 import Stripe from 'stripe';
 import { db, shop_settings, orders, sql as dbSql } from 'astro:db';
-import { decryptIfNeeded } from '../../lib/crypto.ts';
-import { transitionOrder } from '../../lib/order-transitions.ts';
-import { registerProvider } from './registry.ts';
+import { decryptIfNeeded } from '../../lib/crypto'
+import { transitionOrder } from '../../lib/order-transitions'
+import { registerProvider } from './registry'
 import type {
   PaymentProvider,
   PaymentOrder,
   PaymentOptions,
   PaymentInitResult,
   WebhookResult,
-} from './interface.ts';
+} from './interface'
 
 async function getSetting(key: string): Promise<string | null> {
   const result = await db.run(

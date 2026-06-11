@@ -3,98 +3,84 @@
 // Route: /admin/plugins/shop/vouchers/[id]
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
+import Breadcrumbs from '../../../components/admin/Breadcrumbs.astro';
+import TextField from '../../../components/admin/TextField.astro';
+import SelectField from '../../../components/admin/SelectField.astro';
+import CheckboxField from '../../../components/admin/CheckboxField.astro';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
 const { id } = Astro.params;
+const fromPage = new URL(Astro.request.url).searchParams.get('from_page') || '1';
 ---
 
 <AdminLayout title="Edit Voucher" currentPath="/admin/plugins/shop/vouchers" user={user}>
-  <div class="max-w-2xl mx-auto p-6">
-    <div class="flex items-center gap-4 mb-6">
-      <a href="/admin/plugins/shop/vouchers" class="btn btn-ghost btn-sm">&larr; Back</a>
-      <h1 class="text-2xl font-bold">Edit Voucher</h1>
+  <Breadcrumbs items={[
+    { label: 'Shop', href: '/admin/plugins/shop' },
+    { label: 'Vouchers', href: '/admin/plugins/shop/vouchers' },
+    { label: 'Edit Voucher' },
+  ]} />
+
+  <div class="flex items-center justify-between col-span-12 mb-4">
+    <div>
+      <h1 class="text-2xl font-bold" id="page-title">Edit Voucher</h1>
+      <p class="text-base-content/60" id="page-subtitle">Loading...</p>
     </div>
+    <a href="/admin/plugins/shop/vouchers" class="btn btn-ghost">Back</a>
+  </div>
 
-    <div class="mb-4 p-4 bg-base-200 rounded-lg" id="stats-section" style="display:none;">
-      <h2 class="text-lg font-semibold mb-2">Usage</h2>
-      <div class="grid grid-cols-2 gap-2 text-sm">
-        <div><span class="text-gray-500">Uses:</span> <span id="stat-uses">—</span></div>
-        <div><span class="text-gray-500">Remaining:</span> <span id="stat-remaining">—</span></div>
-        <div><span class="text-gray-500">Status:</span> <span id="stat-status" class="badge badge-sm">—</span></div>
+  <!-- Stats Section -->
+  <div class="card bg-base-200/50 col-span-12 mb-4" id="stats-section" style="display:none;">
+    <div class="card-body py-4">
+      <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-2">Usage</h4>
+      <div class="grid grid-cols-3 gap-4 text-sm">
+        <div><span class="text-base-content/60">Uses:</span> <span id="stat-uses">—</span></div>
+        <div><span class="text-base-content/60">Remaining:</span> <span id="stat-remaining">—</span></div>
+        <div><span class="text-base-content/60">Status:</span> <span id="stat-status" class="badge badge-sm">—</span></div>
       </div>
     </div>
+  </div>
 
-    <form id="voucher-form" class="space-y-4">
-      <div class="form-control">
-        <label class="label" for="code"><span class="label-text">Code</span></label>
-        <input type="text" id="code" name="code" class="input input-bordered w-full" placeholder="SUMMER10" required style="text-transform: uppercase;" />
-      </div>
+  <div class="card bg-base-100 shadow-lg col-span-12">
+    <div class="card-body">
+      <form id="voucher-form" class="space-y-6">
+        <div class="space-y-4">
+          <TextField name="code" label="Code" required placeholder="SUMMER10" style="text-transform: uppercase;" />
+          <SelectField name="type" label="Type" required placeholder="Select type..." options={[
+            { value: 'fixed_amount', label: 'Fixed Amount' },
+            { value: 'percentage', label: 'Percentage' },
+            { value: 'free_shipping', label: 'Free Shipping' },
+          ]} />
+          <div id="value-field">
+            <TextField name="value" label="Value" type="number" step="0.01" min="0" placeholder="10" />
+          </div>
+          <TextField name="min_order_value" label="Minimum Order Value" type="number" step="0.01" min="0" placeholder="Optional" />
+          <TextField name="max_uses" label="Max Uses" type="number" min="1" placeholder="Leave empty for unlimited" />
 
-      <div class="form-control">
-        <label class="label" for="type"><span class="label-text">Type</span></label>
-        <select id="type" name="type" class="select select-bordered" required>
-          <option value="">Select type...</option>
-          <option value="fixed_amount">Fixed Amount</option>
-          <option value="percentage">Percentage</option>
-          <option value="free_shipping">Free Shipping</option>
-        </select>
-      </div>
+          <div class="grid grid-cols-2 gap-4">
+            <TextField name="valid_from" label="Valid From" type="date" />
+            <TextField name="valid_until" label="Valid Until" type="date" />
+          </div>
 
-      <div class="form-control" id="value-field">
-        <label class="label" for="value"><span class="label-text">Value</span></label>
-        <input type="number" id="value" name="value" class="input input-bordered w-full" placeholder="10" min="0" step="0.01" />
-      </div>
-
-      <div class="form-control">
-        <label class="label" for="min_order_value"><span class="label-text">Minimum Order Value</span></label>
-        <input type="number" id="min_order_value" name="min_order_value" class="input input-bordered w-full" placeholder="Optional" min="0" step="0.01" />
-      </div>
-
-      <div class="form-control">
-        <label class="label" for="max_uses"><span class="label-text">Max Uses</span></label>
-        <input type="number" id="max_uses" name="max_uses" class="input input-bordered w-full" placeholder="Leave empty for unlimited" min="1" />
-      </div>
-
-      <div class="grid grid-cols-2 gap-4">
-        <div class="form-control">
-          <label class="label" for="valid_from"><span class="label-text">Valid From</span></label>
-          <input type="date" id="valid_from" name="valid_from" class="input input-bordered w-full" />
+          <CheckboxField name="single_use_per_customer" label="Single use per customer" />
+          <CheckboxField name="active" label="Active" />
         </div>
-        <div class="form-control">
-          <label class="label" for="valid_until"><span class="label-text">Valid Until</span></label>
-          <input type="date" id="valid_until" name="valid_until" class="input input-bordered w-full" />
+
+        <div id="form-error" class="alert alert-error hidden"></div>
+
+        <div class="flex justify-end gap-2 pt-4 border-t border-base-200">
+          <button type="submit" class="btn btn-primary" id="save-btn">Save Changes</button>
+          <button type="button" class="btn btn-outline btn-error" id="deactivate-btn">Deactivate</button>
         </div>
-      </div>
-
-      <div class="form-control">
-        <label class="label cursor-pointer justify-start gap-4">
-          <input type="checkbox" id="single_use_per_customer" name="single_use_per_customer" class="checkbox" />
-          <span class="label-text">Single use per customer</span>
-        </label>
-      </div>
-
-      <div class="form-control">
-        <label class="label cursor-pointer justify-start gap-4">
-          <input type="checkbox" id="active" name="active" class="checkbox" />
-          <span class="label-text">Active</span>
-        </label>
-      </div>
-
-      <div id="errors" class="hidden alert alert-error"></div>
-      <div id="success" class="hidden alert alert-success"></div>
-
-      <div class="form-control mt-6 flex gap-2">
-        <button type="submit" class="btn btn-primary" id="save-btn">Save Changes</button>
-        <button type="button" class="btn btn-outline btn-error" id="deactivate-btn">Deactivate</button>
-      </div>
-    </form>
+      </form>
+    </div>
   </div>
 </AdminLayout>
 
-<script>
-  var VOUCHER_ID = '{id}';
+<script define:vars={{ id, fromPage }}>
+  var VOUCHER_ID = id;
   var API_URL = '/api/plugins/shop/vouchers/' + VOUCHER_ID;
+  var FROM_PAGE = fromPage;
 
   // Toggle value field based on type
   document.getElementById('type').addEventListener('change', function() {
@@ -113,19 +99,31 @@ const { id } = Astro.params;
       var json = await res.json();
       if (json.success && json.data) {
         var v = json.data;
-        document.getElementById('code').value = v.code || '';
-        document.getElementById('type').value = v.type || '';
-        document.getElementById('value').value = v.value !== null ? v.value : '';
-        document.getElementById('min_order_value').value = v.min_order_value !== null ? v.min_order_value : '';
-        document.getElementById('max_uses').value = v.max_uses !== null ? v.max_uses : '';
+
+        // Update page title
+        document.getElementById('page-title').textContent = 'Edit: ' + v.code;
+        document.getElementById('page-subtitle').textContent = 'Voucher details';
+
+        // Update breadcrumbs
+        var breadcrumbLabel = document.querySelectorAll('.breadcrumbs li')[2];
+        if (breadcrumbLabel) breadcrumbLabel.textContent = 'Edit: ' + v.code;
+
+        // Populate form fields
+        var inputs = document.querySelectorAll('#voucher-form input, #voucher-form select');
+        var form = document.getElementById('voucher-form');
+        form.code.value = v.code || '';
+        form.type.value = v.type || '';
+        form.value.value = v.value !== null ? v.value : '';
+        form.min_order_value.value = v.min_order_value !== null ? v.min_order_value : '';
+        form.max_uses.value = v.max_uses !== null ? v.max_uses : '';
         if (v.valid_from) {
-          document.getElementById('valid_from').value = new Date(v.valid_from).toISOString().split('T')[0];
+          form.valid_from.value = new Date(v.valid_from).toISOString().split('T')[0];
         }
         if (v.valid_until) {
-          document.getElementById('valid_until').value = new Date(v.valid_until).toISOString().split('T')[0];
+          form.valid_until.value = new Date(v.valid_until).toISOString().split('T')[0];
         }
-        document.getElementById('single_use_per_customer').checked = v.single_use_per_customer;
-        document.getElementById('active').checked = v.active;
+        form.single_use_per_customer.checked = v.single_use_per_customer;
+        form.active.checked = v.active;
 
         // Show/hide value field based on type
         if (v.type === 'free_shipping') {
@@ -141,12 +139,12 @@ const { id } = Astro.params;
         var colors = { active: 'badge-success', inactive: 'badge-ghost', expired: 'badge-warning', exhausted: 'badge-error' };
         statBadge.className = 'badge badge-sm ' + (colors[v.status] || 'badge-ghost');
       } else {
-        document.getElementById('errors').classList.remove('hidden');
-        document.getElementById('errors').textContent = 'Failed to load voucher.';
+        document.getElementById('form-error').classList.remove('hidden');
+        document.getElementById('form-error').textContent = 'Failed to load voucher.';
       }
     } catch (err) {
-      document.getElementById('errors').classList.remove('hidden');
-      document.getElementById('errors').textContent = err.message || 'Failed to load.';
+      document.getElementById('form-error').classList.remove('hidden');
+      document.getElementById('form-error').textContent = err.message || 'Failed to load.';
     }
   }
 
@@ -159,7 +157,7 @@ const { id } = Astro.params;
     var body = {
       code: formData.get('code') || undefined,
       type: formData.get('type') || undefined,
-      value: document.getElementById('type').value === 'free_shipping' ? null : (formData.get('value') !== '' ? parseFloat(formData.get('value')) : null),
+      value: form.type.value === 'free_shipping' ? null : (formData.get('value') !== '' ? parseFloat(formData.get('value')) : null),
       min_order_value: formData.get('min_order_value') !== '' ? parseFloat(formData.get('min_order_value')) : null,
       max_uses: formData.get('max_uses') !== '' ? parseInt(formData.get('max_uses')) : null,
       valid_from: formData.get('valid_from') ? new Date(formData.get('valid_from') + 'T00:00:00Z').toISOString() : null,
@@ -171,13 +169,11 @@ const { id } = Astro.params;
     // Remove undefined fields for partial update
     Object.keys(body).forEach(function(k) { if (body[k] === undefined) delete body[k]; });
 
-    var errorsEl = document.getElementById('errors');
-    var successEl = document.getElementById('success');
+    var errorsEl = document.getElementById('form-error');
     var saveBtn = document.getElementById('save-btn');
     saveBtn.disabled = true;
     saveBtn.textContent = 'Saving...';
     errorsEl.classList.add('hidden');
-    successEl.classList.add('hidden');
 
     try {
       var res = await fetch(API_URL, {
@@ -187,10 +183,7 @@ const { id } = Astro.params;
       });
       var json = await res.json();
       if (json.success) {
-        successEl.classList.remove('hidden');
-        successEl.textContent = 'Voucher updated.';
-        setTimeout(function() { successEl.classList.add('hidden'); }, 3000);
-        await loadVoucher();
+        window.location.href = '/admin/plugins/shop/vouchers?page=' + FROM_PAGE;
       } else {
         errorsEl.classList.remove('hidden');
         if (json.fields) {
@@ -216,14 +209,14 @@ const { id } = Astro.params;
   document.getElementById('deactivate-btn').addEventListener('click', async function() {
     if (!confirm('Deactivate this voucher? Orders that used this code will not be affected.')) return;
 
-    var errorsEl = document.getElementById('errors');
+    var errorsEl = document.getElementById('form-error');
     errorsEl.classList.add('hidden');
 
     try {
       var res = await fetch(API_URL, { method: 'DELETE' });
       var json = await res.json();
       if (json.success) {
-        window.location.href = '/admin/plugins/shop/vouchers';
+        window.location.href = '/admin/plugins/shop/vouchers?page=' + FROM_PAGE;
       } else {
         errorsEl.classList.remove('hidden');
         errorsEl.textContent = json.error || 'Failed to deactivate.';

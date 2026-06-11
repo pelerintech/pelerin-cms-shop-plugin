@@ -7,6 +7,7 @@
     "astro": "^5.17.2"
   },
   "dependencies": {
+    "marked": "^18.0.4",
     "stripe": "^22.1.1",
     "zod": "^3.25.76"
   }

@@ -8,18 +8,20 @@ import { db, vouchers, sql as dbSql } from 'astro:db';
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
 
-// Parse filters
+// Parse query params
 const url = new URL(Astro.request.url);
-const activeFilter = url.searchParams.get('active');
-const typeFilter = url.searchParams.get('type');
+const activeFilter = url.searchParams.get('active') || '';
+const typeFilter = url.searchParams.get('type') || '';
+const page = parseInt(url.searchParams.get('page') || '1');
+const limit = 20;
+const offset = (page - 1) * limit;
 
+// Build where clause
 const conditions: string[] = [];
-if (activeFilter !== null) {
-  if (activeFilter === 'true') {
-    conditions.push(`v.active = 1 AND (v.valid_until IS NULL OR v.valid_until >= datetime('now')) AND (v.max_uses IS NULL OR v.uses_count < v.max_uses)`);
-  } else {
-    conditions.push(`(v.active = 0 OR (v.valid_until IS NOT NULL AND v.valid_until < datetime('now')) OR (v.max_uses IS NOT NULL AND v.uses_count >= v.max_uses))`);
-  }
+if (activeFilter === 'true') {
+  conditions.push(`v.active = 1 AND (v.valid_until IS NULL OR v.valid_until >= datetime('now')) AND (v.max_uses IS NULL OR v.uses_count < v.max_uses)`);
+} else if (activeFilter === 'false') {
+  conditions.push(`(v.active = 0 OR (v.valid_until IS NOT NULL AND v.valid_until < datetime('now')) OR (v.max_uses IS NOT NULL AND v.uses_count >= v.max_uses))`);
 }
 if (typeFilter) {
   conditions.push(`v.type = '${typeFilter.replace(/'/g, "''")}'`);
@@ -27,6 +29,7 @@ if (typeFilter) {
 
 const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
+// Fetch vouchers
 const result = await db.run(dbSql`
   SELECT v.*,
     CASE
@@ -37,10 +40,19 @@ const result = await db.run(dbSql`
     END as status
   FROM ${vouchers} v
   ${dbSql.raw(whereClause)}
-  ORDER BY v.code ASC
+  ORDER BY v.created_at DESC
+  LIMIT ${limit} OFFSET ${offset}
 `);
 
 const voucherList = result.rows as any[];
+
+// Count total
+const countResult = await db.run(dbSql`
+  SELECT COUNT(*) as total FROM ${vouchers} v
+  ${dbSql.raw(whereClause)}
+`);
+const total = (countResult.rows[0] as any).total as number;
+const totalPages = Math.ceil(total / limit);
 
 function statusBadge(status: string) {
   const colors: Record<string, string> = {
@@ -51,52 +63,76 @@ function statusBadge(status: string) {
   };
   return colors[status] || 'badge-ghost';
 }
+
+function buildFilterParams(p: number): string {
+  const params = new URLSearchParams();
+  if (activeFilter) params.set('active', activeFilter);
+  if (typeFilter) params.set('type', typeFilter);
+  params.set('page', String(p));
+  return params.toString();
+}
 ---
 
 <AdminLayout title="Vouchers" currentPath="/admin/plugins/shop/vouchers" user={user}>
-  <div class="p-6">
-    <div class="flex justify-between items-center mb-4">
+  <div class="col-span-12">
+    <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold">Vouchers</h1>
-      <a href="/admin/plugins/shop/vouchers/new" class="btn btn-primary btn-sm">New Voucher</a>
+      <a href="/admin/plugins/shop/vouchers/new" class="btn btn-primary">New Voucher</a>
     </div>
 
-    <div class="mb-4 flex gap-2 items-center">
-      <label class="text-sm">Filter:</label>
-      <select class="select select-bordered select-sm" onchange="const u=new URL(location);if(this.value==='all'){u.searchParams.delete('active')}else{u.searchParams.set('active',this.value)};location=u.toString()">
-        <option value="all" {!activeFilter ? 'selected' : ''}>All</option>
-        <option value="true" {activeFilter === 'true' ? 'selected' : ''}>Active</option>
-        <option value="false" {activeFilter === 'false' ? 'selected' : ''}>Inactive / Expired / Exhausted</option>
-      </select>
-      <select class="select select-bordered select-sm" onchange="const u=new URL(location);if(this.value==='all'){u.searchParams.delete('type')}else{u.searchParams.set('type',this.value)};location=u.toString()">
-        <option value="all" {!typeFilter ? 'selected' : ''}>All types</option>
-        <option value="fixed_amount" {typeFilter === 'fixed_amount' ? 'selected' : ''}>Fixed Amount</option>
-        <option value="percentage" {typeFilter === 'percentage' ? 'selected' : ''}>Percentage</option>
-        <option value="free_shipping" {typeFilter === 'free_shipping' ? 'selected' : ''}>Free Shipping</option>
-      </select>
-    </div>
+    <!-- Filters -->
+    <form method="GET" class="flex gap-4 mb-6 flex-wrap items-end">
+      <div class="form-control">
+        <label class="label"><span class="label-text">Status</span></label>
+        <select name="active" class="select select-bordered">
+          <option value="">All</option>
+          <option value="true" selected={activeFilter === 'true'}>Active</option>
+          <option value="false" selected={activeFilter === 'false'}>Inactive / Expired / Exhausted</option>
+        </select>
+      </div>
+      <div class="form-control">
+        <label class="label"><span class="label-text">Type</span></label>
+        <select name="type" class="select select-bordered">
+          <option value="">All types</option>
+          <option value="fixed_amount" selected={typeFilter === 'fixed_amount'}>Fixed Amount</option>
+          <option value="percentage" selected={typeFilter === 'percentage'}>Percentage</option>
+          <option value="free_shipping" selected={typeFilter === 'free_shipping'}>Free Shipping</option>
+        </select>
+      </div>
+      <div class="form-control">
+        <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
+        <button type="submit" class="btn btn-outline">Filter</button>
+      </div>
+      {(activeFilter || typeFilter) && (
+        <div class="form-control">
+          <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
+          <a href="/admin/plugins/shop/vouchers" class="btn btn-ghost">Clear</a>
+        </div>
+      )}
+    </form>
 
-    <div class="overflow-x-auto">
-      <table class="table table-zebra w-full">
-        <thead>
-          <tr>
-            <th>Code</th>
-            <th>Type</th>
-            <th>Value</th>
-            <th>Uses</th>
-            <th>Max Uses</th>
-            <th>Status</th>
-            <th>Valid From</th>
-            <th>Valid Until</th>
-          </tr>
-        </thead>
-        <tbody>
-          {voucherList.length === 0 ? (
+    <!-- Voucher Table -->
+    {voucherList.length === 0 ? (
+      <p class="text-base-content/60">No vouchers found.</p>
+    ) : (
+      <div class="overflow-x-auto">
+        <table class="table table-zebra w-full">
+          <thead>
             <tr>
-              <td colspan="8" class="text-center text-gray-500 py-4">No vouchers found</td>
+              <th>Code</th>
+              <th>Type</th>
+              <th>Value</th>
+              <th>Uses</th>
+              <th>Max Uses</th>
+              <th>Status</th>
+              <th>Valid From</th>
+              <th>Valid Until</th>
+              <th />
             </tr>
-          ) : (
-            voucherList.map((v: any) => (
-              <tr class="hover cursor-pointer" onclick={`location.href='/admin/plugins/shop/vouchers/${v.id}'`}>
+          </thead>
+          <tbody>
+            {voucherList.map((v: any) => (
+              <tr>
                 <td class="font-mono font-bold">{v.code}</td>
                 <td>{v.type === 'fixed_amount' ? 'Fixed Amount' : v.type === 'percentage' ? 'Percentage' : 'Free Shipping'}</td>
                 <td class="font-mono">{v.type === 'free_shipping' ? '—' : v.type === 'percentage' ? `${v.value}%` : `${v.value} RON`}</td>
@@ -105,11 +141,46 @@ function statusBadge(status: string) {
                 <td><span class={`badge badge-sm ${statusBadge(v.status)}`}>{v.status}</span></td>
                 <td class="text-sm">{v.valid_from ? new Date(v.valid_from).toLocaleDateString() : '—'}</td>
                 <td class="text-sm">{v.valid_until ? new Date(v.valid_until).toLocaleDateString() : '—'}</td>
+                <td>
+                  <div class="flex gap-2">
+                    <a href={`/admin/plugins/shop/vouchers/${v.id}?from_page=${page}`} class="btn btn-ghost btn-xs">Edit</a>
+                    <button class="btn btn-error btn-xs delete-voucher" data-id={v.id} data-code={v.code}>Delete</button>
+                  </div>
+                </td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+
+    <!-- Pagination -->
+    {totalPages > 1 && (
+      <div class="join mt-4">
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+          <a
+            href={`/admin/plugins/shop/vouchers?${buildFilterParams(p)}`}
+            class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
+          >
+            {p}
+          </a>
+        ))}
+      </div>
+    )}
   </div>
 </AdminLayout>
+
+<script>
+  // Delete voucher
+  document.querySelectorAll('.delete-voucher').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const voucherId = (btn as HTMLElement).dataset.id!;
+      const voucherCode = (btn as HTMLElement).dataset.code!;
+      if (!confirm(`Delete voucher "${voucherCode}"?`)) return;
+      const res = await fetch(`/api/plugins/shop/vouchers/${voucherId}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (result.success) location.reload();
+      else alert(result.error || 'Failed to delete');
+    });
+  });
+</script>

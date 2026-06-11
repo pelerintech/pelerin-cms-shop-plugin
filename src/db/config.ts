@@ -16,6 +16,8 @@ const categories = defineTable({
     description: column.text({ optional: true }),
     slug: column.text(),
     sort_order: column.number(),
+    created_at: column.date({ mode: 'timestamp', optional: true }),
+    updated_at: column.date({ mode: 'timestamp', optional: true }),
   },
 });
 
@@ -32,6 +34,8 @@ const products = defineTable({
     name: column.text(),
     description: column.text({ optional: true }),
     slug: column.text(),
+    created_at: column.date({ mode: 'timestamp' }),
+    updated_at: column.date({ mode: 'timestamp', optional: true }),
   },
 });
 
@@ -154,6 +158,7 @@ const orders = defineTable({
     billing_first_name: column.text(),
     billing_last_name: column.text(),
     billing_address: column.text(),
+    billing_address_extra: column.text({ optional: true }),
     billing_city: column.text(),
     billing_postal_code: column.text(),
     billing_country: column.text(),
@@ -164,6 +169,7 @@ const orders = defineTable({
     shipping_first_name: column.text(),
     shipping_last_name: column.text(),
     shipping_address: column.text(),
+    shipping_address_extra: column.text({ optional: true }),
     shipping_city: column.text(),
     shipping_postal_code: column.text(),
     shipping_country: column.text(),

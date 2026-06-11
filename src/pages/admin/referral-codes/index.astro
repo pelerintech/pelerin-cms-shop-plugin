@@ -8,23 +8,37 @@ import { db, referral_codes, orders, sql as dbSql } from 'astro:db';
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
 
-// Parse filters
+// Parse query params
 const url = new URL(Astro.request.url);
-const activeFilter = url.searchParams.get('active');
+const activeFilter = url.searchParams.get('active') || '';
+const page = parseInt(url.searchParams.get('page') || '1');
+const limit = 20;
+const offset = (page - 1) * limit;
 
-let result;
-if (activeFilter !== null) {
-  const isActive = activeFilter === 'true';
-  result = await db.run(
-    dbSql`SELECT * FROM ${referral_codes} WHERE ${referral_codes.active} = ${isActive ? 1 : 0} ORDER BY ${referral_codes.code} ASC`
-  );
-} else {
-  result = await db.run(
-    dbSql`SELECT * FROM ${referral_codes} ORDER BY ${referral_codes.code} ASC`
-  );
-}
+// Build where clause
+const conditions: string[] = [];
+if (activeFilter === 'true') conditions.push('rc.active = 1');
+else if (activeFilter === 'false') conditions.push('rc.active = 0');
+
+const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+// Fetch referral codes
+const result = await db.run(dbSql`
+  SELECT * FROM ${referral_codes} rc
+  ${dbSql.raw(whereClause)}
+  ORDER BY rc.created_at DESC
+  LIMIT ${limit} OFFSET ${offset}
+`);
 
 const codeList = result.rows as any[];
+
+// Count total
+const countResult = await db.run(dbSql`
+  SELECT COUNT(*) as total FROM ${referral_codes} rc
+  ${dbSql.raw(whereClause)}
+`);
+const total = (countResult.rows[0] as any).total as number;
+const totalPages = Math.ceil(total / limit);
 
 // Fetch order attribution counts for all referral codes
 const codes = codeList.map(c => c.code);
@@ -44,53 +58,108 @@ function discountLabel(c: any): string {
   if (c.discount_type === 'fixed_amount') return `${c.discount_value} RON`;
   return '—';
 }
+
+function buildFilterParams(p: number): string {
+  const params = new URLSearchParams();
+  if (activeFilter) params.set('active', activeFilter);
+  params.set('page', String(p));
+  return params.toString();
+}
 ---
 
 <AdminLayout title="Referral Codes" currentPath="/admin/plugins/shop/referral-codes" user={user}>
-  <div class="p-6">
-    <div class="flex justify-between items-center mb-4">
+  <div class="col-span-12">
+    <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold">Referral Codes</h1>
-      <a href="/admin/plugins/shop/referral-codes/new" class="btn btn-primary btn-sm">New Referral Code</a>
+      <a href="/admin/plugins/shop/referral-codes/new" class="btn btn-primary">New Referral Code</a>
     </div>
 
-    <div class="mb-4 flex gap-2 items-center">
-      <label class="text-sm">Filter:</label>
-      <select class="select select-bordered select-sm" onchange="const u=new URL(location);if(this.value==='all'){u.searchParams.delete('active')}else{u.searchParams.set('active',this.value)};location=u.toString()">
-        <option value="all" {!activeFilter ? 'selected' : ''}>All</option>
-        <option value="true" {activeFilter === 'true' ? 'selected' : ''}>Active</option>
-        <option value="false" {activeFilter === 'false' ? 'selected' : ''}>Inactive</option>
-      </select>
-    </div>
+    <!-- Filters -->
+    <form method="GET" class="flex gap-4 mb-6 flex-wrap items-end">
+      <div class="form-control">
+        <label class="label"><span class="label-text">Status</span></label>
+        <select name="active" class="select select-bordered">
+          <option value="">All</option>
+          <option value="true" selected={activeFilter === 'true'}>Active</option>
+          <option value="false" selected={activeFilter === 'false'}>Inactive</option>
+        </select>
+      </div>
+      <div class="form-control">
+        <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
+        <button type="submit" class="btn btn-outline">Filter</button>
+      </div>
+      {activeFilter && (
+        <div class="form-control">
+          <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
+          <a href="/admin/plugins/shop/referral-codes" class="btn btn-ghost">Clear</a>
+        </div>
+      )}
+    </form>
 
-    <div class="overflow-x-auto">
-      <table class="table table-zebra w-full">
-        <thead>
-          <tr>
-            <th>Code</th>
-            <th>Name</th>
-            <th>Discount</th>
-            <th>Orders</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {codeList.length === 0 ? (
+    <!-- Referral Codes Table -->
+    {codeList.length === 0 ? (
+      <p class="text-base-content/60">No referral codes found.</p>
+    ) : (
+      <div class="overflow-x-auto">
+        <table class="table table-zebra w-full">
+          <thead>
             <tr>
-              <td colspan="5" class="text-center text-gray-500 py-4">No referral codes found</td>
+              <th>Code</th>
+              <th>Name</th>
+              <th>Discount</th>
+              <th>Orders</th>
+              <th>Status</th>
+              <th />
             </tr>
-          ) : (
-            codeList.map((c: any) => (
-              <tr class="hover cursor-pointer" onclick={`location.href='/admin/plugins/shop/referral-codes/${c.id}'`}>
+          </thead>
+          <tbody>
+            {codeList.map((c: any) => (
+              <tr>
                 <td class="font-mono font-bold">{c.code}</td>
                 <td>{c.name}</td>
                 <td>{discountLabel(c)}</td>
                 <td>{orderCounts.get(c.code) ?? 0}</td>
                 <td>{c.active ? <span class="badge badge-sm badge-success">Active</span> : <span class="badge badge-sm badge-ghost">Inactive</span>}</td>
+                <td>
+                  <div class="flex gap-2">
+                    <a href={`/admin/plugins/shop/referral-codes/${c.id}?from_page=${page}`} class="btn btn-ghost btn-xs">Edit</a>
+                    <button class="btn btn-error btn-xs delete-referral" data-id={c.id} data-code={c.code}>Delete</button>
+                  </div>
+                </td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+
+    <!-- Pagination -->
+    {totalPages > 1 && (
+      <div class="join mt-4">
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+          <a
+            href={`/admin/plugins/shop/referral-codes?${buildFilterParams(p)}`}
+            class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
+          >
+            {p}
+          </a>
+        ))}
+      </div>
+    )}
   </div>
 </AdminLayout>
+
+<script>
+  // Delete referral code
+  document.querySelectorAll('.delete-referral').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const refId = (btn as HTMLElement).dataset.id!;
+      const refCode = (btn as HTMLElement).dataset.code!;
+      if (!confirm(`Delete referral code "${refCode}"?`)) return;
+      const res = await fetch(`/api/plugins/shop/referral-codes/${refId}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (result.success) location.reload();
+      else alert(result.error || 'Failed to delete');
+    });
+  });
+</script>

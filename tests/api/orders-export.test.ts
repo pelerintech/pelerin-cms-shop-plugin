@@ -53,4 +53,15 @@ describe('CSV export API', () => {
     // Should NOT have a LIMIT that restricts results — export should get ALL matching
     assert.doesNotMatch(content, /LIMIT\s+\d+|OFFSET/, 'Should not use pagination limits');
   });
+
+  // GREEN assertions — confirm the fix uses dbSql tagged templates
+  it('uses dbSql tagged template for data query', () => {
+    const content = readFileSync(EXPORT_PATH, 'utf-8');
+    assert.match(content, /dbSql`SELECT \* FROM \$\{orders\}/, 'Should use dbSql for data query');
+  });
+
+  it('uses dbSql.join for combining conditions', () => {
+    const content = readFileSync(EXPORT_PATH, 'utf-8');
+    assert.match(content, /dbSql\.join\(conditions/, 'Should use dbSql.join for conditions');
+  });
 });

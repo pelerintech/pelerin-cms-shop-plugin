@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { db, referral_codes, sql as dbSql } from 'astro:db';
-import { CreateReferralCodeSchema } from '../../../../schemas/referral.schema.ts';
+import { CreateReferralCodeSchema } from '../../../schemas/referral.schema'
 
 export const GET: APIRoute = async (context) => {
   const sdk = createPluginContext();

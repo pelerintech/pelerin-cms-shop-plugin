@@ -1,9 +1,9 @@
 import type { APIRoute } from 'astro';
 import { db, cart_items, carts, orders, order_items, order_status_history, products, product_variants, product_prices, vouchers, sql as dbSql } from 'astro:db';
-import { getOrCreateCart } from '../../../../lib/cart-session.ts';
-import { computeCartTotals } from '../../../../lib/cart-totals.ts';
-import type { CartItemInput } from '../../../../lib/cart-totals.ts';
-import { generateOrderNumber } from '../../../../lib/order-number.ts';
+import { getOrCreateCart } from '../../../../lib/cart-session'
+import { computeCartTotals } from '../../../../lib/cart-totals'
+import type { CartItemInput } from '../../../../lib/cart-totals'
+import { generateOrderNumber } from '../../../../lib/order-number'
 import { z } from 'zod';
 
 const CheckoutSchema = z

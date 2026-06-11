@@ -1,20 +1,25 @@
 {
   "name": "pelerin_ro_shop",
+  "displayName": "Shop",
   "version": "1.0.0",
   "dbConfig": "./src/db/config.ts",
   "dbSeed": "./src/db/seed.ts",
   "publicPages": [],
   "adminPages": [
+    { "pattern": "/admin/plugins/shop", "entrypoint": "./src/pages/admin/index.astro" },
     { "pattern": "/admin/plugins/shop/products", "entrypoint": "./src/pages/admin/products/index.astro" },
     { "pattern": "/admin/plugins/shop/products/new", "entrypoint": "./src/pages/admin/products/new.astro" },
     { "pattern": "/admin/plugins/shop/products/[id]", "entrypoint": "./src/pages/admin/products/[id].astro" },
     { "pattern": "/admin/plugins/shop/categories", "entrypoint": "./src/pages/admin/categories/index.astro" },
+    { "pattern": "/admin/plugins/shop/categories/new", "entrypoint": "./src/pages/admin/categories/new.astro" },
+    { "pattern": "/admin/plugins/shop/categories/[id]", "entrypoint": "./src/pages/admin/categories/[id].astro" },
     { "pattern": "/admin/plugins/shop/carts", "entrypoint": "./src/pages/admin/carts/index.astro" },
     { "pattern": "/admin/plugins/shop/orders", "entrypoint": "./src/pages/admin/orders/index.astro" },
     { "pattern": "/admin/plugins/shop/orders/new", "entrypoint": "./src/pages/admin/orders/new.astro" },
     { "pattern": "/admin/plugins/shop/orders/[id]", "entrypoint": "./src/pages/admin/orders/[id].astro" },
     { "pattern": "/admin/plugins/shop/settings/payments/stripe", "entrypoint": "./src/pages/admin/settings/payments/stripe.astro" },
     { "pattern": "/admin/plugins/shop/settings/payments/euplatesc", "entrypoint": "./src/pages/admin/settings/payments/euplatesc.astro" },
+    { "pattern": "/admin/plugins/shop/settings/payments", "entrypoint": "./src/pages/admin/settings/payments/index.astro" },
     { "pattern": "/admin/plugins/shop/settings/general", "entrypoint": "./src/pages/admin/settings/general.astro" },
     { "pattern": "/admin/plugins/shop/vouchers", "entrypoint": "./src/pages/admin/vouchers/index.astro" },
     { "pattern": "/admin/plugins/shop/vouchers/new", "entrypoint": "./src/pages/admin/vouchers/new.astro" },
@@ -72,11 +77,13 @@
   ],
   "navItems": [
     { "label": "Shop", "href": "/admin/plugins/shop", "icon": "shopping-cart" },
+    { "label": "Products", "href": "/admin/plugins/shop/products", "icon": "package" },
+    { "label": "Categories", "href": "/admin/plugins/shop/categories", "icon": "tag" },
     { "label": "Orders", "href": "/admin/plugins/shop/orders", "icon": "clipboard-list" },
     { "label": "Vouchers", "href": "/admin/plugins/shop/vouchers", "icon": "ticket" },
     { "label": "Referral Codes", "href": "/admin/plugins/shop/referral-codes", "icon": "link" },
     { "label": "Carts", "href": "/admin/plugins/shop/carts", "icon": "shopping-cart" },
-    { "label": "Payments", "href": "/admin/plugins/shop/settings/payments/stripe", "icon": "credit-card" },
+    { "label": "Payments", "href": "/admin/plugins/shop/settings/payments", "icon": "credit-card" },
     { "label": "Settings", "href": "/admin/plugins/shop/settings/general", "icon": "cog" }
   ]
 }

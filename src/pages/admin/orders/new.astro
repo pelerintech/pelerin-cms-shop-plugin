@@ -1,224 +1,385 @@
 ---
-// Admin: New order (4-step flow)
+// Admin: New order (single-page form)
 // Route: /admin/plugins/shop/orders/new
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
+import Breadcrumbs from '../../../components/admin/Breadcrumbs.astro';
+import TextField from '../../../components/admin/TextField.astro';
+import SelectField from '../../../components/admin/SelectField.astro';
+import CheckboxField from '../../../components/admin/CheckboxField.astro';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
 ---
 
 <AdminLayout title="New Order" currentPath="/admin/plugins/shop/orders" user={user}>
-  <div class="p-6 max-w-3xl mx-auto">
-    <h1 class="text-2xl font-bold mb-6">Create Order</h1>
+  <Breadcrumbs items={[
+    { label: 'Shop', href: '/admin/plugins/shop' },
+    { label: 'Orders', href: '/admin/plugins/shop/orders' },
+    { label: 'New Order' },
+  ]} />
 
-    <!-- Step indicator -->
-    <ul class="steps steps-horizontal mb-8 w-full">
-      <li id="step-ind-1" class="step step-primary">Customer</li>
-      <li id="step-ind-2" class="step">Items</li>
-      <li id="step-ind-3" class="step">Shipping</li>
-      <li id="step-ind-4" class="step">Summary</li>
-    </ul>
-
-    <!-- Step 1: Customer -->
-    <div id="step-1" class="card bg-base-100 shadow">
-      <div class="card-body">
-        <h2 class="card-title">Customer Information</h2>
-        <div class="form-control"><label class="label"><span class="label-text">Type</span></label>
-          <select id="cust-type" class="select select-bordered"><option value="individual">Individual</option><option value="company">Company</option></select></div>
-        <div class="form-control"><label class="label"><span class="label-text">Name *</span></label>
-          <input type="text" id="cust-name" class="input input-bordered" /></div>
-        <div class="form-control"><label class="label"><span class="label-text">Email *</span></label>
-          <input type="email" id="cust-email" class="input input-bordered" /></div>
-        <div class="form-control"><label class="label"><span class="label-text">Phone</span></label>
-          <input type="text" id="cust-phone" class="input input-bordered" /></div>
-        <div id="company-fields" class="hidden space-y-4">
-          <div class="form-control"><label class="label"><span class="label-text">Company Name *</span></label>
-            <input type="text" id="billing-company" class="input input-bordered" /></div>
-          <div class="form-control"><label class="label"><span class="label-text">VAT Number *</span></label>
-            <input type="text" id="billing-vat" class="input input-bordered" /></div>
-        </div>
-        <h3 class="font-semibold mt-4">Billing Address</h3>
-        <div class="grid grid-cols-2 gap-4">
-          <div class="form-control"><label class="label"><span class="label-text">First Name *</span></label><input type="text" id="bill-fn" class="input input-bordered" /></div>
-          <div class="form-control"><label class="label"><span class="label-text">Last Name *</span></label><input type="text" id="bill-ln" class="input input-bordered" /></div>
-        </div>
-        <div class="form-control"><label class="label"><span class="label-text">Address *</span></label><input type="text" id="bill-addr" class="input input-bordered" /></div>
-        <div class="grid grid-cols-2 gap-4">
-          <div class="form-control"><label class="label"><span class="label-text">City *</span></label><input type="text" id="bill-city" class="input input-bordered" /></div>
-          <div class="form-control"><label class="label"><span class="label-text">County</span></label><input type="text" id="bill-county" class="input input-bordered" /></div>
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-          <div class="form-control"><label class="label"><span class="label-text">Postal Code *</span></label><input type="text" id="bill-pc" class="input input-bordered" /></div>
-          <div class="form-control"><label class="label"><span class="label-text">Country *</span></label><input type="text" id="bill-country" class="input input-bordered" value="Romania" /></div>
-        </div>
-        <div class="card-actions justify-end mt-4">
-          <button class="btn btn-primary" onclick="nextStep(2)">Next: Items</button>
-        </div>
-      </div>
+  <div class="flex items-center justify-between col-span-12 mb-4">
+    <div>
+      <h1 class="text-2xl font-bold">New Order</h1>
+      <p class="text-base-content/60">Create a manual order</p>
     </div>
+    <a href="/admin/plugins/shop/orders" class="btn btn-ghost">Back</a>
+  </div>
 
-    <!-- Step 2: Items -->
-    <div id="step-2" class="card bg-base-100 shadow hidden">
-      <div class="card-body">
-        <h2 class="card-title">Order Items</h2>
-        <div id="items-list" class="space-y-2 mb-4"></div>
-        <div class="flex gap-2 flex-wrap">
-          <div class="form-control flex-1"><input type="text" id="item-name" class="input input-bordered w-full" placeholder="Product name" /></div>
-          <div class="form-control"><input type="text" id="item-sku" class="input input-bordered" placeholder="SKU" /></div>
-          <div class="form-control w-24"><input type="number" id="item-qty" class="input input-bordered" value="1" min="1" /></div>
-          <div class="form-control w-32"><input type="number" id="item-price" class="input input-bordered" placeholder="Price net" step="0.01" /></div>
-          <div class="form-control w-24"><input type="number" id="item-vat" class="input input-bordered" placeholder="VAT %" step="1" /></div>
-          <div class="form-control w-32"><select id="item-currency" class="select select-bordered"><option>RON</option><option>EUR</option></select></div>
-          <button class="btn btn-outline" onclick="addItem()">Add</button>
-        </div>
-        <div class="card-actions justify-between mt-4">
-          <button class="btn btn-ghost" onclick="nextStep(1)">Back</button>
-          <button class="btn btn-primary" onclick="nextStep(3)">Next: Shipping</button>
-        </div>
-      </div>
-    </div>
+  <div class="card bg-base-100 shadow-lg col-span-12">
+    <div class="card-body">
+      <form id="order-form" class="space-y-6">
 
-    <!-- Step 3: Shipping -->
-    <div id="step-3" class="card bg-base-100 shadow hidden">
-      <div class="card-body">
-        <h2 class="card-title">Shipping & Discounts</h2>
-        <div class="form-control"><label class="label"><span class="label-text">Shipping Type</span></label>
-          <select id="ship-type" class="select select-bordered"><option value="physical">Physical</option><option value="digital">Digital</option><option value="pickup">Pickup</option></select></div>
-        <div class="form-control"><label class="label"><span class="label-text">Shipping Method</span></label>
-          <input type="text" id="ship-method" class="input input-bordered" placeholder="Courier name" /></div>
-        <div class="form-control"><label class="label"><span class="label-text">Shipping Cost</span></label>
-          <input type="number" id="ship-cost" class="input input-bordered" value="0" step="0.01" /></div>
-        <div class="form-control"><label class="label"><span class="label-text">Discount Amount</span></label>
-          <input type="number" id="discount" class="input input-bordered" value="0" step="0.01" /></div>
-        <label class="label cursor-pointer"><span class="label-text">Shipping same as billing</span>
-          <input type="checkbox" id="ship-same" class="checkbox" checked /></label>
-        <div id="ship-fields" class="hidden space-y-4">
-          <h3 class="font-semibold">Shipping Address</h3>
-          <div class="grid grid-cols-2 gap-4">
-            <div class="form-control"><label class="label"><span class="label-text">First Name</span></label><input type="text" id="ship-fn" class="input input-bordered" /></div>
-            <div class="form-control"><label class="label"><span class="label-text">Last Name</span></label><input type="text" id="ship-ln" class="input input-bordered" /></div>
-          </div>
-          <div class="form-control"><label class="label"><span class="label-text">Address</span></label><input type="text" id="ship-addr" class="input input-bordered" /></div>
-          <div class="grid grid-cols-2 gap-4">
-            <div class="form-control"><label class="label"><span class="label-text">City</span></label><input type="text" id="ship-city" class="input input-bordered" /></div>
-            <div class="form-control"><label class="label"><span class="label-text">County</span></label><input type="text" id="ship-county" class="input input-bordered" /></div>
-          </div>
-          <div class="grid grid-cols-2 gap-4">
-            <div class="form-control"><label class="label"><span class="label-text">Postal Code</span></label><input type="text" id="ship-pc" class="input input-bordered" /></div>
-            <div class="form-control"><label class="label"><span class="label-text">Country</span></label><input type="text" id="ship-country" class="input input-bordered" /></div>
+        <!-- Section 1: Customer -->
+        <div class="card bg-base-200/50">
+          <div class="card-body pb-4">
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Customer</h4>
+            <div class="space-y-4">
+              <SelectField name="customer_type" label="Type" required options={[
+                { value: 'individual', label: 'Individual' },
+                { value: 'company', label: 'Company' },
+              ]} value="individual" />
+              <div class="grid grid-cols-2 gap-4">
+                <TextField name="customer_name" label="Name" required placeholder="Customer name" />
+                <TextField name="customer_email" label="Email" type="email" required placeholder="Email address" />
+              </div>
+              <TextField name="customer_phone" label="Phone" placeholder="Phone number" />
+
+              <!-- Company fields (conditionally shown) -->
+              <div id="company-fields" class="hidden space-y-4">
+                <TextField name="billing_company" label="Company Name" placeholder="Company name" />
+                <TextField name="billing_vat_number" label="VAT Number" placeholder="e.g. RO12345678" />
+              </div>
+            </div>
           </div>
         </div>
-        <div class="card-actions justify-between mt-4">
-          <button class="btn btn-ghost" onclick="nextStep(2)">Back</button>
-          <button class="btn btn-primary" onclick="nextStep(4)">Next: Summary</button>
-        </div>
-      </div>
-    </div>
 
-    <!-- Step 4: Summary -->
-    <div id="step-4" class="card bg-base-100 shadow hidden">
-      <div class="card-body">
-        <h2 class="card-title">Order Summary</h2>
-        <div id="summary-content" class="space-y-2 text-sm"></div>
-        <div class="card-actions justify-between mt-6">
-          <button class="btn btn-ghost" onclick="nextStep(3)">Back</button>
-          <button class="btn btn-primary" id="create-btn" onclick="createOrder()">Create Order</button>
+        <!-- Section 2: Items -->
+        <div class="card bg-base-200/50">
+          <div class="card-body pb-4">
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Items</h4>
+
+            <!-- Items list -->
+            <div id="items-list" class="space-y-2 mb-4"></div>
+
+            <!-- Add item button -->
+            <button type="button" class="btn btn-outline btn-sm" id="open-item-modal">+ Add Product</button>
+          </div>
         </div>
-      </div>
+
+        <!-- Section 3: Billing & Shipping -->
+        <div class="card bg-base-200/50">
+          <div class="card-body pb-4">
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Billing & Shipping</h4>
+            <div class="space-y-4">
+
+              <!-- Shipping type & method -->
+              <div class="grid grid-cols-2 gap-4">
+                <SelectField name="shipping_type" label="Shipping Type" required options={[
+                  { value: 'physical', label: 'Physical' },
+                  { value: 'digital', label: 'Digital' },
+                  { value: 'pickup', label: 'Pickup' },
+                ]} value="physical" />
+                <TextField name="shipping_method" label="Shipping Method" placeholder="Courier name" />
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <TextField name="shipping_cost" label="Shipping Cost" type="number" step="0.01" value="0" placeholder="0.00" />
+                <TextField name="discount_amount" label="Discount" type="number" step="0.01" value="0" placeholder="0.00" />
+              </div>
+
+              <!-- Billing Address -->
+              <h5 class="font-medium text-sm mt-2">Billing Address</h5>
+              <div class="grid grid-cols-2 gap-4">
+                <TextField name="billing_first_name" label="First Name" required placeholder="First name" />
+                <TextField name="billing_last_name" label="Last Name" required placeholder="Last name" />
+              </div>
+              <TextField name="billing_address" label="Address" required placeholder="Street name and number" />
+              <TextField name="billing_address_extra" label="Address Details" placeholder="Apartment, floor, building, etc." />
+              <div class="grid grid-cols-3 gap-4">
+                <TextField name="billing_city" label="City" required placeholder="City" />
+                <TextField name="billing_county" label="County" placeholder="County" />
+                <TextField name="billing_postal_code" label="Postal Code" required placeholder="Postal code" />
+              </div>
+              <TextField name="billing_country" label="Country" value="Romania" required placeholder="Country" />
+
+              <!-- Shipping address toggle -->
+              <CheckboxField name="shipping_same_as_billing" label="Shipping same as billing" checked />
+
+              <!-- Shipping address (conditionally shown) -->
+              <div id="ship-fields" class="hidden space-y-4">
+                <h5 class="font-medium text-sm">Shipping Address</h5>
+                <div class="grid grid-cols-2 gap-4">
+                  <TextField name="shipping_first_name" label="First Name" placeholder="First name" />
+                  <TextField name="shipping_last_name" label="Last Name" placeholder="Last name" />
+                </div>
+                <TextField name="shipping_address" label="Address" placeholder="Street name and number" />
+                <TextField name="shipping_address_extra" label="Address Details" placeholder="Apartment, floor, building, etc." />
+                <div class="grid grid-cols-3 gap-4">
+                  <TextField name="shipping_city" label="City" placeholder="City" />
+                  <TextField name="shipping_county" label="County" placeholder="County" />
+                  <TextField name="shipping_postal_code" label="Postal Code" placeholder="Postal code" />
+                </div>
+                <TextField name="shipping_country" label="Country" placeholder="Country" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 4: Summary -->
+        <div class="card bg-base-200/50">
+          <div class="card-body pb-4">
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Summary</h4>
+            <div id="summary-content" class="space-y-2 text-sm">
+              <p class="text-base-content/60">Add items to see the order summary.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Error display -->
+        <div id="form-error" class="alert alert-error hidden"></div>
+
+        <!-- Buttons -->
+        <div class="flex justify-end gap-2 pt-4 border-t border-base-200">
+          <a href="/admin/plugins/shop/orders" class="btn btn-ghost">Cancel</a>
+          <button type="submit" class="btn btn-primary" id="create-btn">Create Order</button>
+        </div>
+      </form>
     </div>
   </div>
+
+  <!-- Product search modal (outside the form to avoid nesting) -->
+  <dialog id="item-modal" class="modal">
+    <div class="modal-box max-w-lg">
+      <h3 class="font-bold text-lg mb-4">Add Product</h3>
+
+      <!-- Search -->
+      <div class="form-control mb-4">
+        <label class="label"><span class="label-text">Search by name, SKU, or ID</span></label>
+        <input type="text" id="product-search" class="input input-bordered w-full" placeholder="Type to search..." />
+      </div>
+
+      <!-- Search results -->
+      <div id="product-results" class="max-h-60 overflow-y-auto space-y-1 mb-4"></div>
+
+      <!-- Selected product details (hidden until selected) -->
+      <div id="selected-product" class="hidden space-y-4">
+        <div class="alert alert-info">
+          <span id="selected-product-name"></span>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <TextField name="modal-qty" label="Quantity" type="number" value="1" min="1" />
+          <TextField name="modal-price" label="Price (net)" type="number" step="0.01" min="0" />
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <TextField name="modal-vat" label="VAT %" type="number" step="1" min="0" />
+          <select id="modal-currency" class="select select-bordered w-full">
+            <option>RON</option>
+            <option>EUR</option>
+            <option>USD</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="item-modal-error" class="text-error text-sm hidden mt-2"></div>
+
+      <div class="flex justify-end gap-2 pt-4 border-t border-base-200">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('item-modal').close()">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirm-add-item" disabled>Add to Order</button>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
 </AdminLayout>
 
 <script>
   var items = [];
-  var currentStep = 1;
+  var selectedProduct = null;
+  var searchTimeout = null;
 
-  document.getElementById('cust-type').addEventListener('change', function() {
-    document.getElementById('company-fields').classList.toggle('hidden', this.value !== 'company');
+  // Toggle company fields
+  document.getElementById('customer_type').addEventListener('change', function() {
+    var show = this.value === 'company';
+    document.getElementById('company-fields').classList.toggle('hidden', !show);
+    document.getElementById('billing_company').toggleAttribute('required', show);
+    document.getElementById('billing_vat_number').toggleAttribute('required', show);
   });
 
-  document.getElementById('ship-same').addEventListener('change', function() {
+  // Toggle shipping address
+  document.getElementById('shipping_same_as_billing').addEventListener('change', function() {
     document.getElementById('ship-fields').classList.toggle('hidden', this.checked);
   });
 
-  window.addItem = function() {
-    var name = document.getElementById('item-name').value;
-    var sku = document.getElementById('item-sku').value;
-    var qty = parseInt(document.getElementById('item-qty').value) || 1;
-    var price = parseFloat(document.getElementById('item-price').value) || 0;
-    var vat = document.getElementById('item-vat').value ? parseFloat(document.getElementById('item-vat').value) / 100 : null;
-    var curr = document.getElementById('item-currency').value;
-    if (!name) return alert('Product name is required');
-    var gross = price * (1 + (vat || 0));
-    items.push({ product_name: name, sku: sku || null, quantity: qty, price_net: price, vat_rate: vat, price_gross: gross, currency: curr });
-    document.getElementById('item-name').value = '';
-    document.getElementById('item-sku').value = '';
+  // Also toggle on shipping type change (digital = no shipping address needed)
+  document.getElementById('shipping_type').addEventListener('change', function() {
+    if (this.value === 'digital') {
+      document.getElementById('ship-fields').classList.add('hidden');
+      document.getElementById('shipping_same_as_billing').checked = true;
+    }
+  });
+
+  // ── Product search modal ──
+  document.getElementById('open-item-modal').addEventListener('click', function() {
+    selectedProduct = null;
+    document.getElementById('selected-product').classList.add('hidden');
+    document.getElementById('product-results').innerHTML = '';
+    document.getElementById('product-search').value = '';
+    document.getElementById('confirm-add-item').disabled = true;
+    document.getElementById('item-modal').showModal();
+    // Focus the search input after modal opens
+    setTimeout(function() { document.getElementById('product-search').focus(); }, 100);
+  });
+
+  document.getElementById('product-search').addEventListener('input', function() {
+    var query = this.value.trim();
+    clearTimeout(searchTimeout);
+    if (query.length < 2) {
+      document.getElementById('product-results').innerHTML = '';
+      return;
+    }
+    searchTimeout = setTimeout(function() { searchProducts(query); }, 300);
+  });
+
+  async function searchProducts(query) {
+    try {
+      var res = await fetch('/api/plugins/shop/products?search=' + encodeURIComponent(query) + '&limit=20');
+      var json = await res.json();
+      var results = document.getElementById('product-results');
+      if (json.success && json.data && json.data.length > 0) {
+        results.innerHTML = json.data.map(function(p) {
+          return '<div class="flex items-center justify-between p-2 hover:bg-base-200 rounded cursor-pointer" data-id="' + p.id + '" data-name="' + p.name + '" data-sku="' + (p.sku || '') + '">' +
+            '<div><span class="font-medium">' + p.name + '</span>' +
+            (p.sku ? '<span class="text-xs text-base-content/50 ml-2">(' + p.sku + ')</span>' : '') +
+            '</div>' +
+            '<button type="button" class="btn btn-xs btn-outline">Select</button></div>';
+        }).join('');
+        // Attach click handlers
+        results.querySelectorAll('[data-id]').forEach(function(row) {
+          row.addEventListener('click', function() {
+            selectedProduct = {
+              id: this.getAttribute('data-id'),
+              name: this.getAttribute('data-name'),
+              sku: this.getAttribute('data-sku') || null
+            };
+            showSelectedProduct(selectedProduct);
+          });
+        });
+      } else {
+        results.innerHTML = '<p class="text-base-content/60 text-sm text-center py-4">No products found</p>';
+      }
+    } catch (err) {
+      document.getElementById('product-results').innerHTML = '<p class="text-error text-sm">Search failed</p>';
+    }
+  }
+
+  function showSelectedProduct(product) {
+    document.getElementById('selected-product').classList.remove('hidden');
+    document.getElementById('selected-product-name').textContent = product.name + (product.sku ? ' (' + product.sku + ')' : '');
+    document.getElementById('modal-price').value = '';
+    document.getElementById('modal-vat').value = '';
+    document.getElementById('modal-qty').value = '1';
+    document.getElementById('confirm-add-item').disabled = false;
+  }
+
+  document.getElementById('confirm-add-item').addEventListener('click', function() {
+    if (!selectedProduct) return;
+    var qty = parseInt(document.getElementById('modal-qty').value) || 1;
+    var price = parseFloat(document.getElementById('modal-price').value) || 0;
+    var vatPct = parseFloat(document.getElementById('modal-vat').value) || 0;
+    var vat = vatPct / 100;
+    var curr = document.getElementById('modal-currency').value;
+    var errorEl = document.getElementById('item-modal-error');
+
+    if (price <= 0) {
+      errorEl.textContent = 'Price must be greater than 0';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+
+    var gross = price * (1 + vat);
+    items.push({
+      product_id: selectedProduct.id,
+      product_name: selectedProduct.name,
+      sku: selectedProduct.sku,
+      quantity: qty,
+      price_net: price,
+      vat_rate: vat,
+      price_gross: gross,
+      currency: curr
+    });
+
     renderItems();
-  };
+    renderSummary();
+
+    // Reset modal
+    selectedProduct = null;
+    document.getElementById('selected-product').classList.add('hidden');
+    document.getElementById('product-results').innerHTML = '';
+    document.getElementById('product-search').value = '';
+    document.getElementById('confirm-add-item').disabled = true;
+    errorEl.classList.add('hidden');
+    document.getElementById('item-modal').close();
+  });
 
   function renderItems() {
     document.getElementById('items-list').innerHTML = items.map(function(item, i) {
       return '<div class="flex justify-between items-center p-2 bg-base-200 rounded">' +
-        '<span>' + item.product_name + ' x' + item.quantity + ' @ ' + item.price_net.toFixed(2) + ' ' + item.currency + ' (VAT ' + ((item.vat_rate || 0) * 100).toFixed(0) + '%)</span>' +
-        '<span class="font-mono">' + item.price_gross.toFixed(2) + ' ' + item.currency + '</span>' +
-        '<button class="btn btn-xs btn-error" onclick="removeItem(' + i + ')">✕</button></div>';
+        '<span class="flex-1">' + item.product_name + (item.sku ? ' <span class="text-xs text-base-content/50">(' + item.sku + ')</span>' : '') + ' x' + item.quantity + ' @ ' + item.price_net.toFixed(2) + ' ' + item.currency + ' (VAT ' + ((item.vat_rate || 0) * 100).toFixed(0) + '%)</span>' +
+        '<span class="font-mono mx-4">' + item.price_gross.toFixed(2) + ' ' + item.currency + '</span>' +
+        '<button type="button" class="btn btn-xs btn-error" onclick="removeItem(' + i + ')">✕</button></div>';
     }).join('');
   }
 
-  window.removeItem = function(i) { items.splice(i, 1); renderItems(); };
-
-  window.nextStep = function(step) {
-    // Basic validation per step
-    if (currentStep === 1 && step > 1) {
-      if (!document.getElementById('cust-name').value || !document.getElementById('cust-email').value) return alert('Name and email are required');
-      if (document.getElementById('cust-type').value === 'company' && (!document.getElementById('billing-company').value || !document.getElementById('billing-vat').value)) return alert('Company name and VAT are required');
-    }
-    if (currentStep === 2 && step > 2) {
-      if (items.length === 0) return alert('Add at least one item');
-    }
-    document.getElementById('step-' + currentStep).classList.add('hidden');
-    document.getElementById('step-' + step).classList.remove('hidden');
-    for (var i = 1; i <= 4; i++) document.getElementById('step-ind-' + i).classList.toggle('step-primary', i <= step);
-    currentStep = step;
-    if (step === 4) renderSummary();
-  };
+  window.removeItem = function(i) { items.splice(i, 1); renderItems(); renderSummary(); };
 
   function renderSummary() {
+    if (items.length === 0) {
+      document.getElementById('summary-content').innerHTML = '<p class="text-base-content/60">Add items to see the order summary.</p>';
+      return;
+    }
+
     var subtotal = items.reduce(function(s, i) { return s + i.price_net * i.quantity; }, 0);
     var vatTotal = items.reduce(function(s, i) { return s + (i.price_net * i.quantity * (i.vat_rate || 0)); }, 0);
-    var shipping = parseFloat(document.getElementById('ship-cost').value) || 0;
-    var discount = parseFloat(document.getElementById('discount').value) || 0;
+    var shipping = parseFloat(document.getElementById('shipping_cost').value) || 0;
+    var discount = parseFloat(document.getElementById('discount_amount').value) || 0;
     var total = subtotal + vatTotal + shipping - discount;
 
     document.getElementById('summary-content').innerHTML =
-      '<p><strong>Customer:</strong> ' + document.getElementById('cust-name').value + ' (' + document.getElementById('cust-email').value + ')</p>' +
-      '<p><strong>Items:</strong> ' + items.length + ' item(s)</p>' +
-      '<p><strong>Subtotal (net):</strong> ' + subtotal.toFixed(2) + ' RON</p>' +
-      '<p><strong>VAT:</strong> ' + vatTotal.toFixed(2) + ' RON</p>' +
-      '<p><strong>Shipping:</strong> ' + shipping.toFixed(2) + ' RON</p>' +
-      (discount > 0 ? '<p><strong>Discount:</strong> -' + discount.toFixed(2) + ' RON</p>' : '') +
-      '<p class="text-lg font-bold mt-2"><strong>Total:</strong> ' + total.toFixed(2) + ' RON</p>';
+      '<div class="flex justify-between"><span>Subtotal (net):</span><span class="font-mono">' + subtotal.toFixed(2) + '</span></div>' +
+      '<div class="flex justify-between"><span>VAT:</span><span class="font-mono">' + vatTotal.toFixed(2) + '</span></div>' +
+      '<div class="flex justify-between"><span>Shipping:</span><span class="font-mono">' + shipping.toFixed(2) + '</span></div>' +
+      (discount > 0 ? '<div class="flex justify-between"><span>Discount:</span><span class="font-mono text-error">-' + discount.toFixed(2) + '</span></div>' : '') +
+      '<div class="flex justify-between text-lg font-bold mt-2 pt-2 border-t border-base-200"><span>Total:</span><span class="font-mono">' + total.toFixed(2) + '</span></div>';
   }
 
-  window.createOrder = async function() {
-    var btn = document.getElementById('create-btn');
-    btn.disabled = true;
-    btn.textContent = 'Creating...';
+  // Update summary when shipping/discount changes
+  document.getElementById('shipping_cost').addEventListener('input', renderSummary);
+  document.getElementById('discount_amount').addEventListener('input', renderSummary);
 
-    var isCompany = document.getElementById('cust-type').value === 'company';
+  // Form submit
+  document.getElementById('order-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    if (items.length === 0) return alert('Add at least one item');
+
+    var form = this;
+    var fd = new FormData(form);
+
+    var customerType = fd.get('customer_type');
+    var isCompany = customerType === 'company';
+
     var subtotal = items.reduce(function(s, i) { return s + i.price_net * i.quantity; }, 0);
     var vatTotal = items.reduce(function(s, i) { return s + (i.price_net * i.quantity * (i.vat_rate || 0)); }, 0);
-    var shipping = parseFloat(document.getElementById('ship-cost').value) || 0;
-    var discount = parseFloat(document.getElementById('discount').value) || 0;
+    var shipping = parseFloat(fd.get('shipping_cost')) || 0;
+    var discount = parseFloat(fd.get('discount_amount')) || 0;
     var total = subtotal + vatTotal + shipping - discount;
-    var sameAsBilling = document.getElementById('ship-same').checked;
+    var sameAsBilling = fd.get('shipping_same_as_billing') === 'on';
 
     var payload = {
-      customer_type: document.getElementById('cust-type').value,
-      customer_email: document.getElementById('cust-email').value,
-      customer_name: document.getElementById('cust-name').value,
-      customer_phone: document.getElementById('cust-phone').value || null,
+      customer_type: customerType,
+      customer_email: fd.get('customer_email'),
+      customer_name: fd.get('customer_name'),
+      customer_phone: fd.get('customer_phone') || null,
       status: 'pending',
       currency: 'RON',
       subtotal_net: subtotal,
@@ -226,39 +387,64 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       shipping_cost: shipping,
       discount_amount: discount,
       total: total,
-      shipping_type: document.getElementById('ship-type').value,
-      shipping_method: document.getElementById('ship-method').value || null,
-      billing_first_name: document.getElementById('bill-fn').value || document.getElementById('cust-name').value,
-      billing_last_name: document.getElementById('bill-ln').value || '',
-      billing_address: document.getElementById('bill-addr').value,
-      billing_city: document.getElementById('bill-city').value,
-      billing_postal_code: document.getElementById('bill-pc').value,
-      billing_country: document.getElementById('bill-country').value,
-      billing_county: document.getElementById('bill-county').value || null,
-      billing_company: isCompany ? document.getElementById('billing-company').value : null,
-      billing_vat_number: isCompany ? document.getElementById('billing-vat').value : null,
-      shipping_first_name: sameAsBilling ? (document.getElementById('bill-fn').value || document.getElementById('cust-name').value) : document.getElementById('ship-fn').value,
-      shipping_last_name: sameAsBilling ? (document.getElementById('bill-ln').value || '') : document.getElementById('ship-ln').value,
-      shipping_address: sameAsBilling ? document.getElementById('bill-addr').value : document.getElementById('ship-addr').value,
-      shipping_city: sameAsBilling ? document.getElementById('bill-city').value : document.getElementById('ship-city').value,
-      shipping_postal_code: sameAsBilling ? document.getElementById('bill-pc').value : document.getElementById('ship-pc').value,
-      shipping_country: sameAsBilling ? document.getElementById('bill-country').value : document.getElementById('ship-country').value,
-      shipping_county: sameAsBilling ? (document.getElementById('bill-county').value || null) : (document.getElementById('ship-county').value || null),
+      shipping_type: fd.get('shipping_type'),
+      shipping_method: fd.get('shipping_method') || null,
+      billing_first_name: fd.get('billing_first_name'),
+      billing_last_name: fd.get('billing_last_name'),
+      billing_address: fd.get('billing_address'),
+      billing_address_extra: fd.get('billing_address_extra') || null,
+      billing_city: fd.get('billing_city'),
+      billing_postal_code: fd.get('billing_postal_code'),
+      billing_country: fd.get('billing_country'),
+      billing_county: fd.get('billing_county') || null,
+      billing_phone: null,
+      billing_company: isCompany ? fd.get('billing_company') : null,
+      billing_vat_number: isCompany ? fd.get('billing_vat_number') : null,
+      shipping_first_name: sameAsBilling ? fd.get('billing_first_name') : fd.get('shipping_first_name'),
+      shipping_last_name: sameAsBilling ? fd.get('billing_last_name') : fd.get('shipping_last_name'),
+      shipping_address: sameAsBilling ? fd.get('billing_address') : fd.get('shipping_address'),
+      shipping_address_extra: sameAsBilling ? (fd.get('billing_address_extra') || null) : (fd.get('shipping_address_extra') || null),
+      shipping_city: sameAsBilling ? fd.get('billing_city') : fd.get('shipping_city'),
+      shipping_postal_code: sameAsBilling ? fd.get('billing_postal_code') : fd.get('shipping_postal_code'),
+      shipping_country: sameAsBilling ? fd.get('billing_country') : fd.get('shipping_country'),
+      shipping_county: sameAsBilling ? (fd.get('billing_county') || null) : (fd.get('shipping_county') || null),
+      shipping_phone: null,
+      shipping_company: null,
+      shipping_vat_number: null,
       shipping_same_as_billing: sameAsBilling,
       items: items
     };
 
-    var res = await fetch('/api/plugins/shop/orders', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    var json = await res.json();
-    if (json.success) {
-      window.location.href = '/admin/plugins/shop/orders/' + json.data.id;
-    } else {
-      alert(json.error || 'Failed to create order');
-      btn.disabled = false;
-      btn.textContent = 'Create Order';
+    var errorsEl = document.getElementById('form-error');
+    var createBtn = document.getElementById('create-btn');
+    createBtn.disabled = true;
+    createBtn.textContent = 'Creating...';
+    errorsEl.classList.add('hidden');
+
+    try {
+      var res = await fetch('/api/plugins/shop/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      var json = await res.json();
+      if (json.success) {
+        window.location.href = '/admin/plugins/shop/orders/' + json.data.id;
+      } else {
+        errorsEl.classList.remove('hidden');
+        if (json.fields) {
+          var msgs = Object.values(json.fields).join('; ');
+          errorsEl.textContent = (json.error || 'Validation failed') + ': ' + msgs;
+        } else {
+          errorsEl.textContent = json.error || 'Failed to create order';
+        }
+      }
+    } catch (err) {
+      errorsEl.classList.remove('hidden');
+      errorsEl.textContent = err.message || 'Network error';
+    } finally {
+      createBtn.disabled = false;
+      createBtn.textContent = 'Create Order';
     }
-  };
+  });
 </script>

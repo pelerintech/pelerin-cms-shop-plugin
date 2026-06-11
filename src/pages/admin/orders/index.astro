@@ -3,168 +3,203 @@
 // Route: /admin/plugins/shop/orders
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
+import { db, orders, sql as dbSql } from 'astro:db';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
+
+// Parse query params
+const url = new URL(Astro.request.url);
+const filterStatus = url.searchParams.get('status') || '';
+const filterFrom = url.searchParams.get('from') || '';
+const filterTo = url.searchParams.get('to') || '';
+const filterSearch = url.searchParams.get('search') || '';
+const page = parseInt(url.searchParams.get('page') || '1');
+const limit = 20;
+const offset = (page - 1) * limit;
+
+// Build where clause
+const conditions: string[] = [];
+if (filterStatus) conditions.push(`o.status = '${filterStatus}'`);
+if (filterFrom) conditions.push(`o.created_at >= datetime('${filterFrom}')`);
+if (filterTo) conditions.push(`o.created_at <= datetime('${filterTo} 23:59:59')`);
+if (filterSearch) {
+  const search = filterSearch.replace(/'/g, "''");
+  conditions.push(`(o.order_number LIKE '%${search}%' OR o.customer_name LIKE '%${search}%' OR o.customer_email LIKE '%${search}%')`);
+}
+
+const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+// Fetch orders
+const result = await db.run(dbSql`
+  SELECT * FROM ${orders} o
+  ${dbSql.raw(whereClause)}
+  ORDER BY o.created_at DESC
+  LIMIT ${limit} OFFSET ${offset}
+`);
+
+const orderList = result.rows as any[];
+
+// Count total
+const countResult = await db.run(dbSql`
+  SELECT COUNT(*) as total FROM ${orders} o
+  ${dbSql.raw(whereClause)}
+`);
+const total = (countResult.rows[0] as any).total as number;
+const totalPages = Math.ceil(total / limit);
+
+function statusBadge(status: string) {
+  const colors: Record<string, string> = {
+    pending: 'badge-ghost',
+    awaiting_payment: 'badge-warning',
+    paid: 'badge-success',
+    processing: 'badge-info',
+    shipped: 'badge-primary',
+    delivered: 'badge-accent',
+    cancelled: 'badge-error',
+    refunded: 'badge-error',
+  };
+  return colors[status] || 'badge-ghost';
+}
+
+function statusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    pending: 'Pending',
+    awaiting_payment: 'Awaiting Payment',
+    paid: 'Paid',
+    processing: 'Processing',
+    shipped: 'Shipped',
+    delivered: 'Delivered',
+    cancelled: 'Cancelled',
+    refunded: 'Refunded',
+  };
+  return labels[status] || status;
+}
+
+function buildFilterParams(p: number): string {
+  const params = new URLSearchParams();
+  if (filterStatus) params.set('status', filterStatus);
+  if (filterFrom) params.set('from', filterFrom);
+  if (filterTo) params.set('to', filterTo);
+  if (filterSearch) params.set('search', filterSearch);
+  params.set('page', String(p));
+  return params.toString();
+}
+
+const hasFilters = filterStatus || filterFrom || filterTo || filterSearch;
+
+// Build export URL with current filters
+let exportUrl = '/api/plugins/shop/orders/export';
+if (hasFilters) {
+  const exportParams = new URLSearchParams();
+  if (filterStatus) exportParams.set('status', filterStatus);
+  if (filterFrom) exportParams.set('from', filterFrom);
+  if (filterTo) exportParams.set('to', filterTo);
+  if (filterSearch) exportParams.set('search', filterSearch);
+  exportUrl += '?' + exportParams.toString();
+}
 ---
 
 <AdminLayout title="Orders" currentPath="/admin/plugins/shop/orders" user={user}>
-  <div class="p-6">
-    <div class="flex justify-between items-center mb-6">
+  <div class="col-span-12">
+    <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold">Orders</h1>
       <div class="flex gap-2">
         <a href="/admin/plugins/shop/orders/new" class="btn btn-primary">New Order</a>
-        <button id="export-btn" class="btn btn-outline">Export CSV</button>
+        <a href={exportUrl} class="btn btn-outline">Export CSV</a>
       </div>
     </div>
 
     <!-- Filters -->
-    <div class="card bg-base-100 shadow mb-6">
-      <div class="card-body p-4">
-        <div class="flex flex-wrap gap-4 items-end">
-          <div class="form-control">
-            <label class="label"><span class="label-text">Status</span></label>
-            <select id="filter-status" class="select select-bordered" multiple size="1">
-              <option value="">All</option>
-              <option value="pending">Pending</option>
-              <option value="awaiting_payment">Awaiting Payment</option>
-              <option value="paid">Paid</option>
-              <option value="processing">Processing</option>
-              <option value="shipped">Shipped</option>
-              <option value="delivered">Delivered</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="refunded">Refunded</option>
-            </select>
-          </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">From</span></label>
-            <input type="date" id="filter-from" class="input input-bordered" />
-          </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">To</span></label>
-            <input type="date" id="filter-to" class="input input-bordered" />
-          </div>
-          <div class="form-control flex-1 min-w-[200px]">
-            <label class="label"><span class="label-text">Search</span></label>
-            <input type="text" id="filter-search" class="input input-bordered w-full" placeholder="Order number, name, email..." />
-          </div>
-          <div class="form-control">
-            <button id="filter-apply" class="btn btn-primary">Filter</button>
-          </div>
-        </div>
+    <form method="GET" class="flex gap-4 mb-6 flex-wrap items-end">
+      <div class="form-control">
+        <label class="label"><span class="label-text">Status</span></label>
+        <select name="status" class="select select-bordered">
+          <option value="">All</option>
+          <option value="pending" selected={filterStatus === 'pending'}>Pending</option>
+          <option value="awaiting_payment" selected={filterStatus === 'awaiting_payment'}>Awaiting Payment</option>
+          <option value="paid" selected={filterStatus === 'paid'}>Paid</option>
+          <option value="processing" selected={filterStatus === 'processing'}>Processing</option>
+          <option value="shipped" selected={filterStatus === 'shipped'}>Shipped</option>
+          <option value="delivered" selected={filterStatus === 'delivered'}>Delivered</option>
+          <option value="cancelled" selected={filterStatus === 'cancelled'}>Cancelled</option>
+          <option value="refunded" selected={filterStatus === 'refunded'}>Refunded</option>
+        </select>
       </div>
-    </div>
+      <div class="form-control">
+        <label class="label"><span class="label-text">From</span></label>
+        <input type="date" name="from" value={filterFrom} class="input input-bordered" />
+      </div>
+      <div class="form-control">
+        <label class="label"><span class="label-text">To</span></label>
+        <input type="date" name="to" value={filterTo} class="input input-bordered" />
+      </div>
+      <div class="form-control flex-1 min-w-[200px]">
+        <label class="label"><span class="label-text">Search</span></label>
+        <input type="text" name="search" value={filterSearch} placeholder="Order number, name, email..." class="input input-bordered w-full" />
+      </div>
+      <div class="form-control">
+        <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
+        <button type="submit" class="btn btn-outline">Filter</button>
+      </div>
+      {hasFilters && (
+        <div class="form-control">
+          <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
+          <a href="/admin/plugins/shop/orders" class="btn btn-ghost">Clear</a>
+        </div>
+      )}
+    </form>
 
     <!-- Orders Table -->
-    <div class="overflow-x-auto">
-      <table class="table table-zebra w-full">
-        <thead>
-          <tr>
-            <th>Order #</th>
-            <th>Date</th>
-            <th>Customer</th>
-            <th>Status</th>
-            <th>Total</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="orders-body">
-          <tr><td colspan="6" class="text-center">Loading...</td></tr>
-        </tbody>
-      </table>
-    </div>
+    {orderList.length === 0 ? (
+      <p class="text-base-content/60">No orders found.</p>
+    ) : (
+      <div class="overflow-x-auto">
+        <table class="table table-zebra w-full">
+          <thead>
+            <tr>
+              <th>Order #</th>
+              <th>Date</th>
+              <th>Customer</th>
+              <th>Status</th>
+              <th>Total</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {orderList.map((o: any) => (
+              <tr>
+                <td class="font-medium"><a href={`/admin/plugins/shop/orders/${o.id}`} class="link link-primary">{o.order_number}</a></td>
+                <td>{new Date(o.created_at).toLocaleDateString()}</td>
+                <td>
+                  {o.customer_name}
+                  <br />
+                  <span class="text-xs text-base-content/50">{o.customer_email}</span>
+                </td>
+                <td><span class={`badge badge-sm ${statusBadge(o.status)}`}>{statusLabel(o.status)}</span></td>
+                <td class="font-mono">{(o.total || 0).toFixed(2)} {o.currency}</td>
+                <td>
+                  <a href={`/admin/plugins/shop/orders/${o.id}?from_page=${page}`} class="btn btn-ghost btn-xs">View</a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
 
     <!-- Pagination -->
-    <div id="pagination" class="flex justify-center gap-2 mt-4"></div>
+    {totalPages > 1 && (
+      <div class="join mt-4">
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+          <a
+            href={`/admin/plugins/shop/orders?${buildFilterParams(p)}`}
+            class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
+          >
+            {p}
+          </a>
+        ))}
+      </div>
+    )}
   </div>
 </AdminLayout>
-
-<script>
-  const API_URL = '/api/plugins/shop/orders';
-  let currentPage = 1;
-
-  function getFilters() {
-    const params = new URLSearchParams();
-    const status = document.getElementById('filter-status').value;
-    const from = document.getElementById('filter-from').value;
-    const to = document.getElementById('filter-to').value;
-    const search = document.getElementById('filter-search').value;
-
-    if (status) params.set('status', status);
-    if (from) params.set('from', from);
-    if (to) params.set('to', to);
-    if (search) params.set('search', search);
-    params.set('page', String(currentPage));
-    params.set('limit', '50');
-
-    return params;
-  }
-
-  function statusBadge(status) {
-    var colors = {
-      pending: 'badge-ghost',
-      awaiting_payment: 'badge-warning',
-      paid: 'badge-success',
-      processing: 'badge-info',
-      shipped: 'badge-primary',
-      delivered: 'badge-accent',
-      cancelled: 'badge-error',
-      refunded: 'badge-error',
-    };
-    return '<span class="badge ' + (colors[status] || 'badge-ghost') + '">' + status + '</span>';
-  }
-
-  window.goToPage = function(page) {
-    currentPage = page;
-    loadOrders();
-  };
-
-  async function loadOrders() {
-    var params = getFilters();
-    var res = await fetch(API_URL + '?' + params.toString());
-    var json = await res.json();
-    var body = document.getElementById('orders-body');
-
-    if (!json.success || !json.data || !json.data.length) {
-      body.innerHTML = '<tr><td colspan="6" class="text-center">No orders found</td></tr>';
-      return;
-    }
-
-    body.innerHTML = json.data.map(function(order) {
-      return '<tr>' +
-        '<td><a href="/admin/plugins/shop/orders/' + order.id + '" class="link link-primary">' + order.order_number + '</a></td>' +
-        '<td>' + new Date(order.created_at).toLocaleDateString() + '</td>' +
-        '<td>' + order.customer_name + '<br/><span class="text-xs text-gray-500">' + order.customer_email + '</span></td>' +
-        '<td>' + statusBadge(order.status) + '</td>' +
-        '<td class="font-mono">' + (order.total || 0).toFixed(2) + ' ' + order.currency + '</td>' +
-        '<td><a href="/admin/plugins/shop/orders/' + order.id + '" class="btn btn-sm btn-ghost">View</a></td>' +
-      '</tr>';
-    }).join('');
-
-    var meta = json.meta;
-    var pagination = document.getElementById('pagination');
-    if (meta.totalPages > 1) {
-      var html = '';
-      for (var i = 1; i <= meta.totalPages; i++) {
-        html += '<button class="btn btn-sm ' + (i === currentPage ? 'btn-primary' : 'btn-ghost') + '" onclick="goToPage(' + i + ')">' + i + '</button>';
-      }
-      pagination.innerHTML = html;
-    } else {
-      pagination.innerHTML = '';
-    }
-  }
-
-  document.getElementById('filter-apply').addEventListener('click', function() {
-    currentPage = 1;
-    loadOrders();
-  });
-
-  document.getElementById('export-btn').addEventListener('click', function() {
-    var params = getFilters();
-    params.delete('page');
-    params.delete('limit');
-    window.location.href = '/api/plugins/shop/orders/export?' + params.toString();
-  });
-
-  loadOrders();
-</script>

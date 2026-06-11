@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { db, shop_settings, sql as dbSql } from 'astro:db';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { encrypt, decryptIfNeeded } from '../../../../lib/crypto.ts';
+import { encrypt, decryptIfNeeded } from '../../../../lib/crypto'
 
 const SETTINGS_KEYS = [
   'stripe_publishable_key',

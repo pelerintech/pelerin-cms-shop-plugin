@@ -32,7 +32,7 @@ const result = await db.run(dbSql`
   FROM ${products} p
   LEFT JOIN ${categories} c ON p.category_id = c.id
   ${dbSql.raw(whereClause)}
-  ORDER BY p.name
+  ORDER BY p.created_at DESC
   LIMIT ${limit} OFFSET ${offset}
 `);
 
@@ -84,9 +84,15 @@ const catList = await db.select().from(categories).orderBy(categories.name);
           <option value="false" selected={filterActive === 'false'}>Inactive</option>
         </select>
       </div>
-      <button type="submit" class="btn btn-outline">Filter</button>
+      <div class="form-control">
+        <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
+        <button type="submit" class="btn btn-outline">Filter</button>
+      </div>
       {(filterCategory || filterType || filterActive) && (
-        <a href="/admin/plugins/shop/products" class="btn btn-ghost">Clear</a>
+        <div class="form-control">
+          <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
+          <a href="/admin/plugins/shop/products" class="btn btn-ghost">Clear</a>
+        </div>
       )}
     </form>
 
@@ -119,7 +125,7 @@ const catList = await db.select().from(categories).orderBy(categories.name);
                   </span>
                 </td>
                 <td>
-                  <a href={`/admin/plugins/shop/products/${p.id}`} class="btn btn-ghost btn-xs">Edit</a>
+                  <a href={`/admin/plugins/shop/products/${p.id}?from_page=${page}`} class="btn btn-ghost btn-xs">Edit</a>
                 </td>
               </tr>
             ))}

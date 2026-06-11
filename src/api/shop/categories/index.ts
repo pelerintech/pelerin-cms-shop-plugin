@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { db, eq, categories, translations, products, sql as dbSql } from 'astro:db';
-import { CreateCategorySchema } from '../../../schemas/category.schema.ts';
+import { CreateCategorySchema } from '../../../schemas/category.schema'
 
 /**
  * Build a category tree from flat rows
@@ -99,6 +99,7 @@ export const POST: APIRoute = async (context) => {
     }
 
     const id = crypto.randomUUID();
+    const now = new Date();
     const { name, description, slug, sort_order, parent_id } = result.data;
 
     await db.insert(categories).values({
@@ -108,6 +109,8 @@ export const POST: APIRoute = async (context) => {
       description,
       slug,
       sort_order,
+      created_at: now,
+      updated_at: now,
     });
 
     // Insert default locale translation

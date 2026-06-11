@@ -6,7 +6,7 @@ export {
   VoucherType,
   CustomerType,
   OptionValueType,
-} from './enums.ts';
+} from './enums'
 export type {
   OrderStatus as OrderStatusType,
   ProductType as ProductTypeType,
@@ -14,7 +14,7 @@ export type {
   VoucherType as VoucherTypeType,
   CustomerType as CustomerTypeType,
   OptionValueType as OptionValueTypeType,
-} from './enums.ts';
+} from './enums'
 
 // Re-export product schemas
 export {
@@ -30,7 +30,7 @@ export {
   VariantOutputSchema,
   ProductImageOutputSchema,
   TranslationOutputSchema,
-} from './product.schema.ts';
+} from './product.schema'
 export type {
   CreateProductInput,
   UpdateProductInput,
@@ -44,19 +44,19 @@ export type {
   VariantOutput,
   ProductImageOutput,
   TranslationOutput,
-} from './product.schema.ts';
+} from './product.schema'
 
 // Re-export category schemas
 export {
   CreateCategorySchema,
   UpdateCategorySchema,
   CategoryOutputSchema,
-} from './category.schema.ts';
+} from './category.schema'
 export type {
   CreateCategoryInput,
   UpdateCategoryInput,
   CategoryOutput,
-} from './category.schema.ts';
+} from './category.schema'
 
 // Re-export order schemas
 export {
@@ -67,7 +67,7 @@ export {
   OrderStatusHistorySchema,
   RefundOrderSchema,
   OrderOutputSchema,
-} from './order.schema.ts';
+} from './order.schema'
 export type {
   CreateOrderInput,
   UpdateOrderStatusInput,
@@ -76,7 +76,7 @@ export type {
   OrderStatusHistoryInput,
   RefundOrderInput,
   OrderOutput,
-} from './order.schema.ts';
+} from './order.schema'
 
 // Re-export voucher schemas
 export {
@@ -84,13 +84,13 @@ export {
   UpdateVoucherSchema,
   ApplyVoucherSchema,
   VoucherOutputSchema,
-} from './voucher.schema.ts';
+} from './voucher.schema'
 export type {
   CreateVoucherInput,
   UpdateVoucherInput,
   ApplyVoucherInput,
   VoucherOutput,
-} from './voucher.schema.ts';
+} from './voucher.schema'
 
 // Re-export cart schemas
 export {
@@ -102,7 +102,7 @@ export {
   ApplyCartReferralSchema,
   CartOutputSchema,
   CartItemOutputSchema,
-} from './cart.schema.ts';
+} from './cart.schema'
 export type {
   CreateCartInput,
   CreateCartItemInput,
@@ -112,28 +112,28 @@ export type {
   ApplyCartReferralInput,
   CartOutput,
   CartItemOutput,
-} from './cart.schema.ts';
+} from './cart.schema'
 
 // Re-export referral schemas
 export {
   CreateReferralCodeSchema,
   UpdateReferralCodeSchema,
   ReferralCodeOutputSchema,
-} from './referral.schema.ts';
+} from './referral.schema'
 export type {
   CreateReferralCodeInput,
   UpdateReferralCodeInput,
   ReferralCodeOutput,
-} from './referral.schema.ts';
+} from './referral.schema'
 
 // Re-export settings schemas
 export {
   ShopSettingsSchema,
   UpdateShopSettingsSchema,
   ShopSettingOutputSchema,
-} from './settings.schema.ts';
+} from './settings.schema'
 export type {
   ShopSettingsInput,
   UpdateShopSettingsInput,
   ShopSettingOutput,
-} from './settings.schema.ts';
+} from './settings.schema'

@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { db, eq, vouchers, sql as dbSql } from 'astro:db';
-import { UpdateVoucherSchema } from '../../../../schemas/voucher.schema.ts';
+import { UpdateVoucherSchema } from '../../../schemas/voucher.schema'
 
 /**
  * Derive voucher status from its fields

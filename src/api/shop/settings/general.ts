@@ -63,10 +63,24 @@ export const GET: APIRoute = async (context) => {
     );
   }
 
-  const settings: Record<string, string | null> = {};
+  const settings: Record<string, any> = {};
   for (const key of SETTINGS_KEYS) {
     settings[key] = await getSetting(key);
   }
+
+  // Parse JSON settings (locales, currencies)
+  const localesRaw = await getSetting('locales');
+  const currenciesRaw = await getSetting('currencies');
+
+  let locales: any[] = [];
+  let currencies: any[] = [];
+  try { locales = JSON.parse(localesRaw || '[]'); } catch {}
+  try { currencies = JSON.parse(currenciesRaw || '[]'); } catch {}
+
+  settings.locales = locales;
+  settings.currencies = currencies;
+  settings.defaultLocale = locales.find((l: any) => l.isDefault)?.code || null;
+  settings.defaultCurrency = currencies.find((c: any) => c.isDefault)?.code || null;
 
   return new Response(
     JSON.stringify({ success: true, data: settings }),

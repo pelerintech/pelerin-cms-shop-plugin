@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { db, eq, and, categories, translations, products, sql as dbSql } from 'astro:db';
-import { UpdateCategorySchema } from '../../../../schemas/category.schema.ts';
+import { UpdateCategorySchema } from '../../../schemas/category.schema'
 
 export const GET: APIRoute = async (context) => {
   const sdk = createPluginContext();
@@ -79,16 +79,14 @@ export const PUT: APIRoute = async (context) => {
       );
     }
 
-    const updateData: Record<string, any> = {};
+    const updateData: Record<string, any> = { updated_at: new Date() };
     if (result.data.parent_id !== undefined) updateData.parent_id = result.data.parent_id;
     if (result.data.name !== undefined) updateData.name = result.data.name;
     if (result.data.description !== undefined) updateData.description = result.data.description;
     if (result.data.slug !== undefined) updateData.slug = result.data.slug;
     if (result.data.sort_order !== undefined) updateData.sort_order = result.data.sort_order;
 
-    if (Object.keys(updateData).length > 0) {
-      await db.update(categories).set(updateData).where(eq(categories.id, id));
-    }
+    await db.update(categories).set(updateData).where(eq(categories.id, id));
 
     const [updated] = await db.select().from(categories).where(eq(categories.id, id));
 

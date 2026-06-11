@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { db, cart_items, products, product_variants, sql as dbSql } from 'astro:db';
-import { getOrCreateCart } from '../../../../lib/cart-session.ts';
-import { AddCartItemBodySchema } from '../../../../schemas/cart.schema.ts';
+import { getOrCreateCart } from '../../../../../lib/cart-session'
+import { AddCartItemBodySchema } from '../../../../../schemas/cart.schema'
 
 export const POST: APIRoute = async (context) => {
   try {

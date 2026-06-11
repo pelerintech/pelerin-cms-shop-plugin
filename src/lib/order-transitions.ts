@@ -1,6 +1,6 @@
 import { db, orders, order_status_history, sql as dbSql } from 'astro:db';
-import { decrementStock } from './stock-decrement.ts';
-import { clearCartForOrder } from './cart-clear.ts';
+import { decrementStock } from './stock-decrement'
+import { clearCartForOrder } from './cart-clear'
 
 /**
  * Valid status transitions for orders.

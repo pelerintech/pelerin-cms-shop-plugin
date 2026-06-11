@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { VoucherType } from './enums.ts';
+import { VoucherType } from './enums'
 
 /**
  * Schema for creating a referral code

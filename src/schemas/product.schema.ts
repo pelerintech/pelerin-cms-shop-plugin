@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ProductType, OptionValueType } from './enums.ts';
+import { ProductType, OptionValueType } from './enums'
 
 /**
  * Schema for creating a new product

@@ -9,7 +9,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
 ---
 
 <AdminLayout title="Stripe Settings" currentPath="/admin/plugins/shop/settings/payments/stripe" user={user}>
-  <div class="max-w-2xl mx-auto p-6">
+  <div class="col-span-12 p-6">
     <h1 class="text-2xl font-bold mb-6">Stripe Payment Settings</h1>
 
     <form id="stripe-settings-form" class="space-y-4">

@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { db, eq, and, products, translations, product_prices, sql as dbSql } from 'astro:db';
-import { CreateProductSchema } from '../../../../schemas/product.schema.ts';
+import { CreateProductSchema } from '../../../schemas/product.schema';
 
 export const GET: APIRoute = async (context) => {
   const sdk = createPluginContext();
@@ -13,6 +13,7 @@ export const GET: APIRoute = async (context) => {
     const category = url.searchParams.get('category');
     const type = url.searchParams.get('type');
     const active = url.searchParams.get('active');
+    const search = url.searchParams.get('search');
     const locale = url.searchParams.get('locale') || 'ro';
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '20');
@@ -30,15 +31,19 @@ export const GET: APIRoute = async (context) => {
     if (active !== null && active !== undefined) {
       conditions.push(dbSql`${products.active} = ${active === 'true' ? 1 : 0}`);
     }
+    if (search) {
+      const s = search.replace(/'/g, "''");
+      conditions.push(dbSql.raw(`(LOWER(p.name) LIKE LOWER('%${s}%') OR LOWER(p.sku) LIKE LOWER('%${s}%') OR p.id LIKE '%${s}%')`));
+    }
 
     // Get total count
     let countResult;
     if (conditions.length > 0) {
       countResult = await db.run(
-        dbSql`SELECT COUNT(*) as total FROM ${products} WHERE ${dbSql.join(conditions, ' AND ')}`
+        dbSql`SELECT COUNT(*) as total FROM ${products} p WHERE ${dbSql.join(conditions, ' AND ')}`
       );
     } else {
-      countResult = await db.run(dbSql`SELECT COUNT(*) as total FROM ${products}`);
+      countResult = await db.run(dbSql`SELECT COUNT(*) as total FROM ${products} p`);
     }
     const total = (countResult.rows[0] as any).total as number;
 
@@ -46,11 +51,11 @@ export const GET: APIRoute = async (context) => {
     let productRows;
     if (conditions.length > 0) {
       productRows = await db.run(
-        dbSql`SELECT * FROM ${products} WHERE ${dbSql.join(conditions, ' AND ')} ORDER BY ${products.name} LIMIT ${limit} OFFSET ${offset}`
+        dbSql`SELECT p.* FROM ${products} p WHERE ${dbSql.join(conditions, ' AND ')} ORDER BY p.name LIMIT ${limit} OFFSET ${offset}`
       );
     } else {
       productRows = await db.run(
-        dbSql`SELECT * FROM ${products} ORDER BY ${products.name} LIMIT ${limit} OFFSET ${offset}`
+        dbSql`SELECT p.* FROM ${products} p ORDER BY p.name LIMIT ${limit} OFFSET ${offset}`
       );
     }
 
@@ -119,6 +124,18 @@ export const POST: APIRoute = async (context) => {
 
     const { sku, type, has_variants, vat_rate, stock, category_id, active, name, description, slug } = result.data;
 
+    // Extract locale fields from body (name_en, slug_en, description_en, etc.)
+    const defaultLocale = (body as any).default_locale || 'ro';
+    const localeFields: Record<string, { name?: string; slug?: string; description?: string }> = {};
+    for (const [key, val] of Object.entries(body)) {
+      const match = key.match(/^(name|slug|description)_(\w+)$/);
+      if (match && val) {
+        const [, field, locale] = match;
+        if (!localeFields[locale]) localeFields[locale] = {};
+        localeFields[locale][field as keyof typeof localeFields[locale]] = val as string;
+      }
+    }
+
     // Check for duplicate SKU
     if (sku) {
       const existingSku = await db.run(
@@ -134,6 +151,7 @@ export const POST: APIRoute = async (context) => {
 
     const id = crypto.randomUUID();
 
+    const now = new Date();
     await db.insert(products).values({
       id,
       sku,
@@ -146,19 +164,36 @@ export const POST: APIRoute = async (context) => {
       name,
       description,
       slug,
+      created_at: now,
+      updated_at: now,
     });
 
-    // Insert default locale translation (RO)
+    // Insert default locale translation
     await db.insert(translations).values({
       id: crypto.randomUUID(),
       entity_type: 'product',
       entity_id: id,
-      locale: 'ro',
+      locale: defaultLocale,
       name,
       description,
       slug,
       label: null,
     });
+
+    // Insert translations for non-default locales
+    for (const [locale, fields] of Object.entries(localeFields)) {
+      if (locale === defaultLocale) continue;
+      await db.insert(translations).values({
+        id: crypto.randomUUID(),
+        entity_type: 'product',
+        entity_id: id,
+        locale,
+        name: fields.name || null,
+        description: fields.description || null,
+        slug: fields.slug || null,
+        label: null,
+      });
+    }
 
     return new Response(
       JSON.stringify({

@@ -6,7 +6,7 @@ import {
   product_option_values, product_option_types,
   sql as dbSql,
 } from 'astro:db';
-import { CreateVariantSchema } from '../../../../../../schemas/product.schema.ts';
+import { CreateVariantSchema } from '../../../../../schemas/product.schema'
 
 export const GET: APIRoute = async (context) => {
   const sdk = createPluginContext();
