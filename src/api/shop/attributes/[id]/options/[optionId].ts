@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { db, product_attribute_options, product_attribute_assignments, translations, sql as dbSql } from 'astro:db';
-import { UpdateAttributeOptionSchema } from '../../../../schemas/product.schema';
+import { UpdateAttributeOptionSchema } from '../../../../../schemas/product.schema';
 
 export const GET: APIRoute = async (context) => {
   const sdk = createPluginContext();
