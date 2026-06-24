@@ -9,6 +9,12 @@ const __dirname = dirname(__filename);
 const PAGE_PATH = resolve(__dirname, '../../src/pages/admin/products/new.astro');
 
 describe('Products new page - card layout', () => {
+  it('does NOT render a has_variants checkbox (derived at read, not user input)', () => {
+    const content = readFileSync(PAGE_PATH, 'utf-8');
+    assert.doesNotMatch(content, /name="has_variants"/, 'has_variants checkbox must be removed (derived, not input)');
+    assert.doesNotMatch(content, /Has variants/, 'has_variants label must be removed');
+  });
+
   it('imports Breadcrumbs component', () => {
     const content = readFileSync(PAGE_PATH, 'utf-8');
     assert.match(content, /Breadcrumbs/, 'Should import Breadcrumbs component');

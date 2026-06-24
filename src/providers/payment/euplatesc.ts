@@ -116,7 +116,7 @@ async function initiatePayment(
   );
 
   // Transition order to awaiting_payment
-  await transitionOrder(order.id, 'awaiting_payment', 'Payment initiated via euPlatesc');
+  await transitionOrder(db, order.id, 'awaiting_payment', 'Payment initiated via euPlatesc');
 
   return {
     redirect_url: redirectUrl,
@@ -176,7 +176,7 @@ async function handleWebhook(request: Request): Promise<WebhookResult> {
   }
 
   if (epStatus === 'authorized') {
-    await transitionOrder(orderId, 'paid', 'Payment confirmed via euPlatesc IPN');
+    await transitionOrder(db, orderId, 'paid', 'Payment confirmed via euPlatesc IPN');
     await db.run(
       dbSql`UPDATE ${orders}
             SET ${orders.transaction_id} = ${epId}

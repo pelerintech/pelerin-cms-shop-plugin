@@ -1,156 +1,88 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db, eq, and, product_prices, sql as dbSql } from 'astro:db';
-import { CreatePriceSchema } from '../../../../schemas/product.schema'
+import { db } from 'astro:db';
+import { listPricesForProduct, listPricesForVariant, upsertPrice, deletePrice } from '../../../../lib/data/products';
+import { listVariantIdsForProduct } from '../../../../lib/data/variants';
+import { BulkUpsertPricesSchema, CreatePriceSchema } from '../../../../schemas/product.schema';
+import type { HandlerDeps } from '../../../../lib/handler-types';
 
-export const GET: APIRoute = async (context) => {
-  const sdk = createPluginContext();
+export const GET: APIRoute = (context) =>
+  runGet({ db, sdk: createPluginContext(), ctx: context });
 
+export const POST: APIRoute = (context) =>
+  runPost({ db, sdk: createPluginContext(), ctx: context });
+
+export const PUT: APIRoute = (context) =>
+  runPut({ db, sdk: createPluginContext(), ctx: context });
+
+export const DELETE: APIRoute = (context) =>
+  runDelete({ db, sdk: createPluginContext(), ctx: context });
+
+export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
-    await sdk.auth.requireAdmin(context.request);
-    const { id } = context.params;
-
-    const rows = await db.run(
-      dbSql`SELECT * FROM ${product_prices} WHERE ${product_prices.product_id} = ${id} OR ${product_prices.variant_id} IN (SELECT id FROM product_variants WHERE product_id = ${id})`
-    );
-
-    const grouped: Record<string, any[]> = {};
-    for (const row of rows.rows as any[]) {
-      if (!grouped[row.currency]) grouped[row.currency] = [];
-      grouped[row.currency].push(row);
+    await sdk.auth.requireAdmin(ctx.request);
+    const productId = ctx.params.id!;
+    const prices = await listPricesForProduct(db, productId);
+    const variantIds = await listVariantIdsForProduct(db, productId);
+    const variantPrices: any[] = [];
+    for (const vid of variantIds) {
+      const vp = await listPricesForVariant(db, vid);
+      variantPrices.push(...vp);
     }
-
-    return new Response(JSON.stringify({ success: true, data: grouped }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(JSON.stringify({ success: true, data: [...prices, ...variantPrices] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (err: any) {
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status: err.status ?? 500, headers: { 'Content-Type': 'application/json' } });
+  }
+}
+
+export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
+  try {
+    await sdk.auth.requireAdmin(ctx.request);
+    const body = await ctx.request.json();
+    await upsertPrice(db, { product_id: ctx.params.id!, variant_id: body.variant_id ?? null, currency: body.currency, price_net: body.price_net });
+    return new Response(JSON.stringify({ success: true, data: body }), { status: 201, headers: { 'Content-Type': 'application/json' } });
+  } catch (err: any) {
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status: err.status ?? 500, headers: { 'Content-Type': 'application/json' } });
   }
 };
 
-export const PUT: APIRoute = async (context) => {
-  const sdk = createPluginContext();
-
+export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
-    await sdk.auth.requireAdmin(context.request);
-    const { id } = context.params;
-
-    const body = await context.request.json();
-
-    if (!Array.isArray(body.prices)) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Invalid payload: prices must be an array' }),
-        { status: 422, headers: { 'Content-Type': 'application/json' } }
-      );
+    await sdk.auth.requireAdmin(ctx.request);
+    const body = await ctx.request.json();
+    // Accept either { prices: [...] } (bulk) or a single price object.
+    const payload = Array.isArray(body?.prices) ? { prices: body.prices } : { prices: [body] };
+    // Normalize product_id from the route when missing.
+    payload.prices = payload.prices.map((p: any) => ({
+      ...p,
+      product_id: p.product_id ?? ctx.params.id!,
+    }));
+    const parsed = BulkUpsertPricesSchema.safeParse(payload);
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ success: false, error: 'Validation failed', fields: Object.fromEntries(parsed.error.issues.map(i => [i.path.join('.'), i.message])) }), { status: 422, headers: { 'Content-Type': 'application/json' } });
     }
-
-    for (const price of body.prices) {
-      const result = CreatePriceSchema.safeParse(price);
-      if (!result.success) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'Validation failed',
-            fields: Object.fromEntries(
-              result.error.issues.map(i => [i.path.join('.'), i.message])
-            ),
-          }),
-          { status: 422, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    for (const price of body.prices) {
-      const { product_id, variant_id, currency, price_net } = price;
-
-      let existing;
-      if (product_id) {
-        [existing] = await db
-          .select()
-          .from(product_prices)
-          .where(
-            and(
-              eq(product_prices.product_id, product_id),
-              eq(product_prices.currency, currency)
-            )
-          );
-      } else if (variant_id) {
-        [existing] = await db
-          .select()
-          .from(product_prices)
-          .where(
-            and(
-              eq(product_prices.variant_id, variant_id),
-              eq(product_prices.currency, currency)
-            )
-          );
-      }
-
-      if (existing) {
-        await db
-          .update(product_prices)
-          .set({ price_net })
-          .where(eq(product_prices.id, existing.id));
-      } else {
-        await db.insert(product_prices).values({
-          id: crypto.randomUUID(),
-          product_id,
-          variant_id,
-          currency,
-          price_net,
-        });
-      }
-    }
-
-    const updated = await db.run(
-      dbSql`SELECT * FROM ${product_prices} WHERE ${product_prices.product_id} = ${id} OR ${product_prices.variant_id} IN (SELECT id FROM product_variants WHERE product_id = ${id})`
-    );
-
-    return new Response(JSON.stringify({ success: true, data: updated.rows }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  } catch (err: any) {
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-};
-
-export const DELETE: APIRoute = async (context) => {
-  const sdk = createPluginContext();
-
-  try {
-    await sdk.auth.requireAdmin(context.request);
-
-    const body = await context.request.json();
-    const priceId = body.priceId;
-
-    if (!priceId) {
-      return new Response(JSON.stringify({ success: false, error: 'priceId is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
+    for (const p of parsed.data.prices) {
+      await upsertPrice(db, {
+        product_id: p.product_id,
+        variant_id: p.variant_id ?? null,
+        currency: p.currency,
+        price_net: p.price_net,
       });
     }
-
-    await db.delete(product_prices).where(eq(product_prices.id, priceId));
-
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(JSON.stringify({ success: true, data: parsed.data.prices }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (err: any) {
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status: err.status ?? 500, headers: { 'Content-Type': 'application/json' } });
+  }
+};
+
+export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
+  try {
+    await sdk.auth.requireAdmin(ctx.request);
+    const url = new URL(ctx.request.url);
+    const priceId = url.searchParams.get('id');
+    if (priceId) await deletePrice(db, priceId);
+    return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  } catch (err: any) {
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status: err.status ?? 500, headers: { 'Content-Type': 'application/json' } });
   }
 };

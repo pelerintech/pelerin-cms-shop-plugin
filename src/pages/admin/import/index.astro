@@ -1,0 +1,196 @@
+---
+// Admin: bulk CSV import hub
+// Route: /admin/plugins/shop/import
+import AdminLayout from 'pelerin:admin-layout';
+import { createPluginContext } from 'pelerin:plugin-sdk';
+import Breadcrumbs from '../../../components/admin/Breadcrumbs.astro';
+
+const sdk = createPluginContext();
+const user = await sdk.auth.requireAdmin(Astro.request);
+
+// Static CSV templates served as data: URLs (downloadable anchors).
+// Headers must match the import CSV formats documented in the request brief.
+const PRODUCT_TEMPLATE = `sku,name_ro,name_en,description_ro,description_en,type,category_slug,vat_rate,stock
+EXAMPLE-001,Nume Produs,Product Name,Descriere,Description,physical,categoria-mea,0.19,
+EXAMPLE-002,Vitamina D,Vitamin D Test,O descriere,A description,digital,teste-vitamine,0.09,50
+`;
+
+const PRICE_TEMPLATE = `sku,currency,price_net
+EXAMPLE-001,RON,99.99
+EXAMPLE-001,EUR,19.99
+EXAMPLE-002,RON,49.50
+`;
+
+const productTemplateUrl = `data:text/csv;charset=utf-8,${encodeURIComponent(PRODUCT_TEMPLATE)}`;
+const priceTemplateUrl = `data:text/csv;charset=utf-8,${encodeURIComponent(PRICE_TEMPLATE)}`;
+---
+
+<AdminLayout title="Import" currentPath="/admin/plugins/shop/import" user={user}>
+  <Breadcrumbs items={[
+    { label: 'Shop', href: '/admin/plugins/shop' },
+    { label: 'Import' },
+  ]} />
+
+  <div class="flex items-center justify-between col-span-12 mb-4">
+    <div>
+      <h1 class="text-2xl font-bold">Bulk Import</h1>
+      <p class="text-base-content/60">Create or update products and prices from a CSV file</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 col-span-12">
+    <!-- Products import -->
+    <div class="card bg-base-100 shadow-lg">
+      <div class="card-body">
+        <h2 class="card-title">Products</h2>
+        <p class="text-sm text-base-content/60">
+          Upsert products by SKU. Required columns: <code>sku</code>, <code>name_ro</code>, <code>type</code>.
+          Unknown SKUs are created; existing SKUs are updated.
+        </p>
+        <div class="mb-2">
+          <a href={productTemplateUrl} download="products-template.csv" class="btn btn-ghost btn-sm">
+            ⬇ Download Template
+          </a>
+        </div>
+        <form id="products-form" class="space-y-4">
+          <div class="form-control">
+            <label class="label" for="products-file">
+              <span class="label-text font-medium">CSV file <span class="text-error">*</span></span>
+              <span class="label-text-alt text-base-content/50">.csv only</span>
+            </label>
+            <input id="products-file" type="file" name="file" accept=".csv,text/csv" class="file-input file-input-bordered w-full" required />
+            <label class="label">
+              <span class="label-text-alt text-base-content/40">Select the product CSV file to import</span>
+            </label>
+          </div>
+          <button type="submit" class="btn btn-primary">Upload &amp; Import</button>
+        </form>
+        <div id="products-result" class="hidden mt-4"></div>
+      </div>
+    </div>
+
+    <!-- Prices import -->
+    <div class="card bg-base-100 shadow-lg">
+      <div class="card-body">
+        <h2 class="card-title">Prices</h2>
+        <p class="text-sm text-base-content/60">
+          Upsert per-currency prices by SKU. Required columns: <code>sku</code>, <code>currency</code>, <code>price_net</code>.
+          SKU may match a product or a variant.
+        </p>
+        <div class="mb-2">
+          <a href={priceTemplateUrl} download="prices-template.csv" class="btn btn-ghost btn-sm">
+            ⬇ Download Template
+          </a>
+        </div>
+        <form id="prices-form" class="space-y-4">
+          <div class="form-control">
+            <label class="label" for="prices-file">
+              <span class="label-text font-medium">CSV file <span class="text-error">*</span></span>
+              <span class="label-text-alt text-base-content/50">.csv only</span>
+            </label>
+            <input id="prices-file" type="file" name="file" accept=".csv,text/csv" class="file-input file-input-bordered w-full" required />
+            <label class="label">
+              <span class="label-text-alt text-base-content/40">Select the price CSV file to import</span>
+            </label>
+          </div>
+          <button type="submit" class="btn btn-primary">Upload &amp; Import</button>
+        </form>
+        <div id="prices-result" class="hidden mt-4"></div>
+      </div>
+    </div>
+  </div>
+</AdminLayout>
+
+<script is:inline>
+  function renderResult(container, data) {
+    if (!data) return;
+    const errorList = (data.errors && data.errors.length > 0)
+      ? `<div class="mt-3"><p class="font-semibold text-error">${data.errors.length} row error(s):</p>` +
+        `<ul class="mt-1 text-sm text-error/80 max-h-48 overflow-auto">` +
+        data.errors.map(e => `<li>Row ${e.row}${e.sku ? ' (' + e.sku + ')' : ''}: ${e.error}</li>`).join('') +
+        `</ul></div>`
+      : '';
+    container.innerHTML = `
+      <div class="alert ${data.errors && data.errors.length ? 'alert-warning' : 'alert-success'}">
+        <div>
+          <h3 class="font-bold">Import complete</h3>
+          <div class="text-sm">
+            ${typeof data.created === 'number' ? `Created: ${data.created} · ` : ''}Updated: ${data.updated}
+            ${typeof data.skipped === 'number' ? `· Skipped: ${data.skipped}` : ''} of ${data.total} rows
+          </div>
+          ${errorList}
+        </div>
+      </div>`;
+    container.classList.remove('hidden');
+  }
+
+  function wireForm(formId, endpoint, resultId) {
+    const form = document.getElementById(formId);
+    const result = document.getElementById(resultId);
+    if (!form) return;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector('button[type="submit"]');
+      const fileInput = form.querySelector('input[type="file"]');
+      result.classList.add('hidden');
+
+      // Clear any prior validation hint.
+      if (fileInput) fileInput.classList.remove('input-error', 'file-input-error');
+
+      // Clear, client-side guard: no file selected → tell the user exactly what
+      // to do, instead of letting the browser's confusing required-field popup
+      // or a weird server error surface.
+      if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        if (fileInput) fileInput.classList.add('file-input-error');
+        result.innerHTML = `<div class="alert alert-warning"><div><h3 class="font-bold">No file selected</h3><div class="text-sm">Please choose a CSV file above, then click Upload &amp; Import.</div></div></div>`;
+        result.classList.remove('hidden');
+        if (fileInput) fileInput.focus();
+        return;
+      }
+
+      // Guard against a non-.csv selection (the accept attr is a hint, not a
+      // hard filter in all browsers).
+      const fname = fileInput.files[0].name.toLowerCase();
+      if (!fname.endsWith('.csv')) {
+        fileInput.classList.add('file-input-error');
+        result.innerHTML = `<div class="alert alert-error"><div><h3 class="font-bold">Wrong file type</h3><div class="text-sm">“${fileInput.files[0].name}” is not a CSV file. Please select a .csv file.</div></div></div>`;
+        result.classList.remove('hidden');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Importing…';
+      try {
+        const fd = new FormData(form);
+        const res = await fetch(endpoint, { method: 'POST', body: fd });
+        const body = await res.json();
+        if (body.success) {
+          renderResult(result, body.data);
+        } else {
+          result.innerHTML = `<div class="alert alert-error"><div><h3 class="font-bold">Import failed</h3><div class="text-sm">${body.error || 'Unknown error'}</div></div></div>`;
+          result.classList.remove('hidden');
+        }
+      } catch (err) {
+        result.innerHTML = `<div class="alert alert-error"><div><h3 class="font-bold">Import failed</h3><div class="text-sm">${err.message || err}</div></div></div>`;
+        result.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Upload & Import';
+      }
+    });
+  }
+
+  wireForm('products-form', '/api/plugins/shop/import/products', 'products-result');
+  wireForm('prices-form', '/api/plugins/shop/import/prices', 'prices-result');
+
+  // Clear the error highlight as soon as the user picks a new file.
+  ['products-file', 'prices-file'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('change', () => {
+      el.classList.remove('file-input-error');
+      const result = el.closest('.card-body')?.querySelector('[id$="-result"]');
+      if (result) result.classList.add('hidden');
+    });
+  });
+</script>

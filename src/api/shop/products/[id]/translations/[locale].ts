@@ -1,98 +1,45 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db, eq, and, translations } from 'astro:db';
+import { db } from 'astro:db';
+import { getTranslation, upsertTranslation, deleteTranslation } from '../../../../../lib/data/products';
+import type { HandlerDeps } from '../../../../../lib/handler-types';
 
-export const PUT: APIRoute = async (context) => {
-  const sdk = createPluginContext();
+export const GET: APIRoute = (context) =>
+  runGet({ db, sdk: createPluginContext(), ctx: context });
 
+export const PUT: APIRoute = (context) =>
+  runPut({ db, sdk: createPluginContext(), ctx: context });
+
+export const DELETE: APIRoute = (context) =>
+  runDelete({ db, sdk: createPluginContext(), ctx: context });
+
+export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
-    await sdk.auth.requireAdmin(context.request);
-    const { id, locale } = context.params;
-
-    const body = await context.request.json();
-
-    // Check if translation already exists for this entity + locale
-    const [existing] = await db
-      .select()
-      .from(translations)
-      .where(
-        and(
-          eq(translations.entity_type, 'product'),
-          eq(translations.entity_id, id),
-          eq(translations.locale, locale)
-        )
-      );
-
-    if (existing) {
-      // Update existing translation
-      const updateData: Record<string, any> = {};
-      if (body.name !== undefined) updateData.name = body.name;
-      if (body.description !== undefined) updateData.description = body.description;
-      if (body.slug !== undefined) updateData.slug = body.slug;
-
-      if (Object.keys(updateData).length > 0) {
-        await db
-          .update(translations)
-          .set(updateData)
-          .where(
-            and(
-              eq(translations.entity_type, 'product'),
-              eq(translations.entity_id, id),
-              eq(translations.locale, locale)
-            )
-          );
-      }
-
-      const [updated] = await db
-        .select()
-        .from(translations)
-        .where(
-          and(
-            eq(translations.entity_type, 'product'),
-            eq(translations.entity_id, id),
-            eq(translations.locale, locale)
-          )
-        );
-
-      return new Response(JSON.stringify({ success: true, data: updated }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    } else {
-      // Create new translation
-      const newId = crypto.randomUUID();
-      await db.insert(translations).values({
-        id: newId,
-        entity_type: 'product',
-        entity_id: id,
-        locale,
-        name: body.name ?? null,
-        description: body.description ?? null,
-        slug: body.slug ?? null,
-        label: null,
-      });
-
-      const [created] = await db
-        .select()
-        .from(translations)
-        .where(
-          and(
-            eq(translations.entity_type, 'product'),
-            eq(translations.entity_id, id),
-            eq(translations.locale, locale)
-          )
-        );
-
-      return new Response(JSON.stringify({ success: true, data: created }), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
+    await sdk.auth.requireAdmin(ctx.request);
+    const t = await getTranslation(db, 'product', ctx.params.id!, ctx.params.locale!);
+    return new Response(JSON.stringify({ success: true, data: t }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (err: any) {
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status: err.status ?? 500, headers: { 'Content-Type': 'application/json' } });
   }
-};
+}
+
+export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
+  try {
+    await sdk.auth.requireAdmin(ctx.request);
+    const body = await ctx.request.json();
+    await upsertTranslation(db, { entity_type: 'product', entity_id: ctx.params.id!, locale: ctx.params.locale!, ...body });
+    return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  } catch (err: any) {
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status: err.status ?? 500, headers: { 'Content-Type': 'application/json' } });
+  }
+}
+
+export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
+  try {
+    await sdk.auth.requireAdmin(ctx.request);
+    await deleteTranslation(db, 'product', ctx.params.id!, ctx.params.locale!);
+    return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  } catch (err: any) {
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status: err.status ?? 500, headers: { 'Content-Type': 'application/json' } });
+  }
+}

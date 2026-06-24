@@ -67,7 +67,6 @@ const otherLocales = locales.filter(l => !l.isDefault);
                 <TextField name="stock" label="Stock" type="number" min="0" placeholder="100" />
               </div>
               <CheckboxField name="active" label="Active (visible in store)" checked={true} />
-              <CheckboxField name="has_variants" label="Has variants (configurable product)" />
             </div>
           </div>
         </div>
@@ -132,7 +131,6 @@ const otherLocales = locales.filter(l => !l.isDefault);
       vat_rate: formData.get('vat_rate') ? parseFloat(formData.get('vat_rate') as string) : null,
       stock: formData.get('stock') ? parseInt(formData.get('stock') as string) : null,
       active: formData.get('active') === 'on',
-      has_variants: formData.get('has_variants') === 'on',
       default_locale: document.getElementById('product-form')?.dataset?.defaultLocale || 'ro',
     };
 

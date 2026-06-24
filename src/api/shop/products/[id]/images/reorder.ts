@@ -1,49 +1,22 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db, eq, product_images } from 'astro:db';
+import { db } from 'astro:db';
+import { reorderProductImages } from '../../../../../lib/data/products';
+import type { HandlerDeps } from '../../../../../lib/handler-types';
 
-export const PUT: APIRoute = async (context) => {
-  const sdk = createPluginContext();
+export const PUT: APIRoute = (context) =>
+  runPut({ db, sdk: createPluginContext(), ctx: context });
 
+export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
-    await sdk.auth.requireAdmin(context.request);
-    const { id } = context.params;
-
-    const body = await context.request.json();
-
-    if (!Array.isArray(body.order)) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Invalid payload: order must be an array' }),
-        { status: 422, headers: { 'Content-Type': 'application/json' } }
-      );
+    await sdk.auth.requireAdmin(ctx.request);
+    const body = await ctx.request.json();
+    if (!Array.isArray(body.image_ids)) {
+      return new Response(JSON.stringify({ success: false, error: 'image_ids array is required' }), { status: 422, headers: { 'Content-Type': 'application/json' } });
     }
-
-    // Update sort_order for each image
-    for (const item of body.order) {
-      if (item.id && typeof item.sort_order === 'number') {
-        await db
-          .update(product_images)
-          .set({ sort_order: item.sort_order })
-          .where(eq(product_images.id, item.id));
-      }
-    }
-
-    // Return updated images
-    const updated = await db
-      .select()
-      .from(product_images)
-      .where(eq(product_images.product_id, id))
-      .orderBy(product_images.sort_order);
-
-    return new Response(JSON.stringify({ success: true, data: updated }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    await reorderProductImages(db, body.image_ids);
+    return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (err: any) {
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status: err.status ?? 500, headers: { 'Content-Type': 'application/json' } });
   }
-};
+}

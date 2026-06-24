@@ -171,6 +171,38 @@ Return JSON with `{ success, data }` or `{ success: false, error }` shape for co
 
 ---
 
+## 6.5 Data access layer (`src/lib/data/`) — mandatory pattern
+
+**All database access must live in `src/lib/data/` as pure functions that receive `db` as an injected parameter.** API endpoints, pages, and lib modules must NOT write queries inline — they call accessor functions and pass the `db` handle (obtained via `import { db } from 'astro:db'` at the call site only).
+
+```ts
+// src/lib/data/attributes.ts — the accessor
+import type { LibSQLDatabase } from 'drizzle-orm/libsql';
+import { inArray, eq } from 'drizzle-orm';
+import { product_attributes, translations } from '../../db/schema';
+
+export async function listAttributes(db: LibSQLDatabase, locale: string) {
+  return db.select().from(product_attributes).orderBy(product_attributes.sort_order);
+}
+
+// src/api/shop/attributes/index.ts — the endpoint
+import { db } from 'astro:db';
+import { listAttributes } from '../../../lib/data/attributes';
+
+const data = await listAttributes(db, locale);
+```
+
+**Rules:**
+- Table objects are imported from `src/db/schema.ts` (pure Drizzle), NOT from `astro:db`. The `src/db/schema.ts` file mirrors `src/db/config.ts` (astro:db); a parity test guards drift.
+- Use `inArray()` for IN clauses — NEVER `sql.join()` (produces `near "?": syntax error` in this Drizzle/libsql version).
+- Endpoints may import `db` from `astro:db` ONLY to pass to accessors — never to call `.select()`, `.insert()`, `.update()`, or `.run(sql\`...\`)` directly.
+
+**Every new or changed data-access function must have tests** in `tests/lib/data/` against the real-SQLite test harness (`tests/db/harness.ts`) — at minimum a smoke test (query executes on populated and empty data, returns expected shape). Critical flows (attributes/variants, cart/checkout, orders) require deep row-level tests.
+
+**Why:** the plugin is a full e-commerce solution; the data layer is the most critical surface. Isolated, injected, tested accessors catch runtime SQL bugs, survive the future `@astrojs/db` → Drizzle migration unchanged, and keep data logic in one auditable place. Established by the shop-r13-data-access-layer request.
+
+---
+
 ## 7. Plugin SDK (`pelerin:plugin-sdk`)
 
 This is the stable API surface for plugins. Do not import CMS internals directly — go through the SDK.
@@ -298,3 +330,100 @@ When implementing a feature:
 5. **Seed** data for predictable local dev (update `src/db/seed.ts`)
 
 Never commit `node_modules/` or `package-lock.json` from the plugin directory — the CMS runs `npm install` inside the plugin folder on install.
+
+---
+
+## 14. Testing — tiers, how to run, and CI separation
+
+The plugin has **four test tiers**, organized by what they exercise and what environment they need. They are deliberately **decoupled** so the fast, serverless tiers can run in any CI environment (including GitHub Actions) without booting the CMS, while the one tier that needs the CMS dev server runs separately.
+
+### Tier overview
+
+| Tier | Location | Runner | Needs CMS dev server? | What it catches |
+|------|----------|--------|-----------------------|-----------------|
+| 1. Data accessors | `tests/lib/data/*.test.ts` | `node --test` | No (real-SQLite harness) | SQL bugs, wrong rows, drift vs schema |
+| 2. API handlers | `tests/api/handlers/**/*.test.ts` | `node --test` | No (`{db, sdk, ctx}` injection) | handler logic, auth/validation/error-wrap |
+| 3. Client logic + page source | `tests/lib/*.test.ts`, `tests/pages/*.test.ts`, `tests/db/*.test.ts`, `tests/schemas/*.test.ts`, `tests/api/*.test.ts` | `node --test` | No | pure TS logic, schema parity, static UI structure, client-`<script>` syntax |
+| 4. E2E (browser) | `tests/e2e/*.spec.ts` | `npx playwright test` | **Yes** (`../pelerin_cms` on `:3000`) | runtime client `<script>` behavior, full user flows |
+
+Tiers 1–3 are aggregated by **`tests/full-suite.test.ts`** (see below). Tier 4 is **never** included in `full-suite` and **never** runs under `node --test` — it is the only tier that boots a browser and the CMS.
+
+### Tier 1 — Data accessors (`tests/lib/data/`)
+
+Every database accessor in `src/lib/data/` is tested against a real in-memory SQLite database provisioned by `tests/db/harness.ts`. The harness mirrors `src/db/config.ts` and seeds predictable fixtures. Accessors receive `db: LibSQLDatabase` as an injected parameter (per §6.5), so tests pass the harness `db` directly — no `astro:db` import, no Astro build, no server.
+
+```bash
+node --test tests/lib/data/variants.test.ts        # one file
+```
+
+**Rule (§6.5):** every new or changed data-access function must have a test here — at minimum a smoke test (executes on populated AND empty data, returns expected shape); critical flows (attributes/variants, cart/checkout, orders) require deep row-level tests.
+
+### Tier 2 — API handlers (`tests/api/handlers/`)
+
+API handlers (`src/api/shop/**`) are split into a thin `export const METHOD: APIRoute` wrapper (imports `astro:db` + `pelerin:plugin-sdk`, not unit-tested) and an injected `runMethod({ db, sdk, ctx })` core that is unit-tested. Tests inject the harness `db`, a fake `sdk` (whose `auth.requireAdmin` can throw on demand), and a fake `ctx`. A static loader (`tests/stubs/loader.mjs`) makes the handler files importable under bare Node by resolving `astro:`/`pelerin:` specifiers to inert stubs — these stubs are **never exercised**; all behavior comes from injection.
+
+```bash
+node --test tests/api/handlers/products/id/variants/variantId.test.ts
+```
+
+### Tier 3 — Client logic, schemas, page source (`tests/lib/`, `tests/pages/`, `tests/db/`, `tests/schemas/`, `tests/api/`)
+
+- **Pure client logic** (e.g. `tests/lib/variant-matrix.test.ts`) — the Cartesian-product / SKU-generation / exists-diff logic extracted from inline `<script>` into `src/lib/variant-matrix.ts`, tested as plain TS under `node --test`. No DOM, no browser.
+- **Client `<script>` syntax guard** (`tests/pages/admin-products-script-syntax.test.ts`) — extracts the client `<script>` from an admin `.astro` page and transforms it with **esbuild** (a transitive Vite/Astro dep at `node_modules/esbuild`) to catch parse-time errors (duplicate `const`, unbalanced braces) that `readFileSync + assert.match` page tests cannot detect. **When you add or edit a client `<script>` in any admin `.astro` page, add an analogous esbuild-syntax guard** rather than relying on source-string regex.
+- **Schema parity / seed structure** (`tests/db/`) — `src/db/schema.ts` (pure Drizzle) must mirror `src/db/config.ts` (astro:db); `tests/db/schema-parity.test.ts` guards drift. Seed files can't be imported under bare Node (`astro:db`), so seed tests assert on the source text.
+- **Static UI structure** (`tests/pages/*.test.ts`) — honest checks of imports, element ids, CSS classes, breadcrumbs. These are NOT behavioral tests; runtime UI behavior is covered by Tier 4 (Playwright). Never treat a passing `readFileSync + assert.match` test as proof a page *works* — it only proves the source contains a string.
+
+```bash
+node --test tests/lib/variant-matrix.test.ts
+node --test tests/pages/admin-products-script-syntax.test.ts
+```
+
+### The `tests/full-suite.test.ts` wrapper (Tiers 1–3)
+
+A single test that spawns `node --test <all TIER 1–3 files>` as a child process and asserts success plus `testCount >= 500` (guards against silent false greens — if a regression makes the child skip every file, the count assertion fails loudly). When you add a new Tier 1–3 test file, **add its path to the `TEST_FILES` array** or it won't be part of the canonical suite.
+
+```bash
+node --test tests/full-suite.test.ts        # all unit/accessor/handler/syntax tests
+```
+
+**Two landmines preserved by this wrapper (see `decisions.md`):**
+1. **Bare param names in test paths** — dynamic-route test files live at `tests/api/handlers/products/id.test.ts`, NOT `[id].test.ts`. `node --test` treats `[`/`]` as a glob character class and **silently skips** such files (0 tests, no failure). `tests/api/no-bracket-paths.test.ts` enforces this. Source files legitimately keep `[id]` for Astro routing; test paths mirror the source **minus brackets**.
+2. **Nested `node --test` env** — the wrapper strips `NODE_TEST_CONTEXT` / `NODE_TEST_WORKER_ID` from the child env. If inherited, the child runs as a nested worker (0 tests, exit 0 → false green). Any `node --test` process that spawns another `node --test` MUST strip these vars.
+
+### Tier 4 — Playwright E2E (`tests/e2e/`) — INDEPENDENT, needs the CMS
+
+`tests/e2e/*.spec.ts` drives a real Chromium browser against the **running CMS dev server**. It is the **only tier that executes client `<script>` tags**, so it is the only tier that catches browser-side breakage (e.g. a duplicate-`const` SyntaxError that disables the whole client script — the exact bug the r15 re-evaluation found that all Tier 1–3 tests missed).
+
+**Configuration:** `playwright.config.ts` at the plugin root. `webServer.command = 'npm run dev'`, `cwd: '../pelerin_cms'`, `url: 'http://localhost:3000'`, `reuseExistingServer: true`. Port **3000 is mandatory** — the CMS `.env` sets `PORT=3000` and `BETTER_AUTH_URL=http://localhost:3000`; better-auth's cookie/redirect flow is bound to that URL, so running on any other port breaks login.
+
+**Setup (first run only):**
+```bash
+npx playwright install chromium
+```
+
+**Run:**
+```bash
+# Option A — let Playwright start the CMS dev server itself:
+npx playwright test
+
+# Option B — reuse an already-running CMS dev server (faster iteration):
+cd ../pelerin_cms && npm run dev &
+SHOP_E2E_SKIP_START=1 npx playwright test
+```
+
+**Credentials:** the suite logs in via the CMS auth form using the seeded admin (`admin@pelerin.local` / `123456789`, from `../pelerin_cms/db/seed.ts`). Override with `SHOP_E2E_ADMIN_EMAIL` / `SHOP_E2E_ADMIN_PASSWORD`; override the base URL with `SHOP_E2E_BASE_URL`.
+
+**Why it is decoupled (and must stay decoupled):** Tier 4 depends on the CMS dev server, the seeded database, and a browser binary — none of which Tiers 1–3 need. Coupling them would mean every CI run that wants the fast unit feedback (Tiers 1–3, ~5s, no server) would also have to boot the full CMS stack (slow, flaky, environment-dependent). **For GitHub Actions (or any CI), run them as two separate jobs/steps:**
+
+- **Unit job** (Tiers 1–3): `node --test tests/full-suite.test.ts` — no server, no browser, runs anywhere Node runs. This should be the gate on every push/PR.
+- **E2E job** (Tier 4): `npx playwright install chromium && npx playwright test` — requires the CMS repo checked out at `../pelerin_cms` with dependencies installed and a seeded DB. Run on merges to `main` or nightly, not necessarily on every PR. Because `webServer.reuseExistingServer: true`, the job can either let Playwright start the server or start it in a prior step.
+
+`tests/e2e/` is deliberately **not** listed in `tests/full-suite.test.ts`'s `TEST_FILES`, and `package.json` defines no `npm test` script that would entangle them — keep it that way. If you add an `npm test` convenience script in the future, make it run Tier 1–3 only (`node --test tests/full-suite.test.ts`); keep Playwright behind its own script (e.g. `npm run test:e2e` → `playwright test`).
+
+### When to reach for which tier
+
+- **New/changed accessor** → Tier 1 (mandatory per §6.5).
+- **New/changed API handler** → Tier 2; add the file to `full-suite` `TEST_FILES`.
+- **New/changed client `<script>` logic** → extract pure logic to `src/lib/` + Tier 3 unit test; **and** add an esbuild syntax guard; **and** add a Tier 4 E2E test for the user-visible flow (the only thing that proves the script actually runs in the browser).
+- **New admin page / UI behavior** → Tier 4 is the source of truth for behavior; Tier 3 source-assertions only cover static structure.
+- **CI gate** → Tier 1–3 (`full-suite`); Tier 4 in a separate, slower job.

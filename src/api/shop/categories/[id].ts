@@ -1,171 +1,54 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db, eq, and, categories, translations, products, sql as dbSql } from 'astro:db';
-import { UpdateCategorySchema } from '../../../schemas/category.schema'
+import { db } from 'astro:db';
+import { getCategoryById, updateCategory, deleteCategory } from '../../../lib/data/products';
+import { UpdateCategorySchema } from '../../../schemas/category.schema';
+import type { HandlerDeps } from '../../../lib/handler-types';
 
-export const GET: APIRoute = async (context) => {
-  const sdk = createPluginContext();
+export const GET: APIRoute = (context) =>
+  runGet({ db, sdk: createPluginContext(), ctx: context });
 
+export const PUT: APIRoute = (context) =>
+  runPut({ db, sdk: createPluginContext(), ctx: context });
+
+export const DELETE: APIRoute = (context) =>
+  runDelete({ db, sdk: createPluginContext(), ctx: context });
+
+export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
-    await sdk.auth.requireAdmin(context.request);
-    const { id } = context.params;
-
-    const [cat] = await db.select().from(categories).where(eq(categories.id, id));
-    if (!cat) {
-      return new Response(JSON.stringify({ success: false, error: 'Category not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Fetch all translations for this category
-    const transRows = await db
-      .select()
-      .from(translations)
-      .where(
-        and(
-          eq(translations.entity_type, 'category'),
-          eq(translations.entity_id, id)
-        )
-      );
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        data: {
-          ...cat,
-          translations: transRows,
-        },
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    await sdk.auth.requireAdmin(ctx.request);
+    const cat = await getCategoryById(db, ctx.params.id!);
+    if (!cat) return new Response(JSON.stringify({ success: false, error: 'Category not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ success: true, data: cat }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (err: any) {
     const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status, headers: { 'Content-Type': 'application/json' } });
   }
-};
+}
 
-export const PUT: APIRoute = async (context) => {
-  const sdk = createPluginContext();
-
+export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
-    await sdk.auth.requireAdmin(context.request);
-    const { id } = context.params;
-
-    const [existing] = await db.select().from(categories).where(eq(categories.id, id));
-    if (!existing) {
-      return new Response(JSON.stringify({ success: false, error: 'Category not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    await sdk.auth.requireAdmin(ctx.request);
+    const body = await ctx.request.json();
+    const parsed = UpdateCategorySchema.safeParse(body);
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ success: false, error: 'Validation failed', fields: Object.fromEntries(parsed.error.issues.map(i => [i.path.join('.'), i.message])) }), { status: 422, headers: { 'Content-Type': 'application/json' } });
     }
-
-    const body = await context.request.json();
-    const result = UpdateCategorySchema.safeParse(body);
-
-    if (!result.success) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Validation failed',
-          fields: Object.fromEntries(
-            result.error.issues.map(i => [i.path.join('.'), i.message])
-          ),
-        }),
-        { status: 422, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const updateData: Record<string, any> = { updated_at: new Date() };
-    if (result.data.parent_id !== undefined) updateData.parent_id = result.data.parent_id;
-    if (result.data.name !== undefined) updateData.name = result.data.name;
-    if (result.data.description !== undefined) updateData.description = result.data.description;
-    if (result.data.slug !== undefined) updateData.slug = result.data.slug;
-    if (result.data.sort_order !== undefined) updateData.sort_order = result.data.sort_order;
-
-    await db.update(categories).set(updateData).where(eq(categories.id, id));
-
-    const [updated] = await db.select().from(categories).where(eq(categories.id, id));
-
-    return new Response(
-      JSON.stringify({ success: true, data: updated }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    await updateCategory(db, ctx.params.id!, parsed.data);
+    return new Response(JSON.stringify({ success: true, data: { id: ctx.params.id, ...parsed.data } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (err: any) {
     const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status, headers: { 'Content-Type': 'application/json' } });
   }
-};
+}
 
-export const DELETE: APIRoute = async (context) => {
-  const sdk = createPluginContext();
-
+export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
-    await sdk.auth.requireAdmin(context.request);
-    const { id } = context.params;
-
-    const [existing] = await db.select().from(categories).where(eq(categories.id, id));
-    if (!existing) {
-      return new Response(JSON.stringify({ success: false, error: 'Category not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Check for children
-    const children = await db
-      .select()
-      .from(categories)
-      .where(eq(categories.parent_id, id));
-
-    if (children.length > 0) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Cannot delete category with children' }),
-        { status: 409, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Check for associated products
-    const associatedProducts = await db
-      .select()
-      .from(products)
-      .where(eq(products.category_id, id));
-
-    if (associatedProducts.length > 0) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Cannot delete category with products' }),
-        { status: 409, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Delete translations first
-    await db
-      .delete(translations)
-      .where(
-        and(
-          eq(translations.entity_type, 'category'),
-          eq(translations.entity_id, id)
-        )
-      );
-
-    // Delete the category
-    await db.delete(categories).where(eq(categories.id, id));
-
-    return new Response(JSON.stringify({ success: true, data: null }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    await sdk.auth.requireAdmin(ctx.request);
+    await deleteCategory(db, ctx.params.id!);
+    return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (err: any) {
     const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status, headers: { 'Content-Type': 'application/json' } });
   }
-};
+}

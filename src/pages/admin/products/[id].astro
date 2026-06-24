@@ -92,7 +92,7 @@ for (const t of transRows as any[]) {
 
   <div class="card bg-base-100 shadow-lg col-span-12">
     <div class="card-body">
-      <form id="product-form" class="space-y-6" data-product-id={product.id} data-default-locale={defaultLocale} data-locale-codes={JSON.stringify(otherLocales.map(l => l.code))}>
+      <form id="product-form" class="space-y-6" data-product-id={product.id} data-product-slug={product.slug} data-currencies={JSON.stringify(currencies.map(c => c.code))} data-default-locale={defaultLocale} data-locale-codes={JSON.stringify(otherLocales.map(l => l.code))}>
 
         <!-- Section: General -->
         <div class="card bg-base-200/50">
@@ -192,10 +192,10 @@ for (const t of transRows as any[]) {
           </div>
         </div>
 
-        <!-- Section: Attributes -->
+        <!-- Section: Variants & Attributes -->
         <div class="card bg-base-200/50">
           <div class="card-body pb-4">
-            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Attributes</h4>
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Variants & Attributes</h4>
             <div id="attributes-list" class="space-y-2 mb-4">
               <p class="text-base-content/60 text-sm">Loading...</p>
             </div>
@@ -209,13 +209,8 @@ for (const t of transRows as any[]) {
               <div class="form-control w-40">
                 <label class="label"><span class="label-text font-semibold">Role</span></label>
                 <select id="assign-role-select" class="select select-bordered">
-                  <option value="dimension">Dimension</option>
-                  <option value="field">Field</option>
-                </select>
-              </div>
-              <div id="assign-options-container" class="form-control w-64 hidden">
-                <label class="label"><span class="label-text font-semibold">Offered Options</span></label>
-                <select id="assign-options-select" class="select select-bordered select-multiple h-24" multiple>
+                  <option value="dimension">Varies by (creates variants)</option>
+                  <option value="field">Product info (same for all variants)</option>
                 </select>
               </div>
               <button type="button" id="assign-attribute-btn" class="btn btn-primary">Assign</button>
@@ -235,7 +230,7 @@ for (const t of transRows as any[]) {
         </div>
 
         <!-- Section: Custom Fields -->
-        <div class="card bg-base-200/50">
+        <div class="card bg-base-200/50" id="custom-fields-card">
           <div class="card-body pb-4">
             <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Custom Fields</h4>
             <div id="custom-fields-section" class="space-y-4">
@@ -278,8 +273,14 @@ for (const t of transRows as any[]) {
 </AdminLayout>
 
 <script>
+  import { computeMatrix, selectedCombinations } from '../../../lib/variant-matrix';
   // Read product ID and source page from data attribute / URL
   const PRODUCT_ID = document.querySelector('[data-product-id]')?.getAttribute('data-product-id') || '';
+  const PRODUCT_SLUG = document.querySelector('[data-product-id]')?.getAttribute('data-product-slug') || '';
+  const CURRENCIES: string[] = JSON.parse(document.querySelector('[data-product-id]')?.getAttribute('data-currencies') || '[]');
+  // Cache of the variant list (refreshed by loadVariants) so the edit modal can
+  // read a single variant without re-fetching the whole list each time it opens.
+  let cachedVariants: any[] = [];
   const FROM_PAGE = new URLSearchParams(window.location.search).get('from_page') || '1';
   const productForm = document.getElementById('product-form') as HTMLFormElement;
   const formError = document.getElementById('form-error') as HTMLDivElement;
@@ -376,8 +377,6 @@ for (const t of transRows as any[]) {
   // ── Attributes Section ──
   const assignSelect = document.getElementById('assign-attribute-select') as HTMLSelectElement;
   const roleSelect = document.getElementById('assign-role-select') as HTMLSelectElement;
-  const optionsContainer = document.getElementById('assign-options-container') as HTMLDivElement;
-  const optionsSelect = document.getElementById('assign-options-select') as HTMLSelectElement;
   const assignBtn = document.getElementById('assign-attribute-btn') as HTMLButtonElement;
   const assignError = document.getElementById('assign-error') as HTMLDivElement;
 
@@ -417,7 +416,7 @@ for (const t of transRows as any[]) {
     list.innerHTML = data.data.map((a: any) => `
       <div class="flex items-center gap-3 p-2 bg-base-200 rounded" data-assignment-id="${a.id}">
         <span class="font-medium flex-1">${a.attribute_name}</span>
-        <span class="badge ${a.role === 'dimension' ? 'badge-primary' : 'badge-ghost'} badge-sm">${a.role}</span>
+        <span class="badge ${a.role === 'dimension' ? 'badge-primary' : 'badge-ghost'} badge-sm">${a.role === 'dimension' ? 'Varies by' : 'Product info'}</span>
         <span class="text-sm text-base-content/60">${a.attribute_type}</span>
         <button type="button" class="btn btn-xs btn-error ghost" data-remove-assignment="${a.id}">×</button>
       </div>
@@ -444,25 +443,7 @@ for (const t of transRows as any[]) {
     });
   }
 
-  // Toggle options container based on role
-  roleSelect.addEventListener('change', async () => {
-    if (roleSelect.value === 'dimension') {
-      optionsContainer.classList.remove('hidden');
-      // Load options for selected attribute
-      const attrId = assignSelect.value;
-      if (attrId) {
-        const res = await fetch(`/api/plugins/shop/attributes/${attrId}/options`);
-        const data = await res.json();
-        optionsSelect.innerHTML = (data.data || []).map((o: any) =>
-          `<option value="${o.id}">${o.label || o.value}</option>`
-        ).join('');
-      }
-    } else {
-      optionsContainer.classList.add('hidden');
-    }
-  });
-
-  // Assign attribute
+  // Assign attribute (one-click: pick attribute + role, no offered-option subset).
   assignBtn.addEventListener('click', async () => {
     assignError.classList.add('hidden');
     const attrId = assignSelect.value;
@@ -476,16 +457,6 @@ for (const t of transRows as any[]) {
       attribute_id: attrId,
       role: roleSelect.value,
     };
-
-    if (roleSelect.value === 'dimension') {
-      const selected = Array.from((optionsSelect as HTMLSelectElement).selectedOptions).map(o => o.value);
-      if (selected.length === 0) {
-        assignError.textContent = 'Select at least one option for dimension';
-        assignError.classList.remove('hidden');
-        return;
-      }
-      body.offered_option_ids = selected;
-    }
 
     const res = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/attributes`, {
       method: 'POST',
@@ -517,10 +488,11 @@ for (const t of transRows as any[]) {
     const varRes = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/variants`);
     const varData = await varRes.json();
     const variants = varData.data || [];
+    cachedVariants = variants;
 
     let html = '';
     if (dimensions.length > 0) {
-      html += '<button type="button" id="generate-variants-btn" class="btn btn-sm btn-outline mb-4">Generate Variants</button>';
+      html += '<button type="button" id="generate-variants-btn" class="btn btn-sm btn-outline mb-4">Manage Variants</button>';
     }
 
     if (variants.length > 0) {
@@ -548,7 +520,7 @@ for (const t of transRows as any[]) {
     // Wire generate button
     const genBtn = document.getElementById('generate-variants-btn');
     if (genBtn) {
-      genBtn.addEventListener('click', () => openGenerateModal(dimensions));
+      genBtn.addEventListener('click', () => openGenerateModal(dimensions, variants));
     }
 
     // Wire edit/delete buttons
@@ -568,13 +540,33 @@ for (const t of transRows as any[]) {
   }
 
   // Generate variants modal
-  async function openGenerateModal(dimensions: any[]) {
+  // Manage Variants matrix — shows all dimension combinations, marks existing as
+  // "✓ exists" (not re-creatable), and lets the merchant check "☐ create" for
+  // missing combos. Pure logic lives in src/lib/variant-matrix.ts (unit-tested).
+  async function openGenerateModal(dimensions: any[], existingVariants: any[]) {
+    // Fetch the FULL option set for each dimension attribute (the assignment's
+    // offered_options is no longer populated — generation uses all options).
+    const dimsForMatrix = await Promise.all(dimensions.map(async (d: any) => {
+      const res = await fetch(`/api/plugins/shop/attributes/${d.attribute_id}/options`);
+      const data = await res.json();
+      const options = (data.data || []).map((o: any) => ({ id: o.id, label: o.label || o.value, value: o.value }));
+      return { attribute_id: d.attribute_id, attribute_name: d.attribute_name, options };
+    }));
+
+    // Existing variants as { id, option_ids } for exists-detection.
+    const existing = existingVariants.map((v: any) => ({
+      id: v.id,
+      option_ids: (v.attributes || []).filter((a: any) => a.role === 'dimension').map((a: any) => a.option_id).filter(Boolean),
+    }));
+
+    const rows = computeMatrix(dimsForMatrix, existing, PRODUCT_SLUG);
+
     const dialog = document.createElement('dialog');
     dialog.className = 'modal';
     dialog.innerHTML = `
       <div class="modal-box max-w-4xl">
-        <h3 class="font-bold text-lg mb-4">Generate Variants</h3>
-        <p class="text-sm text-base-content/60 mb-4">Check the combinations you want to create. Auto-SKU is based on product slug + option values.</p>
+        <h3 class="font-bold text-lg mb-4">Manage Variants</h3>
+        <p class="text-sm text-base-content/60 mb-4">Existing combinations are marked “✓ exists”. Check the combinations you want to create. Auto-SKU is based on product slug + option values.</p>
         <div id="combinations-list" class="overflow-x-auto max-h-96 overflow-y-auto mb-4"></div>
         <div class="flex justify-end gap-2">
           <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Cancel</button>
@@ -586,34 +578,47 @@ for (const t of transRows as any[]) {
     document.body.appendChild(dialog);
     dialog.showModal();
 
-    // Compute Cartesian product
-    const combos = cartesianProduct(dimensions.map(d => d.offered_options || []));
-    const productSlug = product.slug || '';
     const container = dialog.querySelector('#combinations-list') as HTMLDivElement;
 
-    container.innerHTML = '<table class="table w-full"><thead><tr><th>Select</th>' +
-      dimensions.map(d => `<th>${d.attribute_name}</th>`).join('') +
+    container.innerHTML = '<table class="table w-full"><thead><tr><th>Create</th>' +
+      dimsForMatrix.map(d => `<th>${d.attribute_name}</th>`).join('') +
       '<th>SKU</th><th>Stock</th></tr></thead><tbody>' +
-      combos.map((c, i) => {
-        const optionValues = c.map(o => o.value).join('-').toLowerCase();
-        const autoSku = `${productSlug}-${optionValues}`;
+      rows.map((r, i) => {
+        if (r.exists) {
+          // Existing variant — not re-creatable.
+          return `<tr class="opacity-60">
+            <td><span class="text-success font-bold">✓ exists</span></td>
+            ${r.labels.map(l => `<td class="text-sm">${l}</td>`).join('')}
+            <td class="text-sm text-base-content/50">—</td>
+            <td class="text-sm text-base-content/50">—</td>
+          </tr>`;
+        }
         return `<tr>
           <td><input type="checkbox" class="checkbox" data-combo-idx="${i}" checked /></td>
-          ${dimensions.map((d, di) => `<td class="text-sm">${c[di].label || c[di].value}</td>`).join('')}
-          <td><input type="text" class="input input-sm input-bordered w-40" data-combo-sku="${i}" value="${autoSku}" /></td>
+          ${r.labels.map(l => `<td class="text-sm">${l}</td>`).join('')}
+          <td><input type="text" class="input input-sm input-bordered w-40" data-combo-sku="${i}" value="${r.auto_sku}" /></td>
           <td><input type="number" class="input input-sm input-bordered w-20" data-combo-stock="${i}" value="0" min="0" /></td>
         </tr>`;
       }).join('') +
       '</tbody></table>';
 
     dialog.querySelector('#submit-variants')!.addEventListener('click', async () => {
-      const selected = Array.from(container.querySelectorAll('input[data-combo-idx]:checked')).map(cb => parseInt(cb.dataset.comboIdx!));
-      const combinations = selected.map(idx => {
-        const option_ids = combos[idx].map((o: any) => o.id);
-        const sku = (container.querySelector(`input[data-combo-sku="${idx}"]`) as HTMLInputElement)?.value || '';
-        const stock = parseInt((container.querySelector(`input[data-combo-stock="${idx}"]`) as HTMLInputElement)?.value || '0');
-        return { option_ids, sku, stock };
-      });
+      const selectedIndices = Array.from(container.querySelectorAll('input[data-combo-idx]:checked'))
+        .map(cb => parseInt((cb as HTMLElement).dataset.comboIdx!));
+      const skus: Record<number, string> = {};
+      const stocks: Record<number, number> = {};
+      for (const idx of selectedIndices) {
+        const skuEl = container.querySelector(`input[data-combo-sku="${idx}"]`) as HTMLInputElement | null;
+        const stockEl = container.querySelector(`input[data-combo-stock="${idx}"]`) as HTMLInputElement | null;
+        skus[idx] = skuEl?.value ?? '';
+        stocks[idx] = parseInt(stockEl?.value ?? '0');
+      }
+      const combinations = selectedCombinations(rows, selectedIndices, skus, stocks);
+
+      if (combinations.length === 0) {
+        alert('No new combinations selected.');
+        return;
+      }
 
       const res = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/variants`, {
         method: 'POST',
@@ -630,17 +635,87 @@ for (const t of transRows as any[]) {
     });
   }
 
-  // Variant edit modal
+  // Variant edit modal — SKU/Stock/Active + per-currency prices (inherit/override)
+  // + per-variant custom fields (field-role attributes). Reads the variant from
+  // the cached list (no per-open list re-fetch).
   async function openVariantEditModal(variantId: string) {
+    const variant = cachedVariants.find((v: any) => v.id === variantId);
+    if (!variant) {
+      alert('Variant not found.');
+      return;
+    }
+
+    // Field-role attributes assigned to the product (for per-variant custom fields).
+    const attrRes = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/attributes`);
+    const attrData = await attrRes.json();
+    const fieldAttrs = (attrData.data || []).filter((a: any) => a.role === 'field');
+    // Fetch options for select-type field attributes.
+    const fieldAttrsWithOptions = await Promise.all(fieldAttrs.map(async (a: any) => {
+      let options: any[] = [];
+      if (a.attribute_type === 'select') {
+        const optRes = await fetch(`/api/plugins/shop/attributes/${a.attribute_id}/options`);
+        const optData = await optRes.json();
+        options = optData.data || [];
+      }
+      return { ...a, options };
+    }));
+
+    // Effective prices: own (inherited:false) pre-filled; inherited shows the
+    // inherited value as a placeholder (blank = inherit).
+    const effectiveByCurrency = new Map<string, { price_net: number; inherited: boolean }>(
+      (variant.effective_prices || []).map((p: any) => [p.currency, p]),
+    );
+
+    const priceInputsHtml = CURRENCIES.map((cur: string) => {
+      const eff = effectiveByCurrency.get(cur);
+      const ownVal = eff && !eff.inherited ? eff.price_net : '';
+      const placeholder = eff ? `${eff.price_net} (inherited from product)` : '';
+      return `<div class="form-control">
+        <label class="label"><span class="label-text">Price (${cur}) — net</span></label>
+        <input type="number" step="0.01" min="0" class="input input-bordered" data-variant-price="${cur}" value="${ownVal}" placeholder="${placeholder}" />
+      </div>`;
+    }).join('');
+
+    // Per-variant custom fields. Pre-fill from the variant's own field values
+    // (variant.attributes includes field-role values; select-type carries option_id).
+    const variantFieldValues = new Map<string, any>(
+      (variant.attributes || []).filter((a: any) => a.role === 'field').map((a: any) => [a.attribute_id, a]),
+    );
+    const fieldsHtml = fieldAttrsWithOptions.map((a: any) => {
+      const fv = variantFieldValues.get(a.attribute_id);
+      const fieldName = `variant-field-${a.attribute_id}`;
+      if (a.attribute_type === 'select') {
+        const opts = a.options.map((o: any) =>
+          `<option value="${o.id}" ${fv?.option_id === o.id ? 'selected' : ''}>${o.label || o.value}</option>`).join('');
+        return `<div class="form-control" data-variant-field="${a.attribute_id}">
+          <label class="label"><span class="label-text">${a.attribute_name}</span></label>
+          <select class="select select-bordered" data-field-input="${a.attribute_id}"><option value="">—</option>${opts}</select>
+        </div>`;
+      }
+      if (a.attribute_type === 'boolean') {
+        return `<div class="form-control" data-variant-field="${a.attribute_id}">
+          <label class="label cursor-pointer justify-start"><input type="checkbox" class="checkbox" data-field-input="${a.attribute_id}" ${fv?.value === true ? 'checked' : ''} /><span class="label-text ml-2">${a.attribute_name}</span></label>
+        </div>`;
+      }
+      const inputType = a.attribute_type === 'number' ? 'number' : 'text';
+      const val = fv?.value ?? '';
+      return `<div class="form-control" data-variant-field="${a.attribute_id}">
+        <label class="label"><span class="label-text">${a.attribute_name}</span></label>
+        <input type="${inputType}" class="input input-bordered" data-field-input="${a.attribute_id}" value="${val}" />
+      </div>`;
+    }).join('');
+
     const dialog = document.createElement('dialog');
     dialog.className = 'modal';
     dialog.innerHTML = `
-      <div class="modal-box">
+      <div class="modal-box max-w-2xl">
         <h3 class="font-bold text-lg mb-4">Edit Variant</h3>
         <div class="space-y-4">
           <div class="form-control"><label class="label"><span class="label-text">SKU</span></label><input type="text" id="edit-variant-sku" class="input input-bordered" /></div>
           <div class="form-control"><label class="label"><span class="label-text">Stock</span></label><input type="number" id="edit-variant-stock" class="input input-bordered" min="0" /></div>
           <div class="form-control"><label class="label cursor-pointer justify-start"><input type="checkbox" id="edit-variant-active" class="checkbox" /><span class="label-text ml-2">Active</span></label></div>
+          ${priceInputsHtml ? `<div class="divider text-xs text-base-content/50">Prices (blank = inherit)</div>${priceInputsHtml}` : ''}
+          ${fieldsHtml ? `<div class="divider text-xs text-base-content/50">Custom fields</div>${fieldsHtml}` : ''}
         </div>
         <div class="flex justify-end gap-2 mt-6">
           <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Cancel</button>
@@ -652,15 +727,6 @@ for (const t of transRows as any[]) {
     document.body.appendChild(dialog);
     dialog.showModal();
 
-    // Fetch variant data
-    const res = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/variants`);
-    const data = await res.json();
-    const variant = (data.data || []).find((v: any) => v.id === variantId);
-    if (!variant) {
-      dialog.close();
-      return;
-    }
-
     (dialog.querySelector('#edit-variant-sku') as HTMLInputElement).value = variant.sku || '';
     (dialog.querySelector('#edit-variant-stock') as HTMLInputElement).value = variant.stock ?? '';
     (dialog.querySelector('#edit-variant-active') as HTMLInputElement).checked = variant.active;
@@ -671,6 +737,41 @@ for (const t of transRows as any[]) {
         stock: parseInt((dialog.querySelector('#edit-variant-stock') as HTMLInputElement).value) || null,
         active: (dialog.querySelector('#edit-variant-active') as HTMLInputElement).checked,
       };
+
+      // Prices: collect filled/cleared currencies. Blank = leave unchanged is NOT
+      // expressible per the spec (blank=inherit); so we send price_net:null for
+      // blank fields (revert) and the number for filled fields (override).
+      const prices: { currency: string; price_net: number | null }[] = [];
+      for (const cur of CURRENCIES) {
+        const el = dialog.querySelector(`input[data-variant-price="${cur}"]`) as HTMLInputElement | null;
+        if (!el) continue;
+        const raw = el.value.trim();
+        if (raw === '') {
+          prices.push({ currency: cur, price_net: null });
+        } else {
+          prices.push({ currency: cur, price_net: parseFloat(raw) });
+        }
+      }
+      if (prices.length > 0) body.prices = prices;
+
+      // Per-variant custom field values (entity_type: 'variant').
+      const field_values: any[] = [];
+      for (const a of fieldAttrsWithOptions) {
+        const el = dialog.querySelector(`[data-field-input="${a.attribute_id}"]`) as HTMLInputElement | HTMLSelectElement | null;
+        if (!el) continue;
+        if (a.attribute_type === 'select') {
+          const v = (el as HTMLSelectElement).value;
+          field_values.push({ assignment_id: a.id, option_id: v || null });
+        } else if (a.attribute_type === 'boolean') {
+          field_values.push({ assignment_id: a.id, value_boolean: (el as HTMLInputElement).checked });
+        } else if (a.attribute_type === 'number') {
+          const v = (el as HTMLInputElement).value;
+          field_values.push({ assignment_id: a.id, value_number: v === '' ? null : parseFloat(v) });
+        } else {
+          field_values.push({ assignment_id: a.id, value_text: (el as HTMLInputElement).value || null });
+        }
+      }
+      if (field_values.length > 0) body.field_values = field_values;
 
       const res = await fetch(`/api/plugins/shop/products/${PRODUCT_ID}/variants/${variantId}`, {
         method: 'PUT',
@@ -694,33 +795,45 @@ for (const t of transRows as any[]) {
     const data = await res.json();
 
     if (!data.data || data.data.length === 0) {
-      section.innerHTML = '<p class="text-base-content/60 text-sm">No field attributes assigned. Add field attributes in the Attributes section above.</p>';
+      const card = document.getElementById('custom-fields-card');
+      if (card) card.classList.add('hidden');
       return;
     }
 
-    section.innerHTML = data.data.map((f: any) => {
+    const card = document.getElementById('custom-fields-card');
+    if (card) card.classList.remove('hidden');
+
+    // Build field HTML; for select-type, fetch the attribute's options and
+    // populate the <select>, pre-selecting the current option_id (Bug 2 fix).
+    const htmlParts = await Promise.all(data.data.map(async (f: any) => {
       let input = '';
       switch (f.attribute_type) {
         case 'text':
-          input = `<input type="text" class="input input-bordered" data-field-value="${f.assignment_id}" value="${f.value || ''}" />`;
+          input = `<input type="text" class="input input-bordered" data-field-value="${f.assignment_id}" data-field-kind="text" value="${f.value || ''}" />`;
           break;
         case 'number':
-          input = `<input type="number" class="input input-bordered" data-field-value="${f.assignment_id}" value="${f.value || ''}" />`;
+          input = `<input type="number" class="input input-bordered" data-field-value="${f.assignment_id}" data-field-kind="number" value="${f.value || ''}" />`;
           break;
         case 'boolean':
-          input = `<input type="checkbox" class="checkbox" data-field-value="${f.assignment_id}" ${f.value ? 'checked' : ''} />`;
+          input = `<input type="checkbox" class="checkbox" data-field-value="${f.assignment_id}" data-field-kind="boolean" ${f.value ? 'checked' : ''} />`;
           break;
-        case 'select':
-          input = `<select class="select select-bordered" data-field-value="${f.assignment_id}"><option value="">Select...</option></select>`;
+        case 'select': {
+          const optRes = await fetch(`/api/plugins/shop/attributes/${f.attribute_id}/options`);
+          const optData = await optRes.json();
+          const opts = (optData.data || []).map((o: any) =>
+            `<option value="${o.id}" ${f.option_id === o.id ? 'selected' : ''}>${o.label || o.value}</option>`).join('');
+          input = `<select class="select select-bordered" data-field-value="${f.assignment_id}" data-field-kind="select"><option value="">Select...</option>${opts}</select>`;
           break;
+        }
         default:
-          input = `<input type="text" class="input input-bordered" data-field-value="${f.assignment_id}" value="${f.value || ''}" />`;
+          input = `<input type="text" class="input input-bordered" data-field-value="${f.assignment_id}" data-field-kind="text" value="${f.value || ''}" />`;
       }
       return `<div class="form-control">
         <label class="label"><span class="label-text">${f.attribute_name}</span></label>
         ${input}
       </div>`;
-    }).join('');
+    }));
+    section.innerHTML = htmlParts.join('');
   }
 
   // Save custom fields
@@ -730,12 +843,15 @@ for (const t of transRows as any[]) {
 
     const values: any[] = [];
     document.querySelectorAll('[data-field-value]').forEach(el => {
-      const assignmentId = el.dataset.fieldValue!;
+      const assignmentId = (el as HTMLElement).dataset.fieldValue!;
+      const kind = (el as HTMLElement).dataset.fieldKind;
       let value: any;
-      if (el instanceof HTMLInputElement && el.type === 'checkbox') {
-        value = { assignment_id: assignmentId, value_boolean: el.checked };
-      } else if (el instanceof HTMLInputElement && el.type === 'number') {
-        value = { assignment_id: assignmentId, value_number: el.value ? parseFloat(el.value) : null };
+      if (kind === 'boolean') {
+        value = { assignment_id: assignmentId, value_boolean: (el as HTMLInputElement).checked };
+      } else if (kind === 'number') {
+        value = { assignment_id: assignmentId, value_number: (el as HTMLInputElement).value ? parseFloat((el as HTMLInputElement).value) : null };
+      } else if (kind === 'select') {
+        value = { assignment_id: assignmentId, option_id: (el as HTMLSelectElement).value || null };
       } else {
         value = { assignment_id: assignmentId, value_text: (el as HTMLInputElement | HTMLSelectElement).value || null };
       }
@@ -755,11 +871,6 @@ for (const t of transRows as any[]) {
       fieldsError.classList.remove('hidden');
     }
   });
-
-  // Helper: Cartesian product
-  function cartesianProduct(arrays: any[]) {
-    return arrays.reduce((a, b) => a.flatMap(x => b.map(y => [...x, y])), [[]]);
-  }
 
   // Initialize sections
   loadAvailableAttributes();

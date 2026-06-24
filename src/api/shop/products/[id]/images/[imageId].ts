@@ -1,45 +1,18 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db, eq, product_images } from 'astro:db';
+import { db } from 'astro:db';
+import { deleteProductImage } from '../../../../../lib/data/products';
+import type { HandlerDeps } from '../../../../../lib/handler-types';
 
-export const DELETE: APIRoute = async (context) => {
-  const sdk = createPluginContext();
+export const DELETE: APIRoute = (context) =>
+  runDelete({ db, sdk: createPluginContext(), ctx: context });
 
+export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
-    await sdk.auth.requireAdmin(context.request);
-    const { id, imageId } = context.params;
-
-    const [image] = await db
-      .select()
-      .from(product_images)
-      .where(eq(product_images.id, imageId));
-
-    if (!image) {
-      return new Response(JSON.stringify({ success: false, error: 'Image not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Delete from storage
-    try {
-      await sdk.storage.delete(image.url);
-    } catch {
-      // Non-fatal: storage deletion may fail independently
-    }
-
-    // Delete from DB
-    await db.delete(product_images).where(eq(product_images.id, imageId));
-
-    return new Response(JSON.stringify({ success: true, data: null }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    await sdk.auth.requireAdmin(ctx.request);
+    await deleteProductImage(db, ctx.params.imageId!);
+    return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (err: any) {
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status: err.status ?? 500, headers: { 'Content-Type': 'application/json' } });
   }
-};
+}

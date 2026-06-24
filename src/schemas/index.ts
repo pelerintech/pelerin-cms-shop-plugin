@@ -132,6 +132,16 @@ export {
   UpdateShopSettingsSchema,
   ShopSettingOutputSchema,
 } from './settings.schema'
+
+// Re-export import schemas
+export {
+  ProductImportRowSchema,
+  PriceImportRowSchema,
+} from './import.schema'
+export type {
+  ProductImportRow,
+  PriceImportRow,
+} from './import.schema'
 export type {
   ShopSettingsInput,
   UpdateShopSettingsInput,

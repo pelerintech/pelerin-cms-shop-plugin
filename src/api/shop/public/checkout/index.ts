@@ -1,10 +1,13 @@
 import type { APIRoute } from 'astro';
-import { db, cart_items, carts, orders, order_items, order_status_history, products, product_variants, product_prices, vouchers, sql as dbSql } from 'astro:db';
-import { getOrCreateCart } from '../../../../lib/cart-session'
-import { computeCartTotals } from '../../../../lib/cart-totals'
-import type { CartItemInput } from '../../../../lib/cart-totals'
-import { generateOrderNumber } from '../../../../lib/order-number'
+import { db } from 'astro:db';
+import { createPluginContext } from 'pelerin:plugin-sdk';
+import { getOrCreateCart } from '../../../../lib/cart-session';
+import { getCartWithItems, validateCartStock, StockValidationError } from '../../../../lib/data/cart';
+import { createOrder, generateOrderNumber } from '../../../../lib/data/orders';
+import { getVoucherByCode, incrementVoucherUsage } from '../../../../lib/data/vouchers';
+import { computeCartTotals } from '../../../../lib/cart-totals';
 import { z } from 'zod';
+import type { HandlerDeps } from '../../../../lib/handler-types';
 
 const CheckoutSchema = z
   .object({
@@ -32,218 +35,101 @@ const CheckoutSchema = z
   })
   .superRefine((data, ctx) => {
     if (data.customer_type === 'company') {
-      if (!data.billing_company) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'billing_company is required for company customers',
-          path: ['billing_company'],
-        });
-      }
-      if (!data.billing_vat_number) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'billing_vat_number is required for company customers',
-          path: ['billing_vat_number'],
-        });
-      }
+      if (!data.billing_company) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'billing_company is required for company customers', path: ['billing_company'] });
+      if (!data.billing_vat_number) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'billing_vat_number is required for company customers', path: ['billing_vat_number'] });
     }
     if (!data.shipping_same_as_billing && data.shipping_type === 'physical') {
-      if (!data.shipping_address_line_1) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'shipping_address_line_1 is required when shipping differs from billing',
-          path: ['shipping_address_line_1'],
-        });
-      }
-      if (!data.shipping_city) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'shipping_city is required when shipping differs from billing',
-          path: ['shipping_city'],
-        });
-      }
-      if (!data.shipping_postal_code) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'shipping_postal_code is required when shipping differs from billing',
-          path: ['shipping_postal_code'],
-        });
-      }
-      if (!data.shipping_country) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'shipping_country is required when shipping differs from billing',
-          path: ['shipping_country'],
-        });
-      }
+      if (!data.shipping_address_line_1) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'shipping_address_line_1 is required when shipping differs from billing', path: ['shipping_address_line_1'] });
+      if (!data.shipping_city) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'shipping_city is required when shipping differs from billing', path: ['shipping_city'] });
+      if (!data.shipping_postal_code) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'shipping_postal_code is required when shipping differs from billing', path: ['shipping_postal_code'] });
+      if (!data.shipping_country) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'shipping_country is required when shipping differs from billing', path: ['shipping_country'] });
     }
   });
 
-export const POST: APIRoute = async (context) => {
+export const POST: APIRoute = (context) =>
+  runPost({ db, sdk: createPluginContext(), ctx: context });
+
+export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
-    const { cart, sessionId, setCookie } = await getOrCreateCart(context.request);
+    const { cart, setCookie } = await getOrCreateCart(db, sdk, ctx.request);
 
-    // Fetch cart items
-    const itemsResult = await db.run(
-      dbSql`SELECT * FROM ${cart_items} WHERE ${cart_items.cart_id} = ${cart.id}`
-    );
-    const items = itemsResult.rows as any[];
-
+    const result = await getCartWithItems(db, cart.id, 'RON');
+    const items = result?.items ?? [];
     if (items.length === 0) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Cart is empty' }),
-        { status: 422, headers: { 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: 'Cart is empty' }), {
+        status: 422, headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    // Parse and validate body
-    const body = await context.request.json();
+    const body = await ctx.request.json();
     const parsed = CheckoutSchema.safeParse(body);
-
     if (!parsed.success) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Validation failed',
-          fields: Object.fromEntries(
-            parsed.error.issues.map(i => [i.path.join('.'), i.message])
-          ),
-        }),
-        { status: 422, headers: { 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({
+        success: false, error: 'Validation failed',
+        fields: Object.fromEntries(parsed.error.issues.map(i => [i.path.join('.'), i.message])),
+      }), { status: 422, headers: { 'Content-Type': 'application/json' } });
     }
 
     const data = parsed.data;
+    const currency = data.currency;
 
-    // Stock re-validation: re-fetch current stock before creating order
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      const productResult = await db.run(
-        dbSql`SELECT ${products.stock}, ${products.active} FROM ${products} WHERE ${products.id} = ${item.product_id} LIMIT 1`
-      );
-      if (productResult.rows.length === 0 || !(productResult.rows[0] as any).active) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'Product no longer available',
-            field: `items[${i}]`,
-          }),
-          { status: 409, headers: { 'Content-Type': 'application/json' } }
-        );
+    // Stock re-validation via accessor
+    try {
+      await validateCartStock(db, items);
+    } catch (e: any) {
+      if (e instanceof StockValidationError) {
+        return new Response(JSON.stringify({ success: false, error: e.message, product_id: e.product_id, variant_id: e.variant_id }), {
+          status: 409, headers: { 'Content-Type': 'application/json' },
+        });
       }
-
-      const product = productResult.rows[0] as any;
-      let availableStock: number | null = product.stock;
-
-      if (item.variant_id) {
-        const variantResult = await db.run(
-          dbSql`SELECT ${product_variants.stock} FROM ${product_variants} WHERE ${product_variants.id} = ${item.variant_id} LIMIT 1`
-        );
-        if (variantResult.rows.length > 0) {
-          availableStock = (variantResult.rows[0] as any).stock;
-        }
-      }
-
-      if (availableStock !== null && item.quantity > availableStock) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'Insufficient stock',
-            field: `items[${i}]`,
-            product_id: item.product_id,
-            variant_id: item.variant_id,
-          }),
-          { status: 409, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
+      throw e;
     }
 
-    // Enrich items with prices
-    const cartItemInputs = await enrichItemsWithPrices(items, data.currency);
+    // Re-enrich with the checkout currency
+    const enrichedResult = await getCartWithItems(db, cart.id, currency);
+    const cartItemInputs = enrichedResult?.items ?? [];
 
-    // Compute totals
+    // Compute discount from applied voucher
     let discountAmount = 0;
-
-    // Apply voucher discount if voucher is on cart
     if (cart.applied_voucher_code) {
-      const voucherResult = await db.run(
-        dbSql`SELECT * FROM ${vouchers} WHERE ${vouchers.code} = ${cart.applied_voucher_code} LIMIT 1`
-      );
-      if (voucherResult.rows.length > 0) {
-        const voucher = voucherResult.rows[0] as any;
-        const baseTotals = computeCartTotals(cartItemInputs, data.currency);
-
-        if (voucher.type === 'fixed_amount') {
-          discountAmount = Math.min(voucher.value ?? 0, baseTotals.subtotal_net);
-        } else if (voucher.type === 'percentage') {
-          discountAmount = Math.round(baseTotals.subtotal_net * ((voucher.value ?? 0) / 100) * 100) / 100;
-        }
-        // free_shipping: apply at checkout level
-        if (voucher.type === 'free_shipping') {
-          // discount_amount stays 0 for now, shipping_cost = 0 in cart
-        }
+      const voucher = await getVoucherByCode(db, cart.applied_voucher_code);
+      if (voucher && voucher.active) {
+        const baseTotals = computeCartTotals(cartItemInputs as any, currency);
+        if (voucher.type === 'fixed_amount') discountAmount = Math.min(voucher.value ?? 0, baseTotals.subtotal_net);
+        else if (voucher.type === 'percentage') discountAmount = Math.round(baseTotals.subtotal_net * ((voucher.value ?? 0) / 100) * 100) / 100;
       }
     }
 
-    const totals = computeCartTotals(cartItemInputs, data.currency, 0, discountAmount);
+    const totals = computeCartTotals(cartItemInputs as any, currency, 0, discountAmount);
+    const orderNumber = await generateOrderNumber(db);
 
-    // Generate order number
-    const orderNumber = await generateOrderNumber();
-
-    // Build billing info from single name field (split into first/last)
+    // Build name parts
     const nameParts = data.billing_name.trim().split(/\s+/);
     const billingFirstName = nameParts[0] || '';
     const billingLastName = nameParts.slice(1).join(' ') || billingFirstName;
+    const shippingFirstName = billingFirstName;
+    const shippingLastName = billingLastName;
+    const shippingAddressLine1 = data.shipping_same_as_billing ? data.billing_address_line_1 : (data.shipping_address_line_1 ?? data.billing_address_line_1);
+    const shippingCity = data.shipping_same_as_billing ? data.billing_city : (data.shipping_city ?? data.billing_city);
+    const shippingState = data.shipping_same_as_billing ? data.billing_state : (data.shipping_state ?? data.billing_state);
+    const shippingPostalCode = data.shipping_same_as_billing ? data.billing_postal_code : (data.shipping_postal_code ?? data.billing_postal_code);
+    const shippingCountry = data.shipping_same_as_billing ? data.billing_country : (data.shipping_country ?? data.billing_country);
 
-    // Build shipping info
-    const shippingName = data.shipping_same_as_billing
-      ? data.billing_name
-      : data.billing_name;
-    const shipNameParts = shippingName.trim().split(/\s+/);
-    const shippingFirstName = shipNameParts[0] || billingFirstName;
-    const shippingLastName = shipNameParts.slice(1).join(' ') || billingLastName;
-
-    const shippingAddressLine1 = data.shipping_same_as_billing
-      ? data.billing_address_line_1
-      : (data.shipping_address_line_1 ?? data.billing_address_line_1);
-
-    const shippingCity = data.shipping_same_as_billing
-      ? data.billing_city
-      : (data.shipping_city ?? data.billing_city);
-
-    const shippingState = data.shipping_same_as_billing
-      ? data.billing_state
-      : (data.shipping_state ?? data.billing_state);
-
-    const shippingPostalCode = data.shipping_same_as_billing
-      ? data.billing_postal_code
-      : (data.shipping_postal_code ?? data.billing_postal_code);
-
-    const shippingCountry = data.shipping_same_as_billing
-      ? data.billing_country
-      : (data.shipping_country ?? data.billing_country);
-
-    // Create the order
-    const orderId = crypto.randomUUID();
-    const now = new Date();
-
-    await db.insert(orders).values({
-      id: orderId,
+    // Create the order via accessor (handles items, stock decrement, cart clear)
+    const order = await createOrder(db, {
       order_number: orderNumber,
       user_id: cart.user_id ?? null,
       customer_type: data.customer_type,
       customer_email: data.customer_email,
       customer_name: data.customer_name,
       customer_phone: data.customer_phone,
-      status: 'pending',
-      currency: data.currency,
+      currency,
       subtotal_net: totals.subtotal_net,
       vat_total: totals.vat_total,
       shipping_cost: totals.shipping_cost,
       discount_amount: totals.discount_amount,
       total: totals.total,
       shipping_type: data.shipping_type,
-      shipping_method: null,
       voucher_code: cart.applied_voucher_code ?? null,
       referral_code: data.referral_code ?? cart.applied_referral_code ?? null,
       billing_first_name: billingFirstName,
@@ -267,22 +153,8 @@ export const POST: APIRoute = async (context) => {
       shipping_company: data.billing_company,
       shipping_vat_number: data.billing_vat_number,
       shipping_same_as_billing: data.shipping_same_as_billing,
-      payment_provider: null,
-      payment_intent_id: null,
-      transaction_id: null,
-      refund_amount: null,
-      refund_notes: null,
-      refunded_at: null,
-      notes: null,
-      created_at: now,
-      updated_at: now,
-    });
-
-    // Create order_items (snapshot)
-    for (const line of totals.items) {
-      await db.insert(order_items).values({
-        id: crypto.randomUUID(),
-        order_id: orderId,
+      cart_id: cart.id,
+      items: totals.items.map((line: any) => ({
         product_id: line.product_id,
         variant_id: line.variant_id,
         product_name: line.product_name,
@@ -291,120 +163,26 @@ export const POST: APIRoute = async (context) => {
         price_net: line.price_net,
         vat_rate: line.vat_rate,
         price_gross: line.price_gross,
-        currency: data.currency,
-      });
-    }
-
-    // Create order_status_history entry
-    await db.insert(order_status_history).values({
-      id: crypto.randomUUID(),
-      order_id: orderId,
-      from_status: null,
-      to_status: 'pending',
-      note: null,
-      changed_by: null,
-      created_at: now,
+        currency,
+      })),
     });
 
-    // Increment voucher uses_count if voucher was applied
+    // Increment voucher usage if applied
     if (cart.applied_voucher_code) {
-      await db.run(
-        dbSql`UPDATE ${vouchers} SET ${vouchers.uses_count} = ${vouchers.uses_count} + 1 WHERE ${vouchers.code} = ${cart.applied_voucher_code}`
-      );
+      const voucher = await getVoucherByCode(db, cart.applied_voucher_code);
+      if (voucher) await incrementVoucherUsage(db, voucher.id);
     }
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (setCookie) {
-      headers['Set-Cookie'] = setCookie;
-    }
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (setCookie) headers['Set-Cookie'] = setCookie;
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        data: {
-          order_id: orderId,
-          order_number: orderNumber,
-          totals,
-          payment_providers: ['stripe', 'euplatesc'],
-        },
-      }),
-      { status: 201, headers }
-    );
+    return new Response(JSON.stringify({
+      success: true,
+      data: { order_id: order.id, order_number: orderNumber, totals, payment_providers: ['stripe', 'euplatesc'] },
+    }), { status: 201, headers });
   } catch (err: any) {
     return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      status: 500, headers: { 'Content-Type': 'application/json' },
     });
   }
-};
-
-/**
- * Enrich cart items with price data for totals computation
- */
-async function enrichItemsWithPrices(items: any[], currency: string): Promise<CartItemInput[]> {
-  if (items.length === 0) return [];
-
-  const productIds = [...new Set(items.filter((i: any) => i.product_id).map((i: any) => i.product_id))];
-  const variantIds = [...new Set(items.filter((i: any) => i.variant_id).map((i: any) => i.variant_id))];
-
-  let productMap = new Map();
-  if (productIds.length > 0) {
-    const prodResult = await db.run(
-      dbSql`SELECT id, name, sku, vat_rate FROM ${products} WHERE ${products.id} IN (${dbSql.join(productIds.map((id: string) => dbSql`${id}`))})`
-    );
-    for (const row of prodResult.rows as any[]) {
-      productMap.set(row.id, row);
-    }
-  }
-
-  let variantMap = new Map();
-  if (variantIds.length > 0) {
-    const varResult = await db.run(
-      dbSql`SELECT id, sku FROM ${product_variants} WHERE ${product_variants.id} IN (${dbSql.join(variantIds.map((id: string) => dbSql`${id}`))})`
-    );
-    for (const row of varResult.rows as any[]) {
-      variantMap.set(row.id, row);
-    }
-  }
-
-  const result: CartItemInput[] = [];
-
-  for (const item of items) {
-    let priceNet = 0;
-
-    if (item.variant_id) {
-      const priceResult = await db.run(
-        dbSql`SELECT price_net FROM ${product_prices} WHERE ${product_prices.variant_id} = ${item.variant_id} AND ${product_prices.currency} = ${currency} LIMIT 1`
-      );
-      if (priceResult.rows.length > 0) {
-        priceNet = (priceResult.rows[0] as any).price_net;
-      }
-    } else if (item.product_id) {
-      const priceResult = await db.run(
-        dbSql`SELECT price_net FROM ${product_prices} WHERE ${product_prices.product_id} = ${item.product_id} AND ${product_prices.variant_id} IS NULL AND ${product_prices.currency} = ${currency} LIMIT 1`
-      );
-      if (priceResult.rows.length > 0) {
-        priceNet = (priceResult.rows[0] as any).price_net;
-      }
-    }
-
-    const product = productMap.get(item.product_id);
-    const variant = item.variant_id ? variantMap.get(item.variant_id) : null;
-
-    result.push({
-      id: item.id,
-      product_id: item.product_id,
-      variant_id: item.variant_id,
-      product_name: product?.name ?? 'Unknown',
-      sku: variant?.sku ?? product?.sku ?? null,
-      quantity: item.quantity,
-      price_net: priceNet,
-      vat_rate: product?.vat_rate ?? null,
-      currency,
-    });
-  }
-
-  return result;
 }

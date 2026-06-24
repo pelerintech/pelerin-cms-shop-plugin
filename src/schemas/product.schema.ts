@@ -145,6 +145,15 @@ export const CreatePriceSchema = z
 export type CreatePriceInput = z.infer<typeof CreatePriceSchema>;
 
 /**
+ * Schema for bulk upserting product/variant prices (PUT /prices)
+ */
+export const BulkUpsertPricesSchema = z.object({
+  prices: z.array(CreatePriceSchema).min(1),
+});
+
+export type BulkUpsertPricesInput = z.infer<typeof BulkUpsertPricesSchema>;
+
+/**
  * Schema for creating a product image
  */
 export const CreateProductImageSchema = z.object({

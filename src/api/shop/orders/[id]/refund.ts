@@ -1,92 +1,57 @@
 import type { APIRoute } from 'astro';
-import { db, orders, sql as dbSql } from 'astro:db';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { transitionOrder } from '../../../../lib/order-transitions'
-import { RefundOrderSchema } from '../../../../schemas/order.schema'
+import { db } from 'astro:db';
+import { transitionOrderStatus, getOrderWithItems, recordOrderRefund } from '../../../../lib/data/orders';
+import { RefundOrderSchema } from '../../../../schemas/order.schema';
+import type { HandlerDeps } from '../../../../lib/handler-types';
 
-/**
- * PUT /api/plugins/shop/orders/[id]/refund — record a refund for an order.
- *
- * Body: { refund_amount: number, refund_notes?: string }
- * Transitions order to refunded.
- */
-export const PUT: APIRoute = async (context) => {
-  const sdk = createPluginContext();
+export const PUT: APIRoute = (context) =>
+  runPut({ db, sdk: createPluginContext(), ctx: context });
+
+export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
-    await sdk.auth.requireAdmin(context.request);
-  } catch {
-    return new Response(
-      JSON.stringify({ success: false, error: 'Unauthorized' }),
-      { status: 401, headers: { 'Content-Type': 'application/json' } },
-    );
-  }
+    await sdk.auth.requireAdmin(ctx.request);
 
-  const orderId = context.params.id;
-
-  let body: any;
-  try {
-    body = await context.request.json();
-  } catch {
-    return new Response(
-      JSON.stringify({ success: false, error: 'Invalid JSON body' }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } },
-    );
-  }
-
-  const parsed = RefundOrderSchema.safeParse(body);
-  if (!parsed.success) {
-    const fields: Record<string, string> = {};
-    for (const issue of parsed.error.issues) {
-      const path = issue.path.join('.');
-      fields[path] = issue.message;
+    const orderId = ctx.params.id!;
+    let body: any;
+    try { body = await ctx.request.json(); } catch {
+      return new Response(JSON.stringify({ success: false, error: 'Invalid JSON body' }), {
+        status: 400, headers: { 'Content-Type': 'application/json' },
+      });
     }
-    return new Response(
-      JSON.stringify({ success: false, error: 'Validation failed', fields }),
-      { status: 422, headers: { 'Content-Type': 'application/json' } },
-    );
+
+    const parsed = RefundOrderSchema.safeParse(body);
+    if (!parsed.success) {
+      return new Response(JSON.stringify({
+        success: false, error: 'Validation failed',
+        fields: Object.fromEntries(parsed.error.issues.map(i => [i.path.join('.'), i.message])),
+      }), { status: 422, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    const { refund_amount, refund_notes } = parsed.data;
+    const result = await getOrderWithItems(db, orderId);
+    if (!result) {
+      return new Response(JSON.stringify({ success: false, error: 'Order not found' }), {
+        status: 404, headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (refund_amount > result.order.total) {
+      return new Response(JSON.stringify({ success: false, error: 'Refund amount exceeds order total' }), {
+        status: 422, headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    await recordOrderRefund(db, orderId, refund_amount, refund_notes ?? null);
+
+    await transitionOrderStatus(db, orderId, 'refunded', refund_notes ?? 'Refund recorded by admin', 'admin');
+    const updated = await getOrderWithItems(db, orderId);
+
+    return new Response(JSON.stringify({ success: true, data: updated!.order }), {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err: any) {
+    const status = err.status ?? 500;
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status, headers: { 'Content-Type': 'application/json' } });
   }
-
-  const { refund_amount, refund_notes } = parsed.data;
-
-  // Load order to check total
-  const orderResult = await db.run(
-    dbSql`SELECT total, status FROM ${orders} WHERE ${orders.id} = ${orderId} LIMIT 1`,
-  );
-  if (orderResult.rows.length === 0) {
-    return new Response(
-      JSON.stringify({ success: false, error: 'Order not found' }),
-      { status: 404, headers: { 'Content-Type': 'application/json' } },
-    );
-  }
-
-  const order = orderResult.rows[0] as any;
-
-  if (refund_amount > order.total) {
-    return new Response(
-      JSON.stringify({ success: false, error: 'Refund amount exceeds order total' }),
-      { status: 422, headers: { 'Content-Type': 'application/json' } },
-    );
-  }
-
-  // Store refund data
-  await db.run(
-    dbSql`UPDATE ${orders}
-          SET ${orders.refund_amount} = ${refund_amount},
-              ${orders.refund_notes} = ${refund_notes ?? null},
-              ${orders.refunded_at} = ${new Date().toISOString()}
-          WHERE ${orders.id} = ${orderId}`,
-  );
-
-  // Transition to refunded
-  await transitionOrder(orderId, 'refunded', refund_notes ?? 'Refund recorded by admin', 'admin');
-
-  // Fetch updated order
-  const updated = await db.run(
-    dbSql`SELECT * FROM ${orders} WHERE ${orders.id} = ${orderId} LIMIT 1`,
-  );
-
-  return new Response(
-    JSON.stringify({ success: true, data: updated.rows[0] }),
-    { status: 200, headers: { 'Content-Type': 'application/json' } },
-  );
-};
+}

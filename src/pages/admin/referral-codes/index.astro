@@ -44,8 +44,10 @@ const totalPages = Math.ceil(total / limit);
 const codes = codeList.map(c => c.code);
 let orderCounts = new Map<string, number>();
 if (codes.length > 0) {
+  const placeholders = codes.map(() => '?').join(',');
   const orderResult = await db.run(
-    dbSql`SELECT ${orders.referral_code}, COUNT(*) as cnt FROM ${orders} WHERE ${orders.referral_code} IN (${dbSql.join(codes.map((c: string) => dbSql`${c}`))}) AND ${orders.status} NOT IN ('cancelled', 'refunded') GROUP BY ${orders.referral_code}`
+    dbSql`SELECT ${orders.referral_code}, COUNT(*) as cnt FROM ${orders} WHERE ${orders.referral_code} IN (${dbSql.raw(placeholders)}) AND ${orders.status} NOT IN ('cancelled', 'refunded') GROUP BY ${orders.referral_code}`,
+    ...codes
   );
   for (const row of orderResult.rows as any[]) {
     orderCounts.set(row.referral_code, Number(row.cnt));

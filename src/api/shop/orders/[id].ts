@@ -1,59 +1,30 @@
 import type { APIRoute } from 'astro';
-import { db, orders, order_items, order_status_history, sql as dbSql } from 'astro:db';
 import { createPluginContext } from 'pelerin:plugin-sdk';
+import { db } from 'astro:db';
+import { getOrderWithItems } from '../../../lib/data/orders';
+import type { HandlerDeps } from '../../../lib/handler-types';
 
-/**
- * GET /api/plugins/shop/orders/[id] — full order detail with items, status history, and addresses.
- */
-export const GET: APIRoute = async (context) => {
-  const sdk = createPluginContext();
+export const GET: APIRoute = (context) =>
+  runGet({ db, sdk: createPluginContext(), ctx: context });
+
+export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
-    await sdk.auth.requireAdmin(context.request);
-  } catch {
-    return new Response(
-      JSON.stringify({ success: false, error: 'Unauthorized' }),
-      { status: 401, headers: { 'Content-Type': 'application/json' } },
-    );
-  }
+    await sdk.auth.requireAdmin(ctx.request);
 
-  const orderId = context.params.id;
+    const orderId = ctx.params.id!;
+    const result = await getOrderWithItems(db, orderId);
+    if (!result) {
+      return new Response(JSON.stringify({ success: false, error: 'Order not found' }), {
+        status: 404, headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
-  // Fetch order
-  const orderResult = await db.run(
-    dbSql`SELECT * FROM ${orders} WHERE ${orders.id} = ${orderId} LIMIT 1`,
-  );
-  if (orderResult.rows.length === 0) {
-    return new Response(
-      JSON.stringify({ success: false, error: 'Order not found' }),
-      { status: 404, headers: { 'Content-Type': 'application/json' } },
-    );
-  }
-
-  const order = orderResult.rows[0];
-
-  // Fetch order items
-  const itemsResult = await db.run(
-    dbSql`SELECT * FROM ${order_items}
-          WHERE ${order_items.order_id} = ${orderId}
-          ORDER BY ${order_items.created_at} ASC`,
-  );
-
-  // Fetch status history (chronological)
-  const historyResult = await db.run(
-    dbSql`SELECT * FROM ${order_status_history}
-          WHERE ${order_status_history.order_id} = ${orderId}
-          ORDER BY ${order_status_history.created_at} ASC`,
-  );
-
-  return new Response(
-    JSON.stringify({
+    return new Response(JSON.stringify({
       success: true,
-      data: {
-        ...order,
-        items: itemsResult.rows,
-        status_history: historyResult.rows,
-      },
-    }),
-    { status: 200, headers: { 'Content-Type': 'application/json' } },
-  );
-};
+      data: { ...result.order, items: result.items, status_history: result.statusHistory },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  } catch (err: any) {
+    const status = err.status ?? 500;
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status, headers: { 'Content-Type': 'application/json' } });
+  }
+}

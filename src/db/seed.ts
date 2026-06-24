@@ -143,7 +143,11 @@ export default async function seed() {
   await db.run(sql`
     INSERT INTO product_prices (id, product_id, variant_id, currency, price_net) VALUES
       (${crypto.randomUUID()}, ${prodSimple}, NULL, 'RON', 5000),
-      (${crypto.randomUUID()}, ${prodSimple}, NULL, 'EUR', 1000)
+      (${crypto.randomUUID()}, ${prodSimple}, NULL, 'EUR', 1000),
+      -- Variant product-level prices (the inheritance baseline). Variants inherit
+      -- a currency when they have no own row for it (see varWhite256 EUR below).
+      (${crypto.randomUUID()}, ${prodVariant}, NULL, 'RON', 24000),
+      (${crypto.randomUUID()}, ${prodVariant}, NULL, 'EUR', 4800)
   `);
 
   // ─── Attribute Assignments ───
@@ -165,8 +169,8 @@ export default async function seed() {
 
   await db.run(sql`
     INSERT INTO product_attribute_assignments (id, product_id, attribute_id, role, sort_order, offered_option_ids) VALUES
-      (${assignVariantColor}, ${prodVariant}, ${attrColor}, 'dimension', 1, '${JSON.stringify([optColorBlack, optColorWhite])}'),
-      (${assignVariantStorage}, ${prodVariant}, ${attrStorage}, 'dimension', 2, '${JSON.stringify([optStorage128, optStorage256])}'),
+      (${assignVariantColor}, ${prodVariant}, ${attrColor}, 'dimension', 1, '[]'),
+      (${assignVariantStorage}, ${prodVariant}, ${attrStorage}, 'dimension', 2, '[]'),
       (${assignVariantBrand}, ${prodVariant}, ${attrBrand}, 'field', 3, '[]')
   `);
 
@@ -210,13 +214,14 @@ export default async function seed() {
       (${crypto.randomUUID()}, 'variant', ${varWhite256}, ${assignVariantStorage}, ${optStorage256}, NULL, NULL, NULL)
   `);
 
-  // Variant prices
+  // Variant prices — demonstrate per-currency inheritance:
+  //   varBlack128 overrides both RON + EUR (own rows).
+  //   varWhite256 overrides RON only; EUR inherits the product's 4800.
   await db.run(sql`
     INSERT INTO product_prices (id, product_id, variant_id, currency, price_net) VALUES
       (${crypto.randomUUID()}, NULL, ${varBlack128}, 'RON', 25000),
       (${crypto.randomUUID()}, NULL, ${varBlack128}, 'EUR', 5000),
-      (${crypto.randomUUID()}, NULL, ${varWhite256}, 'RON', 30000),
-      (${crypto.randomUUID()}, NULL, ${varWhite256}, 'EUR', 6000)
+      (${crypto.randomUUID()}, NULL, ${varWhite256}, 'RON', 30000)
   `);
 
   console.log('[Plugin:pelerin_ro_shop] Seeded products, attributes, and variants.');

@@ -70,7 +70,7 @@ async function initiatePayment(
   );
 
   // Transition order to awaiting_payment
-  await transitionOrder(order.id, 'awaiting_payment', 'Payment initiated via Stripe');
+  await transitionOrder(db, order.id, 'awaiting_payment', 'Payment initiated via Stripe');
 
   return {
     redirect_url: session.url!,
@@ -121,7 +121,7 @@ async function handleWebhook(request: Request): Promise<WebhookResult> {
 
   switch (event.type) {
     case 'checkout.session.completed':
-      await transitionOrder(orderId, 'paid', 'Payment confirmed via Stripe webhook');
+      await transitionOrder(db, orderId, 'paid', 'Payment confirmed via Stripe webhook');
       // Store transaction_id
       await db.run(
         dbSql`UPDATE ${orders}
@@ -136,7 +136,7 @@ async function handleWebhook(request: Request): Promise<WebhookResult> {
 
     case 'payment_intent.payment_failed': {
       const reason = session.last_payment_error?.message ?? 'Payment failed';
-      await transitionOrder(orderId, 'awaiting_payment', `Payment failed: ${reason}`);
+      await transitionOrder(db, orderId, 'awaiting_payment', `Payment failed: ${reason}`);
       return {
         order_id: orderId,
         status: 'failed',

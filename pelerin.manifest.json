@@ -29,7 +29,8 @@
     { "pattern": "/admin/plugins/shop/referral-codes/[id]", "entrypoint": "./src/pages/admin/referral-codes/[id].astro" },
     { "pattern": "/admin/plugins/shop/settings/attributes", "entrypoint": "./src/pages/admin/settings/attributes/index.astro" },
     { "pattern": "/admin/plugins/shop/settings/attributes/new", "entrypoint": "./src/pages/admin/settings/attributes/new.astro" },
-    { "pattern": "/admin/plugins/shop/settings/attributes/[id]", "entrypoint": "./src/pages/admin/settings/attributes/[id].astro" }
+    { "pattern": "/admin/plugins/shop/settings/attributes/[id]", "entrypoint": "./src/pages/admin/settings/attributes/[id].astro" },
+    { "pattern": "/admin/plugins/shop/import", "entrypoint": "./src/pages/admin/import/index.astro" }
   ],
   "apiEndpoints": [
     { "pattern": "/api/plugins/shop/categories", "entrypoint": "./src/api/shop/categories/index.ts" },
@@ -80,7 +81,9 @@
     { "pattern": "/api/plugins/shop/orders/[id]/cancel", "entrypoint": "./src/api/shop/orders/[id]/cancel.ts" },
     { "pattern": "/api/plugins/shop/orders/[id]/refund", "entrypoint": "./src/api/shop/orders/[id]/refund.ts" },
     { "pattern": "/api/plugins/shop/orders/[id]/resend-confirmation", "entrypoint": "./src/api/shop/orders/[id]/resend.ts" },
-    { "pattern": "/api/plugins/shop/orders/export", "entrypoint": "./src/api/shop/orders/export.ts" }
+    { "pattern": "/api/plugins/shop/orders/export", "entrypoint": "./src/api/shop/orders/export.ts" },
+    { "pattern": "/api/plugins/shop/import/products", "entrypoint": "./src/api/shop/import/products.ts" },
+    { "pattern": "/api/plugins/shop/import/prices", "entrypoint": "./src/api/shop/import/prices.ts" }
   ],
   "navItems": [
     { "label": "Shop", "href": "/admin/plugins/shop", "icon": "shopping-cart" },
@@ -92,6 +95,7 @@
     { "label": "Carts", "href": "/admin/plugins/shop/carts", "icon": "shopping-cart" },
     { "label": "Payments", "href": "/admin/plugins/shop/settings/payments", "icon": "credit-card" },
     { "label": "Attributes", "href": "/admin/plugins/shop/settings/attributes", "icon": "sliders-h" },
+    { "label": "Import", "href": "/admin/plugins/shop/import", "icon": "upload" },
     { "label": "Settings", "href": "/admin/plugins/shop/settings/general", "icon": "cog" }
   ]
 }
