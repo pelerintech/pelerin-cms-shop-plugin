@@ -1,6 +1,5 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db } from 'astro:db';
 import { getProvider } from '../../../../../providers/payment/registry';
 import '../../../../../providers/payment/stripe';
 import '../../../../../providers/payment/euplatesc';
@@ -8,8 +7,7 @@ import type { PaymentOrder, PaymentOptions } from '../../../../../providers/paym
 import { getOrderWithItems } from '../../../../../lib/data/orders';
 import type { HandlerDeps } from '../../../../../lib/handler-types';
 
-export const POST: APIRoute = (context) =>
-  runPost({ db, sdk: createPluginContext(), ctx: context });
+export const POST: APIRoute = (context) => { const sdk = createPluginContext(); return runPost({ db: sdk.db, sdk, ctx: context }); }
 
 export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
@@ -47,13 +45,14 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       customer_name: o.customer_name,
     };
 
+    const origin = new URL(ctx.request.url).origin;
     const paymentOptions: PaymentOptions = {
-      order: paymentOrder,
-      provider,
-      returnUrl: `${new URL(ctx.request.url).origin}/api/plugins/shop/public/checkout/${orderId}/pay?provider=${provider}`,
+      success_url: `${origin}/shop/orders/${orderId}/status?status=awaiting_payment`,
+      cancel_url: `${origin}/shop/cart`,
+      currency: o.currency,
     };
 
-    const paymentResult = await paymentProvider.initiatePayment(paymentOptions);
+    const paymentResult = await paymentProvider.initiatePayment(db, paymentOrder, paymentOptions);
 
     return new Response(JSON.stringify({ success: true, data: paymentResult }), {
       status: 200, headers: { 'Content-Type': 'application/json' },

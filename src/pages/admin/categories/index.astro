@@ -3,7 +3,7 @@
 // Route: /admin/plugins/shop/categories
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db, categories, sql as dbSql } from 'astro:db';
+import { listCategories, getCategoryById } from '../../../lib/data/products';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
@@ -14,38 +14,36 @@ const filterName = url.searchParams.get('name') || '';
 const filterParent = url.searchParams.get('parent') || '';
 const page = parseInt(url.searchParams.get('page') || '1');
 const limit = 20;
-const offset = (page - 1) * limit;
 
-// Build where clause
-const conditions: string[] = [];
-if (filterName) conditions.push(`c.name ILIKE '%${filterName}%'`);
-if (filterParent === '__none__') conditions.push('c.parent_id IS NULL');
-else if (filterParent) conditions.push(`c.parent_id = '${filterParent}'`);
+// Fetch all categories via accessor
+const allCats = await listCategories(sdk.db, 'ro');
 
-const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+// Apply client-side filters (name search + parent filter)
+let filteredCats = allCats;
+if (filterName) {
+  const search = filterName.toLowerCase();
+  filteredCats = filteredCats.filter(c => c.name.toLowerCase().includes(search));
+}
+if (filterParent === '__none__') {
+  filteredCats = filteredCats.filter(c => !c.parent_id);
+} else if (filterParent) {
+  filteredCats = filteredCats.filter(c => c.parent_id === filterParent);
+}
 
-// Fetch categories with parent names
-const result = await db.run(dbSql`
-  SELECT c.*, p.name as parent_name
-  FROM ${categories} c
-  LEFT JOIN ${categories} p ON c.parent_id = p.id
-  ${dbSql.raw(whereClause)}
-  ORDER BY c.created_at DESC
-  LIMIT ${limit} OFFSET ${offset}
-`);
-
-const categoryList = result.rows as any[];
-
-// Count total
-const countResult = await db.run(dbSql`
-  SELECT COUNT(*) as total FROM ${categories} c
-  ${dbSql.raw(whereClause)}
-`);
-const total = (countResult.rows[0] as any).total as number;
+// Paginate client-side
+const total = filteredCats.length;
 const totalPages = Math.ceil(total / limit);
+const offset = (page - 1) * limit;
+const categoryList = filteredCats.slice(offset, offset + limit);
 
-// Fetch all categories for parent filter dropdown (exclude current to avoid self-reference)
-const allCats = await db.select().from(categories).orderBy(categories.name);
+// Build parent name lookup
+const parentNameMap = new Map<string, string>();
+for (const cat of allCats) {
+  if (cat.parent_id) {
+    const parent = allCats.find(p => p.id === cat.parent_id);
+    if (parent) parentNameMap.set(cat.id, parent.name);
+  }
+}
 ---
 
 <AdminLayout title="Categories" currentPath="/admin/plugins/shop/categories" user={user}>
@@ -103,7 +101,7 @@ const allCats = await db.select().from(categories).orderBy(categories.name);
               <tr>
                 <td class="font-medium">{c.name}</td>
                 <td><code class="text-xs">/{c.slug}</code></td>
-                <td>{c.parent_name || '-'}</td>
+                <td>{parentNameMap.get(c.id) || '-'}</td>
                 <td>{c.created_at ? new Date(c.created_at).toLocaleDateString() : '-'}</td>
                 <td>
                   <div class="flex gap-2">

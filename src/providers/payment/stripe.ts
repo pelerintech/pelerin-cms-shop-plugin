@@ -1,29 +1,21 @@
 import Stripe from 'stripe';
-import { db, shop_settings, orders, sql as dbSql } from 'astro:db';
-import { decryptIfNeeded } from '../../lib/crypto'
-import { transitionOrder } from '../../lib/order-transitions'
-import { registerProvider } from './registry'
+import { sql } from 'drizzle-orm';
+import type { LibSQLDatabase } from 'drizzle-orm/libsql';
+import { orders } from '../../db/schema';
+import { decryptIfNeeded } from '../../lib/crypto';
+import { transitionOrder } from '../../lib/order-transitions';
+import { getSetting } from '../../lib/data/settings';
+import { registerProvider } from './registry';
 import type {
   PaymentProvider,
   PaymentOrder,
   PaymentOptions,
   PaymentInitResult,
   WebhookResult,
-} from './interface'
+} from './interface';
 
-async function getSetting(key: string): Promise<string | null> {
-  const result = await db.run(
-    dbSql`SELECT value FROM ${shop_settings}
-          WHERE ${shop_settings.key} = ${key} LIMIT 1`,
-  );
-  if (result.rows.length > 0) {
-    return (result.rows[0] as any).value;
-  }
-  return null;
-}
-
-async function getStripeClient(): Promise<Stripe | null> {
-  const encryptedKey = await getSetting('stripe_secret_key');
+async function getStripeClient(db: LibSQLDatabase): Promise<Stripe | null> {
+  const encryptedKey = await getSetting(db, 'stripe_secret_key');
   if (!encryptedKey) return null;
   const secretKey = decryptIfNeeded(encryptedKey);
   return new Stripe(secretKey, {
@@ -32,10 +24,11 @@ async function getStripeClient(): Promise<Stripe | null> {
 }
 
 async function initiatePayment(
+  db: LibSQLDatabase,
   order: PaymentOrder,
   options: PaymentOptions,
 ): Promise<PaymentInitResult> {
-  const stripe = await getStripeClient();
+  const stripe = await getStripeClient(db);
   if (!stripe) {
     throw new Error('Stripe is not configured. Set stripe_secret_key in shop settings.');
   }
@@ -63,11 +56,10 @@ async function initiatePayment(
   });
 
   // Update order payment_intent_id
-  await db.run(
-    dbSql`UPDATE ${orders}
-          SET ${orders.payment_intent_id} = ${session.id}
-          WHERE ${orders.id} = ${order.id}`,
-  );
+  await db
+    .update(orders)
+    .set({ payment_intent_id: session.id })
+    .where(sql`${orders.id} = ${order.id}`);
 
   // Transition order to awaiting_payment
   await transitionOrder(db, order.id, 'awaiting_payment', 'Payment initiated via Stripe');
@@ -78,13 +70,13 @@ async function initiatePayment(
   };
 }
 
-async function handleWebhook(request: Request): Promise<WebhookResult> {
-  const stripe = await getStripeClient();
+async function handleWebhook(db: LibSQLDatabase, request: Request): Promise<WebhookResult> {
+  const stripe = await getStripeClient(db);
   if (!stripe) {
     throw new Error('Stripe is not configured.');
   }
 
-  const webhookSecret = await getSetting('stripe_webhook_secret');
+  const webhookSecret = await getSetting(db, 'stripe_webhook_secret');
   if (!webhookSecret) {
     throw new Error('Stripe webhook secret is not configured.');
   }
@@ -112,10 +104,12 @@ async function handleWebhook(request: Request): Promise<WebhookResult> {
   }
 
   // Verify order exists
-  const orderResult = await db.run(
-    dbSql`SELECT id FROM ${orders} WHERE ${orders.id} = ${orderId} LIMIT 1`,
-  );
-  if (orderResult.rows.length === 0) {
+  const orderResult = await db
+    .select({ id: orders.id })
+    .from(orders)
+    .where(sql`${orders.id} = ${orderId}`)
+    .limit(1);
+  if (orderResult.length === 0) {
     throw new Error(`Order not found: ${orderId}`);
   }
 
@@ -123,11 +117,10 @@ async function handleWebhook(request: Request): Promise<WebhookResult> {
     case 'checkout.session.completed':
       await transitionOrder(db, orderId, 'paid', 'Payment confirmed via Stripe webhook');
       // Store transaction_id
-      await db.run(
-        dbSql`UPDATE ${orders}
-              SET ${orders.transaction_id} = ${session.payment_intent ?? session.id}
-              WHERE ${orders.id} = ${orderId}`,
-      );
+      await db
+        .update(orders)
+        .set({ transaction_id: session.payment_intent ?? session.id })
+        .where(sql`${orders.id} = ${orderId}`);
       return {
         order_id: orderId,
         status: 'paid',

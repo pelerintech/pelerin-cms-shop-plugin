@@ -1,12 +1,10 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db } from 'astro:db';
 import { transitionOrderStatus, getOrderWithItems, OrderTransitionError } from '../../../../lib/data/orders';
 import { UpdateOrderStatusSchema } from '../../../../schemas/order.schema';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 
-export const PUT: APIRoute = (context) =>
-  runPut({ db, sdk: createPluginContext(), ctx: context });
+export const PUT: APIRoute = (context) => { const sdk = createPluginContext(); return runPut({ db: sdk.db, sdk, ctx: context }); }
 
 export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {

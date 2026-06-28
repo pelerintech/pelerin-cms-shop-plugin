@@ -1,12 +1,10 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db } from 'astro:db';
 import { parseCSV } from '../../../lib/csv-parser';
 import { importProducts } from '../../../lib/import-products';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
-export const POST: APIRoute = (context) =>
-  runPost({ db, sdk: createPluginContext(), ctx: context });
+export const POST: APIRoute = (context) => { const sdk = createPluginContext(); return runPost({ db: sdk.db, sdk, ctx: context }); }
 
 /**
  * POST /api/plugins/shop/import/products

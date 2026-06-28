@@ -1,5 +1,4 @@
 import type { APIRoute } from 'astro';
-import { db } from 'astro:db';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getOrCreateCart } from '../../../../../lib/cart-session';
 import { getCartWithItems, setCartVoucher } from '../../../../../lib/data/cart';
@@ -8,11 +7,9 @@ import { computeCartTotals } from '../../../../../lib/cart-totals';
 import { ApplyCartVoucherSchema } from '../../../../../schemas/cart.schema';
 import type { HandlerDeps } from '../../../../../lib/handler-types';
 
-export const POST: APIRoute = (context) =>
-  runPost({ db, sdk: createPluginContext(), ctx: context });
+export const POST: APIRoute = (context) => { const sdk = createPluginContext(); return runPost({ db: sdk.db, sdk, ctx: context }); }
 
-export const DELETE: APIRoute = (context) =>
-  runDelete({ db, sdk: createPluginContext(), ctx: context });
+export const DELETE: APIRoute = (context) => { const sdk = createPluginContext(); return runDelete({ db: sdk.db, sdk, ctx: context }); }
 
 export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {

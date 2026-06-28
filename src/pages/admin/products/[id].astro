@@ -3,13 +3,8 @@
 // Route: /admin/plugins/shop/products/[id]
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import {
-  db, eq,
-  products, categories, translations, product_prices,
-  sql as dbSql,
-  shop_settings,
-} from 'astro:db';
-import { listProductImage } from '../../../lib/data/products';
+import { getProductById, listCategories, listTranslations, listPricesForProduct, listProductImage } from '../../../lib/data/products';
+import { getShopConfig } from '../../../lib/data/settings';
 import Breadcrumbs from '../../../components/admin/Breadcrumbs.astro';
 import TextField from '../../../components/admin/TextField.astro';
 import SelectField from '../../../components/admin/SelectField.astro';
@@ -22,50 +17,31 @@ const user = await sdk.auth.requireAdmin(Astro.request);
 
 const { id } = Astro.params;
 
-const [product] = await db.select().from(products).where(eq(products.id, id));
+// Fetch product via accessor
+const product = await getProductById(sdk.db, id);
 if (!product) {
   return Astro.redirect('/admin/plugins/shop/products');
 }
 
-const catList = await db.select().from(categories).orderBy(categories.name);
+// Fetch categories for dropdown
+const catList = await listCategories(sdk.db, 'ro');
 const catOptions = catList.map(c => ({ value: c.id, label: c.name }));
 
-// Fetch translations
-const transRows = await db.select().from(translations).where(
-  dbSql`${translations.entity_type} = 'product' AND ${translations.entity_id} = ${id}`
-);
+// Fetch translations via accessor
+const transRows = await listTranslations(sdk.db, 'product', id);
 
-// Fetch prices
-const priceRows = await db.select().from(product_prices).where(
-  dbSql`${product_prices.product_id} = ${id}`
-);
+// Fetch prices via accessor
+const priceRows = await listPricesForProduct(sdk.db, id);
 
 // Fetch images (through the accessor so storage keys are resolved to URLs — design D8)
-const imageRows = await listProductImage(db, sdk, id);
+const imageRows = await listProductImage(sdk.db, sdk, id);
 
-// Fetch locales from settings
-const localesResult = await db.run(
-  dbSql`SELECT ${shop_settings.value} FROM ${shop_settings} WHERE ${shop_settings.key} = 'locales' LIMIT 1`
-);
-let locales: { code: string; name: string; isDefault: boolean }[] = [];
-if (localesResult.rows.length > 0) {
-  try {
-    locales = JSON.parse((localesResult.rows[0] as any).value);
-  } catch {}
-}
-const defaultLocale = locales.find(l => l.isDefault)?.code || 'ro';
+// Fetch shop config (locales + currencies) via accessor
+const shopConfig = await getShopConfig(sdk.db);
+const locales = shopConfig.locales;
+const defaultLocale = shopConfig.defaultLocale;
 const otherLocales = locales.filter(l => !l.isDefault);
-
-// Fetch currencies from settings
-const currenciesResult = await db.run(
-  dbSql`SELECT ${shop_settings.value} FROM ${shop_settings} WHERE ${shop_settings.key} = 'currencies' LIMIT 1`
-);
-let currencies: { code: string; name: string; isDefault: boolean }[] = [];
-if (currenciesResult.rows.length > 0) {
-  try {
-    currencies = JSON.parse((currenciesResult.rows[0] as any).value);
-  } catch {}
-}
+const currencies = shopConfig.currencies;
 
 // Map existing translations by locale
 const translationByLocale: Record<string, any> = {};

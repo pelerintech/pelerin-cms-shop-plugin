@@ -3,7 +3,7 @@
 // Route: /admin/plugins/shop/orders
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db, orders, sql as dbSql } from 'astro:db';
+import { listOrders } from '../../../lib/data/orders';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
@@ -16,36 +16,18 @@ const filterTo = url.searchParams.get('to') || '';
 const filterSearch = url.searchParams.get('search') || '';
 const page = parseInt(url.searchParams.get('page') || '1');
 const limit = 20;
-const offset = (page - 1) * limit;
 
-// Build where clause
-const conditions: string[] = [];
-if (filterStatus) conditions.push(`o.status = '${filterStatus}'`);
-if (filterFrom) conditions.push(`o.created_at >= datetime('${filterFrom}')`);
-if (filterTo) conditions.push(`o.created_at <= datetime('${filterTo} 23:59:59')`);
-if (filterSearch) {
-  const search = filterSearch.replace(/'/g, "''");
-  conditions.push(`(o.order_number LIKE '%${search}%' OR o.customer_name LIKE '%${search}%' OR o.customer_email LIKE '%${search}%')`);
-}
-
-const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
-// Fetch orders
-const result = await db.run(dbSql`
-  SELECT * FROM ${orders} o
-  ${dbSql.raw(whereClause)}
-  ORDER BY o.created_at DESC
-  LIMIT ${limit} OFFSET ${offset}
-`);
-
-const orderList = result.rows as any[];
-
-// Count total
-const countResult = await db.run(dbSql`
-  SELECT COUNT(*) as total FROM ${orders} o
-  ${dbSql.raw(whereClause)}
-`);
-const total = (countResult.rows[0] as any).total as number;
+// Use accessor for paginated list with filters
+const result = await listOrders(sdk.db, {
+  status: filterStatus ? [filterStatus] : undefined,
+  from: filterFrom || undefined,
+  to: filterTo || undefined,
+  search: filterSearch || undefined,
+  page,
+  limit,
+});
+const orderList = result.orders;
+const total = result.total;
 const totalPages = Math.ceil(total / limit);
 
 function statusBadge(status: string) {

@@ -2,7 +2,7 @@
   "name": "pelerin_ro_shop",
   "displayName": "Shop",
   "version": "1.0.0",
-  "dbConfig": "./src/db/config.ts",
+  "dbConfig": "./src/db/schema.ts",
   "dbSeed": "./src/db/seed.ts",
   "publicPages": [],
   "adminPages": [

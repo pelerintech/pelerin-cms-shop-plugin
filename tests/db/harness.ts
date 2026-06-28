@@ -298,6 +298,65 @@ export async function seedMinimal(db: LibSQLDatabase<typeof schema>): Promise<Fi
   return f;
 }
 
+/** Build a minimal order row for insertFixture. Fills all NOT NULL columns with
+ * sensible defaults so tests don't have to repeat the boilerplate. Override any
+ * field via the `overrides` param. */
+export function buildOrderRow(
+  overrides: Record<string, any> = {}
+): Record<string, any> {
+  return {
+    id: crypto.randomUUID(),
+    order_number: 'ORD-TEST-' + crypto.randomUUID().slice(0, 8),
+    user_id: null,
+    customer_type: 'individual',
+    customer_email: 'test@example.com',
+    customer_name: 'Test User',
+    customer_phone: null,
+    status: 'paid',
+    currency: 'RON',
+    subtotal_net: 5000,
+    vat_total: 250,
+    shipping_cost: 0,
+    discount_amount: 0,
+    total: 5250,
+    shipping_type: 'physical',
+    shipping_method: null,
+    voucher_code: null,
+    referral_code: null,
+    billing_first_name: 'Test',
+    billing_last_name: 'User',
+    billing_address: 'Addr',
+    billing_address_extra: null,
+    billing_city: 'City',
+    billing_postal_code: '123',
+    billing_country: 'RO',
+    billing_county: null,
+    billing_phone: null,
+    billing_company: null,
+    billing_vat_number: null,
+    shipping_first_name: 'Test',
+    shipping_last_name: 'User',
+    shipping_address: 'Addr',
+    shipping_address_extra: null,
+    shipping_city: 'City',
+    shipping_postal_code: '123',
+    shipping_country: 'RO',
+    shipping_county: null,
+    shipping_phone: null,
+    shipping_company: null,
+    shipping_vat_number: null,
+    shipping_same_as_billing: true,
+    payment_provider: null,
+    payment_intent_id: null,
+    transaction_id: null,
+    refund_amount: null,
+    notes: null,
+    created_at: new Date(),
+    updated_at: new Date(),
+    ...overrides,
+  };
+}
+
 export { schema };
 
 // re-export schema tables for convenience in tests

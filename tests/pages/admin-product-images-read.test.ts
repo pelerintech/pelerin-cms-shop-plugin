@@ -20,7 +20,7 @@ test('admin product edit page does NOT read product_images inline (bypassing the
 
 test('admin product edit page calls listProductImage(db, sdk, id) and passes resolved rows to ImageUpload', () => {
   assert.match(source, /import\s+\{[^}]*\blistProductImage\b[^}]*\}\s+from\s+['"][^'"]*lib\/data\/products['"]/, 'page must import listProductImage');
-  assert.match(source, /listProductImage\(\s*db\s*,\s*sdk\s*,/, 'page must call listProductImage(db, sdk, id) — sdk injected for resolution');
+  assert.match(source, /listProductImage\(\s*sdk\.db\s*,\s*sdk\s*,/, 'page must call listProductImage(sdk.db, sdk, id) — db from sdk');
   assert.match(source, /existingFiles=/, 'page must pass existingFiles to ImageUpload');
 });
 

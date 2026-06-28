@@ -1,15 +1,12 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db } from 'astro:db';
 import { listProducts, createProduct } from '../../../lib/data/products';
 import { CreateProductSchema } from '../../../schemas/product.schema';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
-export const GET: APIRoute = (context) =>
-  runGet({ db, sdk: createPluginContext(), ctx: context });
+export const GET: APIRoute = (context) => { const sdk = createPluginContext(); return runGet({ db: sdk.db, sdk, ctx: context }); }
 
-export const POST: APIRoute = (context) =>
-  runPost({ db, sdk: createPluginContext(), ctx: context });
+export const POST: APIRoute = (context) => { const sdk = createPluginContext(); return runPost({ db: sdk.db, sdk, ctx: context }); }
 
 export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {

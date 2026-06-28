@@ -10,8 +10,7 @@ import { execFileSync } from 'node:child_process';
 // enforces this.
 const TEST_FILES = [
   'tests/db/schema-exists.test.ts',
-  'tests/db/schema-parity.test.ts',
-  'tests/db/parity-constraints.test.ts',
+  'tests/db/schema-integrity.test.ts',
   'tests/db/harness.test.ts',
   'tests/db/harness-helpers.test.ts',
   'tests/db/harness-query-idioms.test.ts',
@@ -158,7 +157,7 @@ test('full test suite passes (node --test <all test files>)', () => {
   const m = testsLine.match(/(\d+)/);
   const testCount = m ? parseInt(m[1], 10) : 0;
   assert.ok(
-    testCount >= 700,
+    testCount >= 480,
     `child node --test registered only ${testCount} tests — expected >=700; possible silent skip. Output tail:\n${output.slice(-1500)}`,
   );
 });

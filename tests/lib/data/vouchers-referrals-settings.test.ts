@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createTestDb, seedMinimal, resetDb } from '../../db/harness.ts';
+import { createTestDb, seedMinimal, resetDb, insertFixture, buildOrderRow } from '../../db/harness.ts';
 import { getVoucherByCode, incrementVoucherUsage } from '../../../src/lib/data/vouchers.ts';
-import { getReferralByCode } from '../../../src/lib/data/referrals.ts';
+import { getReferralByCode, countOrdersByReferralCodes } from '../../../src/lib/data/referrals.ts';
 import { getSettings, getShopConfig, upsertSetting } from '../../../src/lib/data/settings.ts';
 
 test('getVoucherByCode returns active voucher by code (case-insensitive)', async () => {
@@ -123,6 +123,54 @@ test('getSettings on empty db returns {}', async () => {
   try {
     const settings = await getSettings(db);
     assert.strictEqual(Object.keys(settings).length, 0);
+  } finally {
+    await cleanup();
+  }
+});
+
+test('countOrdersByReferralCodes returns correct counts excluding cancelled/refunded', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    // Insert 3 orders: 1 paid + referral, 1 cancelled + referral, 1 paid no referral
+    await insertFixture(db, 'orders', buildOrderRow({ referral_code: 'PARTNER10', status: 'paid' }));
+    await insertFixture(db, 'orders', buildOrderRow({ referral_code: 'PARTNER10', status: 'cancelled' }));
+    await insertFixture(db, 'orders', buildOrderRow({ referral_code: null, status: 'paid' }));
+    const counts = await countOrdersByReferralCodes(db, ['PARTNER10']);
+    assert.strictEqual(counts.get('PARTNER10'), 1, 'PARTNER10 should have 1 count (cancelled excluded)');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('countOrdersByReferralCodes returns empty map for codes with no orders', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const counts = await countOrdersByReferralCodes(db, ['NONEXISTENT']);
+    assert.ok(counts.has('NONEXISTENT') === false, 'nonexistent code should not appear in map');
+    assert.strictEqual(counts.size, 0, 'map should be empty');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('countOrdersByReferralCodes returns empty map on empty codes array', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const counts = await countOrdersByReferralCodes(db, []);
+    assert.strictEqual(counts.size, 0, 'empty codes array should return empty map');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('countOrdersByReferralCodes on empty db returns empty map', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const counts = await countOrdersByReferralCodes(db, ['PARTNER10']);
+    assert.strictEqual(counts.size, 0, 'empty db should return empty map');
   } finally {
     await cleanup();
   }

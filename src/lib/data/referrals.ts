@@ -3,8 +3,8 @@
  * Uses eq — never the sql IN-join idiom.
  */
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import { eq, desc, and, count, like, or } from 'drizzle-orm';
-import { referral_codes } from '../../db/schema.ts';
+import { eq, desc, and, count, like, or, inArray, notInArray } from 'drizzle-orm';
+import { referral_codes, orders } from '../../db/schema.ts';
 
 export interface ReferralRow {
   id: string;
@@ -124,4 +124,30 @@ export async function updateReferral(db: LibSQLDatabase, id: string, input: Upda
 /** Delete a referral by id. */
 export async function deleteReferral(db: LibSQLDatabase, id: string): Promise<void> {
   await db.delete(referral_codes).where(eq(referral_codes.id, id));
+}
+
+/** Count completed orders attributed to each referral code.
+ * Excludes cancelled and refunded orders. Returns a map of code → count. */
+export async function countOrdersByReferralCodes(
+  db: LibSQLDatabase,
+  codes: string[],
+): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+  if (codes.length === 0) return result;
+
+  const rows = await db
+    .select({ referral_code: orders.referral_code, cnt: count() })
+    .from(orders)
+    .where(
+      and(
+        inArray(orders.referral_code, codes),
+        notInArray(orders.status, ['cancelled', 'refunded'])
+      )
+    )
+    .groupBy(orders.referral_code);
+
+  for (const row of rows) {
+    result.set(row.referral_code, Number(row.cnt));
+  }
+  return result;
 }

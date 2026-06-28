@@ -1,11 +1,9 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db } from 'astro:db';
 import { deleteProductImage } from '../../../../../lib/data/products';
 import type { HandlerDeps } from '../../../../../lib/handler-types';
 
-export const DELETE: APIRoute = (context) =>
-  runDelete({ db, sdk: createPluginContext(), ctx: context });
+export const DELETE: APIRoute = (context) => { const sdk = createPluginContext(); return runDelete({ db: sdk.db, sdk, ctx: context }); }
 
 export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {

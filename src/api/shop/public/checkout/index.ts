@@ -1,5 +1,4 @@
 import type { APIRoute } from 'astro';
-import { db } from 'astro:db';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getOrCreateCart } from '../../../../lib/cart-session';
 import { getCartWithItems, validateCartStock, StockValidationError } from '../../../../lib/data/cart';
@@ -46,8 +45,7 @@ const CheckoutSchema = z
     }
   });
 
-export const POST: APIRoute = (context) =>
-  runPost({ db, sdk: createPluginContext(), ctx: context });
+export const POST: APIRoute = (context) => { const sdk = createPluginContext(); return runPost({ db: sdk.db, sdk, ctx: context }); }
 
 export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {

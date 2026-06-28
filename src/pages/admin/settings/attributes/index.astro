@@ -2,49 +2,29 @@
 // Admin: global attributes list
 // Route: /admin/plugins/shop/settings/attributes
 import AdminLayout from 'pelerin:admin-layout';
-import Breadcrumbs from '../../../../components/admin/Breadcrumbs.astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db, product_attributes, product_attribute_options, product_attribute_assignments, sql as dbSql } from 'astro:db';
+import Breadcrumbs from '../../../../components/admin/Breadcrumbs.astro';
+import { listAttributes } from '../../../../lib/data/attributes';
+import { listOptions } from '../../../../lib/data/attribute-options';
+import { countAssignmentsByAttributeIds } from '../../../../lib/data/attribute-assignments';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
 
-// Fetch all attributes
-const attributes = await db
-  .select()
-  .from(product_attributes)
-  .orderBy(product_attributes.sort_order);
+// Fetch all attributes via accessor
+const attributes = await listAttributes(sdk.db, 'ro');
 
-// Fetch option counts for select-type attributes
+// Fetch option counts for select-type attributes (via accessor per attribute)
 const selectAttributes = attributes.filter(a => a.type === 'select');
 const optionCounts = new Map<string, number>();
-if (selectAttributes.length > 0) {
-  const placeholders = selectAttributes.map(() => '?').join(',');
-  const optionsResult = await db.run(
-    dbSql`SELECT * FROM ${product_attribute_options} WHERE ${product_attribute_options.attribute_id} IN (${dbSql.raw(placeholders)})`,
-    ...selectAttributes.map(a => a.id)
-  );
-  for (const row of optionsResult.rows) {
-    const opt = row as any;
-    const count = optionCounts.get(opt.attribute_id) || 0;
-    optionCounts.set(opt.attribute_id, count + 1);
-  }
+for (const attr of selectAttributes) {
+  const options = await listOptions(sdk.db, attr.id, 'ro');
+  optionCounts.set(attr.id, options.length);
 }
 
-// Fetch assignment counts
-const assignmentCounts = new Map<string, number>();
-if (attributes.length > 0) {
-  const placeholders = attributes.map(() => '?').join(',');
-  const assignmentsResult = await db.run(
-    dbSql`SELECT * FROM ${product_attribute_assignments} WHERE ${product_attribute_assignments.attribute_id} IN (${dbSql.raw(placeholders)})`,
-    ...attributes.map(a => a.id)
-  );
-  for (const row of assignmentsResult.rows) {
-    const a = row as any;
-    const count = assignmentCounts.get(a.attribute_id) || 0;
-    assignmentCounts.set(a.attribute_id, count + 1);
-  }
-}
+// Fetch assignment counts (via accessor)
+const attrIds = attributes.map(a => a.id);
+const assignmentCounts = await countAssignmentsByAttributeIds(sdk.db, attrIds);
 
 const typeLabels: Record<string, string> = {
   select: 'Select',

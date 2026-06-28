@@ -3,11 +3,11 @@
 // Route: /admin/plugins/shop/categories/[id]
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db, eq, and, categories, translations } from 'astro:db';
 import Breadcrumbs from '../../../components/admin/Breadcrumbs.astro';
 import TextField from '../../../components/admin/TextField.astro';
 import SelectField from '../../../components/admin/SelectField.astro';
 import TextareaField from '../../../components/admin/TextareaField.astro';
+import { getCategoryById, listCategories } from '../../../lib/data/products';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
@@ -15,14 +15,14 @@ const user = await sdk.auth.requireAdmin(Astro.request);
 const { id } = Astro.params;
 const fromPage = new URL(Astro.request.url).searchParams.get('from_page') || '1';
 
-// Fetch category from DB directly
-const [category] = await db.select().from(categories).where(eq(categories.id, id));
+// Fetch category via accessor
+const category = await getCategoryById(sdk.db, id);
 if (!category) {
   return Astro.redirect('/admin/plugins/shop/categories');
 }
 
 // Fetch all categories for parent dropdown
-const allCats = await db.select().from(categories).orderBy(categories.name);
+const allCats = await listCategories(sdk.db, 'ro');
 const parentOptions = allCats
   .filter(c => c.id !== id) // exclude self
   .map(c => ({ value: c.id, label: c.name }));

@@ -1,16 +1,13 @@
 import type { APIRoute } from 'astro';
-import { db } from 'astro:db';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getOrCreateCart } from '../../../../../lib/cart-session';
 import { updateCartItem, deleteCartItem, CartItemError } from '../../../../../lib/data/cart';
 import { UpdateCartItemBodySchema } from '../../../../../schemas/cart.schema';
 import type { HandlerDeps } from '../../../../../lib/handler-types';
 
-export const PUT: APIRoute = (context) =>
-  runPut({ db, sdk: createPluginContext(), ctx: context });
+export const PUT: APIRoute = (context) => { const sdk = createPluginContext(); return runPut({ db: sdk.db, sdk, ctx: context }); }
 
-export const DELETE: APIRoute = (context) =>
-  runDelete({ db, sdk: createPluginContext(), ctx: context });
+export const DELETE: APIRoute = (context) => { const sdk = createPluginContext(); return runDelete({ db: sdk.db, sdk, ctx: context }); }
 
 export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {

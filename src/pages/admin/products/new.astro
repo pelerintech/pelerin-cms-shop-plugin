@@ -3,7 +3,8 @@
 // Route: /admin/plugins/shop/products/new
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db, categories, shop_settings, sql as dbSql } from 'astro:db';
+import { listCategories } from '../../../lib/data/products';
+import { getShopConfig } from '../../../lib/data/settings';
 import Breadcrumbs from '../../../components/admin/Breadcrumbs.astro';
 import TextField from '../../../components/admin/TextField.astro';
 import SelectField from '../../../components/admin/SelectField.astro';
@@ -13,21 +14,13 @@ import RichTextEditor from '../../../components/admin/RichTextEditor.astro';
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
 
-const catList = await db.select().from(categories).orderBy(categories.name);
+const catList = await listCategories(sdk.db, 'ro');
 const catOptions = catList.map(c => ({ value: c.id, label: c.name }));
 
-// Fetch locales from settings
-const localesResult = await db.run(
-  dbSql`SELECT ${shop_settings.value} FROM ${shop_settings} WHERE ${shop_settings.key} = 'locales' LIMIT 1`
-);
-let locales: { code: string; name: string; isDefault: boolean }[] = [];
-if (localesResult.rows.length > 0) {
-  try {
-    locales = JSON.parse((localesResult.rows[0] as any).value);
-  } catch {}
-}
-const defaultLocale = locales.find(l => l.isDefault)?.code || 'ro';
-const otherLocales = locales.filter(l => !l.isDefault);
+// Fetch locales from settings via accessor
+const shopConfig = await getShopConfig(sdk.db);
+const defaultLocale = shopConfig.defaultLocale;
+const otherLocales = shopConfig.locales.filter(l => !l.isDefault);
 ---
 
 <AdminLayout title="New Product" currentPath="/admin/plugins/shop/products" user={user}>

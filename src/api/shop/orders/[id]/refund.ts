@@ -1,6 +1,5 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db } from 'astro:db';
 import {
   recordLineItemRefund,
   getOrderWithItems,
@@ -12,8 +11,7 @@ import type { HandlerDeps } from '../../../../lib/handler-types';
 /** Statuses from which a line-item refund transition is allowed. */
 const REFUNDABLE_STATUSES = ['delivered', 'partially_refunded'];
 
-export const PUT: APIRoute = (context) =>
-  runPut({ db, sdk: createPluginContext(), ctx: context });
+export const PUT: APIRoute = (context) => { const sdk = createPluginContext(); return runPut({ db: sdk.db, sdk, ctx: context }); }
 
 export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {

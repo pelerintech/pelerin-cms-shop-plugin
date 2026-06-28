@@ -5,7 +5,7 @@
  * Uses `inArray()` for IN clauses — never sql-dot-join.
  */
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import { inArray, and, eq } from 'drizzle-orm';
+import { inArray, and, eq, count } from 'drizzle-orm';
 import {
   products,
   product_attributes,
@@ -218,4 +218,25 @@ export async function deleteAssignment(
   // Delete attribute values for this assignment (both product and variant level)
   await db.delete(product_attribute_values).where(eq(product_attribute_values.assignment_id, assignmentId));
   await db.delete(product_attribute_assignments).where(eq(product_attribute_assignments.id, assignmentId));
+}
+
+/** Count how many products each attribute is assigned to.
+ * Returns a Map of attribute_id → count. Skips attributes with 0 assignments. */
+export async function countAssignmentsByAttributeIds(
+  db: LibSQLDatabase,
+  attributeIds: string[],
+): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+  if (attributeIds.length === 0) return result;
+
+  const rows = await db
+    .select({ attribute_id: product_attribute_assignments.attribute_id, cnt: count() })
+    .from(product_attribute_assignments)
+    .where(inArray(product_attribute_assignments.attribute_id, attributeIds))
+    .groupBy(product_attribute_assignments.attribute_id);
+
+  for (const row of rows) {
+    result.set(row.attribute_id, Number(row.cnt));
+  }
+  return result;
 }

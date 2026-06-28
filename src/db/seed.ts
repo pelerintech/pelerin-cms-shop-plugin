@@ -3,9 +3,9 @@
  * Clears plugin tables and re-inserts fixture data so the dev environment
  * is always predictable.
  */
-import { db, sql } from 'astro:db';
+import { sql } from 'drizzle-orm';
 
-export default async function seed() {
+export default async function seed(db: any) {
   console.log('[Plugin:pelerin_ro_shop] Seeding...');
 
   // Clear all plugin tables in FK-safe order (children first)

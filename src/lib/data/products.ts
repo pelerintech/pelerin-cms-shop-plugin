@@ -421,6 +421,18 @@ export async function listTranslations(db: LibSQLDatabase, entityType: string, e
   return rows.filter(t => t.entity_type === entityType);
 }
 
+/** Fetch translations for multiple entity IDs of a given type.
+ * Returns all matching rows (no locale filter). Returns empty array for empty input. */
+export async function listTranslationsByEntityIds(
+  db: LibSQLDatabase,
+  entityType: string,
+  entityIds: string[],
+): Promise<any[]> {
+  if (entityIds.length === 0) return [];
+  const rows = await db.select().from(translations).where(inArray(translations.entity_id, entityIds));
+  return rows.filter(t => t.entity_type === entityType);
+}
+
 export async function getTranslation(db: LibSQLDatabase, entityType: string, entityId: string, locale: string): Promise<any | null> {
   const rows = await db.select().from(translations).where(inArray(translations.entity_id, [entityId]));
   return rows.find(t => t.entity_type === entityType && t.locale === locale) ?? null;
