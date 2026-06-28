@@ -10,7 +10,7 @@ export const DELETE: APIRoute = (context) =>
 export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
     await sdk.auth.requireAdmin(ctx.request);
-    await deleteProductImage(db, ctx.params.imageId!);
+    await deleteProductImage(db, sdk, ctx.params.imageId!);
     return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (err: any) {
     return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status: err.status ?? 500, headers: { 'Content-Type': 'application/json' } });

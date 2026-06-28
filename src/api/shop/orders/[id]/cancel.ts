@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { db } from 'astro:db';
-import { transitionOrderStatus, getOrderWithItems } from '../../../../lib/data/orders';
+import { transitionOrderStatus, getOrderWithItems, restockOrderItems } from '../../../../lib/data/orders';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 
 const CANCELLABLE_STATUSES = ['pending', 'awaiting_payment', 'paid', 'processing'];
@@ -27,7 +27,13 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       });
     }
 
-    await transitionOrderStatus(db, orderId, 'cancelled', 'Order cancelled by admin', 'admin');
+    // Restock all line items + transition to cancelled, atomically. If the
+    // transition throws, the restock is rolled back (no stock restored for an
+    // order that didn't actually cancel).
+    await db.transaction(async (tx) => {
+      await restockOrderItems(tx, orderId);
+      await transitionOrderStatus(tx, orderId, 'cancelled', 'Order cancelled by admin', 'admin');
+    });
     const updated = await getOrderWithItems(db, orderId);
 
     return new Response(JSON.stringify({ success: true, data: updated!.order }), {

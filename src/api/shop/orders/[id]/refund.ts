@@ -1,9 +1,16 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { db } from 'astro:db';
-import { transitionOrderStatus, getOrderWithItems, recordOrderRefund } from '../../../../lib/data/orders';
-import { RefundOrderSchema } from '../../../../schemas/order.schema';
+import {
+  recordLineItemRefund,
+  getOrderWithItems,
+  RefundError,
+} from '../../../../lib/data/orders';
+import { LineItemRefundSchema } from '../../../../schemas/order.schema';
 import type { HandlerDeps } from '../../../../lib/handler-types';
+
+/** Statuses from which a line-item refund transition is allowed. */
+const REFUNDABLE_STATUSES = ['delivered', 'partially_refunded'];
 
 export const PUT: APIRoute = (context) =>
   runPut({ db, sdk: createPluginContext(), ctx: context });
@@ -20,7 +27,7 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       });
     }
 
-    const parsed = RefundOrderSchema.safeParse(body);
+    const parsed = LineItemRefundSchema.safeParse(body);
     if (!parsed.success) {
       return new Response(JSON.stringify({
         success: false, error: 'Validation failed',
@@ -28,7 +35,7 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       }), { status: 422, headers: { 'Content-Type': 'application/json' } });
     }
 
-    const { refund_amount, refund_notes } = parsed.data;
+    // Load order BEFORE any write to validate the status (validate-before-write).
     const result = await getOrderWithItems(db, orderId);
     if (!result) {
       return new Response(JSON.stringify({ success: false, error: 'Order not found' }), {
@@ -36,18 +43,32 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       });
     }
 
-    if (refund_amount > result.order.total) {
-      return new Response(JSON.stringify({ success: false, error: 'Refund amount exceeds order total' }), {
-        status: 422, headers: { 'Content-Type': 'application/json' },
-      });
+    if (!REFUNDABLE_STATUSES.includes(result.order.status)) {
+      return new Response(JSON.stringify({
+        success: false, error: `Order in status '${result.order.status}' is not refundable`,
+      }), { status: 409, headers: { 'Content-Type': 'application/json' } });
     }
 
-    await recordOrderRefund(db, orderId, refund_amount, refund_notes ?? null);
+    // recordLineItemRefund runs validate-before-write inside its own transaction:
+    // it re-checks the status, validates each refund line's quantity invariant,
+    // inserts order_refunds rows, restocks, and transitions to partially_refunded/refunded.
+    try {
+      await recordLineItemRefund(db, orderId, parsed.data, 'admin');
+    } catch (err: any) {
+      if (err instanceof RefundError) {
+        return new Response(JSON.stringify({ success: false, error: err.message }), {
+          status: 422, headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw err;
+    }
 
-    await transitionOrderStatus(db, orderId, 'refunded', refund_notes ?? 'Refund recorded by admin', 'admin');
     const updated = await getOrderWithItems(db, orderId);
 
-    return new Response(JSON.stringify({ success: true, data: updated!.order }), {
+    return new Response(JSON.stringify({
+      success: true,
+      data: { order: updated!.order },
+    }), {
       status: 200, headers: { 'Content-Type': 'application/json' },
     });
   } catch (err: any) {

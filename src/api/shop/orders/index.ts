@@ -50,10 +50,11 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       }), { status: 422, headers: { 'Content-Type': 'application/json' } });
     }
 
-    // Admin order creation delegates to the checkout flow's createOrder via the accessor
-    const { createOrder, generateOrderNumber } = await import('../../../lib/data/orders');
-    const orderNumber = await generateOrderNumber(db);
-    const order = await createOrder(db, { ...parsed.data, order_number: orderNumber });
+    // Admin order creation delegates to the checkout flow's createOrder via the accessor.
+    // createOrder generates its own order_number (transactional, with UNIQUE retry)
+    // and returns the actual number used.
+    const { createOrder } = await import('../../../lib/data/orders');
+    const order = await createOrder(db, parsed.data);
 
     return new Response(JSON.stringify({ success: true, data: order }), {
       status: 201, headers: { 'Content-Type': 'application/json' },

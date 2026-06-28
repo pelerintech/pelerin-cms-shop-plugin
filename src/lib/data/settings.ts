@@ -58,3 +58,46 @@ export async function upsertSetting(db: LibSQLDatabase, key: string, value: stri
 export async function deleteSetting(db: LibSQLDatabase, key: string): Promise<void> {
   await db.delete(shop_settings).where(eq(shop_settings.key, key));
 }
+
+/**
+ * Typed settings accessors (r17 Task 4).
+ *
+ * `shop_settings.value` is a TEXT column, so numbers/booleans are serialized to
+ * strings at the storage boundary and deserialized on read. Callers use the typed
+ * getters/setters and never `parseInt` a `z.string()`.
+ */
+
+/**
+ * Read a setting and deserialize it to the requested primitive type.
+ * For 'boolean' keys: 'true'/'false' → boolean (default false if absent).
+ * For 'number' keys: numeric string → number (default 0 if absent/NaN).
+ * Strings pass through unchanged.
+ */
+
+/** Read a boolean setting ('true'/'false' serialized). Absent → null. */
+export async function getSettingBool(db: LibSQLDatabase, key: string): Promise<boolean | null> {
+  const raw = await getSetting(db, key);
+  if (raw === null) return null;
+  return raw === 'true';
+}
+
+/** Read a number setting. Absent or non-numeric → null. */
+export async function getSettingNumber(db: LibSQLDatabase, key: string): Promise<number | null> {
+  const raw = await getSetting(db, key);
+  if (raw === null) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Upsert a typed setting — serializes numbers/booleans to strings at the
+ * storage boundary. Strings pass through.
+ */
+export async function upsertSettingTyped(
+  db: LibSQLDatabase,
+  key: string,
+  value: number | boolean | string,
+): Promise<void> {
+  const serialized = typeof value === 'string' ? value : String(value);
+  await upsertSetting(db, key, serialized);
+}

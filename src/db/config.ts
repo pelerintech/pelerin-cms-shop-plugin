@@ -3,7 +3,7 @@ import { defineDb, defineTable, column } from 'astro:db';
 const shop_settings = defineTable({
   columns: {
     id: column.text({ primaryKey: true }),
-    key: column.text(),
+    key: column.text({ unique: true }),
     value: column.text(),
   },
 });
@@ -14,17 +14,20 @@ const categories = defineTable({
     parent_id: column.text({ optional: true }),
     name: column.text(),
     description: column.text({ optional: true }),
-    slug: column.text(),
+    slug: column.text({ unique: true }),
     sort_order: column.number(),
     created_at: column.date({ mode: 'timestamp', optional: true }),
     updated_at: column.date({ mode: 'timestamp', optional: true }),
+  },
+  indexes: {
+    categories_parent_id_idx: { on: 'parent_id' },
   },
 });
 
 const products = defineTable({
   columns: {
     id: column.text({ primaryKey: true }),
-    sku: column.text({ optional: true }),
+    sku: column.text({ optional: true, unique: true }),
     type: column.text(),
     has_variants: column.boolean(),
     vat_rate: column.number({ optional: true }),
@@ -33,7 +36,7 @@ const products = defineTable({
     active: column.boolean(),
     name: column.text(),
     description: column.text({ optional: true }),
-    slug: column.text(),
+    slug: column.text({ unique: true }),
     created_at: column.date({ mode: 'timestamp' }),
     updated_at: column.date({ mode: 'timestamp', optional: true }),
   },
@@ -44,9 +47,17 @@ const product_images = defineTable({
     id: column.text({ primaryKey: true }),
     product_id: column.text(),
     variant_id: column.text({ optional: true }),
-    url: column.text(),
+    url: column.text(), // holds a storage KEY (not a URL); resolved to URL at the accessor layer (design D2)
     alt: column.text({ optional: true }),
     sort_order: column.number(),
+    mime: column.text(),
+    size: column.number(),
+    width: column.number({ optional: true }),
+    height: column.number({ optional: true }),
+    original_filename: column.text({ optional: true }),
+  },
+  indexes: {
+    product_images_product_id_idx: { on: 'product_id' },
   },
 });
 
@@ -57,6 +68,9 @@ const product_variants = defineTable({
     sku: column.text({ optional: true }),
     stock: column.number({ optional: true }),
     active: column.boolean(),
+  },
+  indexes: {
+    product_variants_product_id_idx: { on: 'product_id' },
   },
 });
 
@@ -87,6 +101,9 @@ const product_attribute_assignments = defineTable({
     sort_order: column.number(),
     offered_option_ids: column.text(),
   },
+  indexes: {
+    product_attribute_assignments_attribute_id_idx: { on: 'attribute_id' },
+  },
 });
 
 const product_attribute_values = defineTable({
@@ -100,6 +117,11 @@ const product_attribute_values = defineTable({
     value_number: column.number({ optional: true }),
     value_boolean: column.boolean({ optional: true }),
   },
+  indexes: {
+    product_attribute_values_assignment_id_idx: { on: 'assignment_id' },
+    product_attribute_values_option_id_idx: { on: 'option_id' },
+    product_attribute_values_entity_id_idx: { on: 'entity_id' },
+  },
 });
 
 const product_prices = defineTable({
@@ -109,6 +131,10 @@ const product_prices = defineTable({
     variant_id: column.text({ optional: true }),
     currency: column.text(),
     price_net: column.number(),
+  },
+  indexes: {
+    product_prices_product_id_idx: { on: 'product_id' },
+    product_prices_variant_id_idx: { on: 'variant_id' },
   },
 });
 
@@ -122,6 +148,9 @@ const translations = defineTable({
     description: column.text({ optional: true }),
     slug: column.text({ optional: true }),
     label: column.text({ optional: true }),
+  },
+  indexes: {
+    translations_entity_locale_idx: { on: ['entity_type', 'entity_id', 'locale'] },
   },
 });
 
@@ -147,12 +176,17 @@ const cart_items = defineTable({
     variant_id: column.text({ optional: true }),
     quantity: column.number(),
   },
+  indexes: {
+    cart_items_cart_id_idx: { on: 'cart_id' },
+    cart_items_product_id_idx: { on: 'product_id' },
+    cart_items_variant_id_idx: { on: 'variant_id' },
+  },
 });
 
 const orders = defineTable({
   columns: {
     id: column.text({ primaryKey: true }),
-    order_number: column.text(),
+    order_number: column.text({ unique: true }),
     user_id: column.text({ optional: true }),
     customer_type: column.text(),
     customer_email: column.text(),
@@ -218,6 +252,11 @@ const order_items = defineTable({
     price_gross: column.number(),
     currency: column.text(),
   },
+  indexes: {
+    order_items_order_id_idx: { on: 'order_id' },
+    order_items_product_id_idx: { on: 'product_id' },
+    order_items_variant_id_idx: { on: 'variant_id' },
+  },
 });
 
 const order_status_history = defineTable({
@@ -230,12 +269,32 @@ const order_status_history = defineTable({
     changed_by: column.text({ optional: true }),
     created_at: column.date(),
   },
+  indexes: {
+    order_status_history_order_id_idx: { on: 'order_id' },
+  },
+});
+
+const order_refunds = defineTable({
+  columns: {
+    id: column.text({ primaryKey: true }),
+    order_id: column.text(),
+    order_item_id: column.text(),
+    quantity: column.number(),
+    amount: column.number({ optional: true }),
+    notes: column.text({ optional: true }),
+    created_at: column.date(),
+    created_by: column.text({ optional: true }),
+  },
+  indexes: {
+    order_refunds_order_id_idx: { on: 'order_id' },
+    order_refunds_order_item_id_idx: { on: 'order_item_id' },
+  },
 });
 
 const vouchers = defineTable({
   columns: {
     id: column.text({ primaryKey: true }),
-    code: column.text(),
+    code: column.text({ unique: true }),
     type: column.text(),
     value: column.number({ optional: true }),
     min_order_value: column.number({ optional: true }),
@@ -253,7 +312,7 @@ const vouchers = defineTable({
 const referral_codes = defineTable({
   columns: {
     id: column.text({ primaryKey: true }),
-    code: column.text(),
+    code: column.text({ unique: true }),
     name: column.text(),
     discount_type: column.text({ optional: true }),
     discount_value: column.number({ optional: true }),
@@ -281,6 +340,7 @@ export {
   orders,
   order_items,
   order_status_history,
+  order_refunds,
   vouchers,
   referral_codes,
 };
@@ -303,6 +363,7 @@ export default defineDb({
     orders,
     order_items,
     order_status_history,
+    order_refunds,
     vouchers,
     referral_codes,
   },

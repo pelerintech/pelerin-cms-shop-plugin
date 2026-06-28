@@ -26,7 +26,7 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     }
 
     // Images
-    const images = await listProductImage(db, productId);
+    const images = await listProductImage(db, sdk, productId);
 
     // Variants
     const variants = await listVariants(db, productId, locale);

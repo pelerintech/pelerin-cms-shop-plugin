@@ -9,6 +9,7 @@
  * `astro:db` provides in prod, so accessors behave identically in tests and prod.
  */
 import { drizzle } from 'drizzle-orm/libsql';
+import { createClient } from '@libsql/client';
 import { sql } from 'drizzle-orm';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import * as schema from '../../src/db/schema.ts';
@@ -31,6 +32,7 @@ function createTableSQL(tableName: string, table: Record<string, any>): string {
     let def = `"${col.name}" ${type}`;
     if (col.primary) def += ' PRIMARY KEY';
     if (col.notNull) def += ' NOT NULL';
+    if (col.isUnique) def += ' UNIQUE';
     return def;
   });
   return `CREATE TABLE "${tableName}" (\n  ${colDefs.join(',\n  ')}\n)`;
@@ -44,13 +46,30 @@ export interface TestDb {
 /**
  * Create a fresh in-memory database with all plugin tables.
  * Each call is isolated — no shared state across tests.
+ *
+ * Uses a shared-cache in-memory libSQL database with a UNIQUE cache name per
+ * call. Under the previous `drizzle(':memory:')` client (better-sqlite3), a
+ * throwing `db.transaction()` rolled back the entire connection state
+ * INCLUDING the `CREATE TABLE` schema — making transactional-rollback tests
+ * impossible. The shared-cache client rolls back DATA but preserves the
+ * schema, mirroring prod semantics. The per-call unique cache name ensures
+ * parallel test files don't share state.
  */
 export async function createTestDb(): Promise<TestDb> {
-  const db = drizzle(':memory:', { schema });
+  // Shared-cache in-memory database. libsql only recognizes in-memory mode
+  // for the exact path `:memory:` (with optional `cache=shared` query param);
+  // a per-call unique cache NAME is not supported, so isolation is achieved by
+  // DROP IF EXISTS + CREATE in the loop below (each createTestDb wipes the
+  // shared DB's tables before recreating them).
+  const url = 'file::memory:?cache=shared';
+  const client = createClient({ url });
+  const db = drizzle(client, { schema });
 
-  // Create all tables. Drop order doesn't matter for CREATE; order only
-  // matters for reset/seed clears (handled by resetDb).
+  // Drop+create all tables. Each call is isolated because we DROP IF EXISTS
+  // first (the shared-cache in-memory DB is shared across createTestDb calls
+  // in the same process, so a stale table from a prior call must be cleared).
   for (const [name, table] of tables) {
+    await db.run(sql.raw(`DROP TABLE IF EXISTS "${name}"`));
     await db.run(sql.raw(createTableSQL(name, table)));
   }
 
@@ -66,14 +85,14 @@ import {
   shop_settings, categories, products, product_images, product_variants,
   product_attributes, product_attribute_options, product_attribute_assignments,
   product_attribute_values, product_prices, translations, carts, cart_items,
-  orders, order_items, order_status_history, vouchers, referral_codes,
+  orders, order_items, order_status_history, order_refunds, vouchers, referral_codes,
 } from '../../src/db/schema.ts';
 
 /** Tables in FK-safe clear order (children before parents), mirroring seed.ts. */
 const CLEAR_ORDER = [
   product_attribute_values, product_attribute_assignments, product_attribute_options,
   product_attributes, product_variants, product_prices, product_images, translations,
-  products, categories, cart_items, carts, order_items, order_status_history, orders,
+  products, categories, cart_items, carts, order_refunds, order_items, order_status_history, orders,
   vouchers, referral_codes, shop_settings,
 ];
 
@@ -160,7 +179,7 @@ export async function seedMinimal(db: LibSQLDatabase<typeof schema>): Promise<Fi
     { id: rid(), key: 'locales', value: JSON.stringify([{ code: 'ro', name: 'Română', isDefault: true }, { code: 'en', name: 'English', isDefault: false }]) },
     { id: rid(), key: 'currencies', value: JSON.stringify([{ code: 'RON', name: 'Leu românesc', isDefault: true }, { code: 'EUR', name: 'Euro', isDefault: false }]) },
     { id: rid(), key: 'order_number_prefix', value: 'ORD' },
-    { id: rid(), key: 'order_number_year', value: String(now.getFullYear()) },
+    { id: rid(), key: 'order_number_year', value: 'true' },
     { id: rid(), key: 'order_number_padding', value: '6' },
     { id: rid(), key: 'order_number_sequence', value: '0' },
   ]);
@@ -286,5 +305,5 @@ export {
   shop_settings, categories, products, product_images, product_variants,
   product_attributes, product_attribute_options, product_attribute_assignments,
   product_attribute_values, product_prices, translations, carts, cart_items,
-  orders, order_items, order_status_history, vouchers, referral_codes,
+  orders, order_items, order_status_history, order_refunds, vouchers, referral_codes,
 } from '../../src/db/schema.ts';

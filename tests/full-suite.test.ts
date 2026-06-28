@@ -11,9 +11,11 @@ import { execFileSync } from 'node:child_process';
 const TEST_FILES = [
   'tests/db/schema-exists.test.ts',
   'tests/db/schema-parity.test.ts',
+  'tests/db/parity-constraints.test.ts',
   'tests/db/harness.test.ts',
   'tests/db/harness-helpers.test.ts',
   'tests/db/harness-query-idioms.test.ts',
+  'tests/db/harness-transaction.test.ts',
   'tests/lib/data/attributes.test.ts',
   'tests/lib/data/attribute-assignments.test.ts',
   'tests/lib/data/attribute-values.test.ts',
@@ -22,6 +24,18 @@ const TEST_FILES = [
   'tests/lib/data/has-variants-derived.test.ts',
   'tests/lib/data/cart.test.ts',
   'tests/lib/data/orders.test.ts',
+  'tests/lib/data/order-transitions.test.ts',
+  'tests/lib/data/create-order-transactional.test.ts',
+  'tests/lib/data/decrement-stock.test.ts',
+  'tests/lib/data/restock.test.ts',
+  'tests/lib/data/refund-accessor.test.ts',
+  'tests/lib/data/order-number-unique.test.ts',
+  'tests/lib/data/unique-constraints.test.ts',
+  'tests/lib/data/settings-typed.test.ts',
+  'tests/lib/data/delete-product-cascade.test.ts',
+  'tests/lib/data/delete-category-guard.test.ts',
+  'tests/lib/data/list-sql.test.ts',
+  'tests/lib/data/n-plus-1.test.ts',
   'tests/lib/data/catalog.test.ts',
   'tests/lib/data/vouchers-referrals-settings.test.ts',
   'tests/lib/order-number.test.ts',
@@ -52,6 +66,7 @@ const TEST_FILES = [
   'tests/api/handlers/orders/id/resend.test.ts',
   'tests/api/handlers/orders/id/status.test.ts',
   'tests/api/handlers/orders/export.test.ts',
+  'tests/api/orders-export.test.ts',
   'tests/api/handlers/orders/index.test.ts',
   'tests/api/handlers/products/id.test.ts',
   'tests/api/handlers/products/id/attribute-values.test.ts',
@@ -59,9 +74,12 @@ const TEST_FILES = [
   'tests/api/handlers/products/id/attributes/index.test.ts',
   'tests/api/handlers/products/id/images/imageId.test.ts',
   'tests/api/handlers/products/id/images/index.test.ts',
+  'tests/api/handlers/products/id/images-post.test.ts',
   'tests/api/handlers/products/id/images/reorder.test.ts',
   'tests/api/handlers/products/id/prices.test.ts',
+  'tests/api/handlers/products/id/prices-post.test.ts',
   'tests/api/handlers/products/id/translations/locale.test.ts',
+  'tests/api/handlers/products/id/translations-locale.test.ts',
   'tests/api/handlers/products/id/translations/index.test.ts',
   'tests/api/handlers/products/id/variants/variantId.test.ts',
   'tests/api/handlers/products/id/variants/index.test.ts',
@@ -91,6 +109,17 @@ const TEST_FILES = [
   'tests/pages/admin-products-script-syntax.test.ts',
   'tests/pages/admin-import-ui.test.ts',
   'tests/pages/admin-import-script-syntax.test.ts',
+  'tests/pages/admin-orders-partial-refund.test.ts',
+  // ── r18: product image storage ──
+  'tests/lib/storage-keys.test.ts',
+  'tests/lib/data/product-images-resolve.test.ts',
+  'tests/lib/data/product-images-create.test.ts',
+  'tests/api/handlers/helpers-storage.test.ts',
+  'tests/schemas/product-image-schema.test.ts',
+  'tests/pages/admin-product-images-read.test.ts',
+  'tests/pages/image-upload-script-syntax.test.ts',
+  'tests/db/seed-images.test.ts',
+  'tests/full-suite-includes-r18.test.ts',
 ];
 
 test('full test suite passes (node --test <all test files>)', () => {
@@ -129,7 +158,7 @@ test('full test suite passes (node --test <all test files>)', () => {
   const m = testsLine.match(/(\d+)/);
   const testCount = m ? parseInt(m[1], 10) : 0;
   assert.ok(
-    testCount >= 500,
-    `child node --test registered only ${testCount} tests — expected >=500; possible silent skip. Output tail:\n${output.slice(-1500)}`,
+    testCount >= 700,
+    `child node --test registered only ${testCount} tests — expected >=700; possible silent skip. Output tail:\n${output.slice(-1500)}`,
   );
 });

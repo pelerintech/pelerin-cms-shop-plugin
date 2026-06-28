@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { ensureLoader } from '../../../stubs/register.mjs';
 import { matrix, createTestDb, seedMinimal, makeFakeSdk, makeCtx } from '../_matrix.ts';
+import { categories } from '../../../db/harness.ts';
 
 ensureLoader();
 const { runGet, runPut, runDelete } = await import(
@@ -92,9 +93,16 @@ test('DELETE [id] auth-fail → 401', () =>
 test('DELETE [id] happy-path seeded → 200', async () => {
   const { db, cleanup } = await createTestDb();
   try {
-    const f = await seedMinimal(db);
+    await seedMinimal(db);
     const sdk = makeFakeSdk();
-    const ctx = makeCtx({ url: `${base}/${f.categoryBooksId}`, method: 'DELETE', params: { id: f.categoryBooksId } });
+    // Seeded categories have products assigned (the r17 guard refuses those), so
+    // create a fresh leaf category with no children/products to delete.
+    const leafId = crypto.randomUUID();
+    await db.insert(categories).values({
+      id: leafId, parent_id: null, name: 'Leaf', description: null,
+      slug: 'leaf-' + leafId.slice(0, 8), sort_order: 99, created_at: null, updated_at: null,
+    });
+    const ctx = makeCtx({ url: `${base}/${leafId}`, method: 'DELETE', params: { id: leafId } });
     const res = await runDelete({ db, sdk, ctx });
     assert.equal(res.status, 200);
     const b = await res.json();

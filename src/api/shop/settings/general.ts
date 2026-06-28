@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { db } from 'astro:db';
-import { getSetting, upsertSetting, getShopConfig } from '../../../lib/data/settings';
+import { getSetting, upsertSetting, upsertSettingTyped, getShopConfig } from '../../../lib/data/settings';
 import { z } from 'zod';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
@@ -13,8 +13,8 @@ const SETTINGS_KEYS = [
 const GeneralSettingsSchema = z.object({
   shop_name: z.string().optional(),
   order_number_prefix: z.string().optional(),
-  order_number_year: z.string().optional(),
-  order_number_padding: z.string().optional(),
+  order_number_year: z.boolean().optional(),
+  order_number_padding: z.number().int().min(1).optional(),
   default_currency: z.string().optional(),
   default_locale: z.string().optional(),
 });
@@ -59,7 +59,7 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   }
 
   for (const [key, value] of Object.entries(parsed.data)) {
-    if (value !== undefined) await upsertSetting(db, key, String(value));
+    if (value !== undefined) await upsertSettingTyped(db, key, value);
   }
 
   return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });

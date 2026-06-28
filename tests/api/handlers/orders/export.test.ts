@@ -40,8 +40,16 @@ async function seedOrder(db: any, f: any, orderNumber: string, cartId: string) {
   });
 }
 
-test('GET auth-fail → 401', () =>
-  matrix.adminAuthFail({ run: runGet, url: base }));
+test('GET auth-fail → 401 (text/csv error contract)', async () => {
+  const sdk = makeFakeSdk({ authThrows: unauthorizedError() });
+  const ctx = makeCtx({ url: base });
+  const res = await runGet({ db: poisonDb(), sdk, ctx });
+  assert.equal(res.status, 401);
+  // r17 Task 11: the export handler's error path returns text/csv (CSV client always gets CSV).
+  assert.equal(res.headers.get('Content-Type'), 'text/csv');
+  const text = await res.text();
+  assert.ok(!text.startsWith('{'), 'auth-fail body is CSV, not JSON');
+});
 
 test('GET happy-path → 200, text/csv with header + rows', async () => {
   const { db, cleanup } = await createTestDb();
@@ -82,5 +90,12 @@ test('GET happy-path empty → 200, header only', async () => {
   }
 });
 
-test('GET error-wrap → 500', () =>
-  matrix.errorWrap({ run: runGet, url: base }));
+test('GET error-wrap → 500 (text/csv error contract)', async () => {
+  const sdk = makeFakeSdk();
+  const ctx = makeCtx({ url: base });
+  const res = await runGet({ db: poisonDb(), sdk, ctx });
+  assert.equal(res.status, 500);
+  assert.equal(res.headers.get('Content-Type'), 'text/csv');
+  const text = await res.text();
+  assert.ok(!text.startsWith('{'), 'error body is CSV, not JSON');
+});

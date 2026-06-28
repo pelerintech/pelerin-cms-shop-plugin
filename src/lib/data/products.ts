@@ -3,9 +3,10 @@
  * Uses inArray/eq — never the sql IN-join idiom.
  */
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import { inArray, eq, and, isNull, asc, desc, count } from 'drizzle-orm';
+import { inArray, eq, and, isNull, asc, desc, count, or, like } from 'drizzle-orm';
 import {
   products, categories, product_prices, product_images, translations, product_variants,
+  product_attribute_assignments, product_attribute_values, cart_items,
 } from '../../db/schema.ts';
 
 // ── Products ──
@@ -50,26 +51,26 @@ export async function listProducts(
   const limit = Math.min(100, Math.max(1, opts.limit ?? 20));
   const locale = opts.locale ?? 'ro';
 
-  let rows = await db.select().from(products);
-
-  if (opts.category_id) rows = rows.filter(p => p.category_id === opts.category_id);
-  if (opts.active !== undefined) rows = rows.filter(p => p.active === opts.active);
+  // Build WHERE in SQL (r17 Task 9) — no full-table load.
+  const conditions: any[] = [];
+  if (opts.category_id) conditions.push(eq(products.category_id, opts.category_id));
+  if (opts.active !== undefined) conditions.push(eq(products.active, opts.active));
   if (opts.search) {
-    const s = opts.search.toLowerCase();
-    rows = rows.filter(p =>
-      (p.name && p.name.toLowerCase().includes(s)) ||
-      (p.sku && p.sku.toLowerCase().includes(s)) ||
-      (p.slug && p.slug.toLowerCase().includes(s)),
-    );
+    const s = `%${opts.search.toLowerCase()}%`;
+    conditions.push(or(like(products.name, s), like(products.sku, s), like(products.slug, s)));
   }
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  // Sort DESC by created_at
-  rows.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  const [countRow] = await db.select({ value: count() }).from(products).where(where);
+  const total = countRow?.value ?? 0;
 
-  const total = rows.length;
-  const paged = rows.slice((page - 1) * limit, page * limit);
+  const paged = await db.select().from(products)
+    .where(where)
+    .orderBy(desc(products.created_at))
+    .limit(limit)
+    .offset((page - 1) * limit) as ProductListRow[];
 
-  // Enrich with translations
+  // Enrich the page only (translations + derived has_variants).
   const productIds = paged.map(p => p.id);
 
   // Derive has_variants from actual variant rows (batched), ignoring the DB
@@ -240,7 +241,54 @@ export async function updateProduct(db: LibSQLDatabase, id: string, input: Updat
 }
 
 export async function deleteProduct(db: LibSQLDatabase, id: string): Promise<void> {
-  await db.delete(products).where(eq(products.id, id));
+  // Transactional cascade (r17 Task 7). Deletes all child rows in FK-safe order,
+  // mirroring deleteVariant at product scope. order_items are snapshots and are
+  // NOT deleted (order history preserved; order_items.product_id may dangle).
+  await db.transaction(async (tx) => {
+    // Collect the product's variant ids once (used for variant-scoped deletes).
+    const variantRows = await tx.select({ id: product_variants.id })
+      .from(product_variants)
+      .where(eq(product_variants.product_id, id));
+    const variantIds = variantRows.map((r) => r.id);
+
+    // 1. attribute values — variant-level (by variant_id set) then product-level.
+    if (variantIds.length) {
+      await tx.delete(product_attribute_values).where(
+        and(eq(product_attribute_values.entity_type, 'variant'), inArray(product_attribute_values.entity_id, variantIds)),
+      );
+    }
+    await tx.delete(product_attribute_values).where(
+      and(eq(product_attribute_values.entity_type, 'product'), eq(product_attribute_values.entity_id, id)),
+    );
+
+    // 2. attribute assignments for the product.
+    await tx.delete(product_attribute_assignments).where(eq(product_attribute_assignments.product_id, id));
+
+    // 3. prices — product-level + variant-level.
+    await tx.delete(product_prices).where(eq(product_prices.product_id, id));
+    if (variantIds.length) {
+      await tx.delete(product_prices).where(inArray(product_prices.variant_id, variantIds));
+    }
+
+    // 4. images for the product.
+    await tx.delete(product_images).where(eq(product_images.product_id, id));
+
+    // 5. variants.
+    await tx.delete(product_variants).where(eq(product_variants.product_id, id));
+
+    // 6. cart_items referencing the product or its variants (transient cart; a
+    //    delisted product drops from carts). order_items are snapshots — untouched.
+    if (variantIds.length) {
+      await tx.delete(cart_items).where(
+        or(eq(cart_items.product_id, id), inArray(cart_items.variant_id, variantIds)),
+      );
+    } else {
+      await tx.delete(cart_items).where(eq(cart_items.product_id, id));
+    }
+
+    // 7. the product row itself.
+    await tx.delete(products).where(eq(products.id, id));
+  });
 }
 
 // ── Categories ──
@@ -307,7 +355,29 @@ export async function updateCategory(db: LibSQLDatabase, id: string, input: Reco
   await db.update(categories).set({ ...input, updated_at: new Date() }).where(eq(categories.id, id));
 }
 
+export class CategoryError extends Error {
+  status: number;
+  code: 'not_found' | 'has_children' | 'has_products';
+  constructor(message: string, code: 'not_found' | 'has_children' | 'has_products' = 'has_children', status = 409) {
+    super(message);
+    this.code = code;
+    this.status = status;
+  }
+}
+
 export async function deleteCategory(db: LibSQLDatabase, id: string): Promise<void> {
+  // Guard (r17 Task 8): refuse deletion if child categories or products reference
+  // this category, mirroring deleteAttribute's refuse-if-referenced pattern. Re-
+  // parenting silently changes product categorization (a data-loss surprise), so
+  // refuse-and-let-admin-deal-with-it is the safer choice.
+  const children = await db.select().from(categories).where(eq(categories.parent_id, id));
+  if (children.length > 0) {
+    throw new CategoryError('Category has child categories; re-parent or delete them first', 'has_children', 409);
+  }
+  const prods = await db.select().from(products).where(eq(products.category_id, id));
+  if (prods.length > 0) {
+    throw new CategoryError('Category has products; reassign them first', 'has_products', 409);
+  }
   await db.delete(categories).where(eq(categories.id, id));
 }
 
@@ -384,31 +454,47 @@ export async function upsertTranslation(db: LibSQLDatabase, input: {
 
 // ── Product Images ──
 
-export async function listProductImage(db: LibSQLDatabase, productId: string): Promise<any[]> {
+export async function listProductImage(db: LibSQLDatabase, sdk: { storage: { getUrl: (key: string) => string } }, productId: string): Promise<any[]> {
   const rows = await db.select().from(product_images).where(eq(product_images.product_id, productId));
   rows.sort((a, b) => (a.sort_order < b.sort_order ? -1 : 1));
+  // Resolve storage key → servable URL at the accessor layer (design D2).
+  // The `url` column holds an opaque storage KEY; no raw key ever reaches a consumer.
+  for (const row of rows) {
+    row.url = sdk.storage.getUrl(row.url);
+  }
   return rows;
 }
 
-export async function createProductImage(db: LibSQLDatabase, input: { product_id: string; variant_id?: string | null; url: string; alt?: string | null; sort_order: number }): Promise<string> {
+export async function createProductImage(db: LibSQLDatabase, input: { product_id: string; variant_id?: string | null; storage_key: string; mime: string; size: number; width?: number | null; height?: number | null; original_filename?: string | null; alt?: string | null; sort_order: number }): Promise<string> {
   const id = crypto.randomUUID();
   await db.insert(product_images).values({
-    id, product_id: input.product_id, variant_id: input.variant_id ?? null, url: input.url,
+    id, product_id: input.product_id, variant_id: input.variant_id ?? null,
+    url: input.storage_key, // url column holds the storage KEY (design D2)
     alt: input.alt ?? null, sort_order: input.sort_order,
+    mime: input.mime, size: input.size,
+    width: input.width ?? null, height: input.height ?? null,
+    original_filename: input.original_filename ?? null,
   });
   return id;
 }
 
-export async function deleteProductImage(db: LibSQLDatabase, id: string): Promise<void> {
+export async function deleteProductImage(db: LibSQLDatabase, sdk: { storage: { delete: (key: string) => Promise<void> } }, id: string): Promise<void> {
+  // Bytes-first-then-row ordering (design D7): if the byte delete fails, the row
+  // survives so the user can retry; orphan bytes (no key reference) are unrecoverable.
+  const rows = await db.select({ url: product_images.url }).from(product_images).where(eq(product_images.id, id));
+  if (rows.length === 0) return; // no row → no-op (idempotent; accessor tolerates missing row)
+  await sdk.storage.delete(rows[0].url); // url column holds the storage KEY
   await db.delete(product_images).where(eq(product_images.id, id));
 }
 
 /** Reorder images by setting sort_order from an ordered list of image IDs. */
 export async function reorderProductImages(db: LibSQLDatabase, imageIds: string[]): Promise<void> {
-  for (let i = 0; i < imageIds.length; i++) {
-    const rows = await db.select().from(product_images).where(eq(product_images.id, imageIds[i]));
-    if (rows.length > 0) {
-      await db.update(product_images).set({ sort_order: i }).where(eq(product_images.id, imageIds[i]));
+  // Transactional (r17 Task 10) — a mid-reorder failure rolls back all sort_order
+  // changes. Updates each image's sort_order to its index in the list.
+  if (imageIds.length === 0) return;
+  await db.transaction(async (tx) => {
+    for (let i = 0; i < imageIds.length; i++) {
+      await tx.update(product_images).set({ sort_order: i }).where(eq(product_images.id, imageIds[i]));
     }
-  }
+  });
 }

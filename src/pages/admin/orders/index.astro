@@ -57,6 +57,7 @@ function statusBadge(status: string) {
     shipped: 'badge-primary',
     delivered: 'badge-accent',
     cancelled: 'badge-error',
+    partially_refunded: 'badge-warning',
     refunded: 'badge-error',
   };
   return colors[status] || 'badge-ghost';
@@ -71,6 +72,7 @@ function statusLabel(status: string): string {
     shipped: 'Shipped',
     delivered: 'Delivered',
     cancelled: 'Cancelled',
+    partially_refunded: 'Refunded (partial)',
     refunded: 'Refunded',
   };
   return labels[status] || status;
@@ -123,6 +125,7 @@ if (hasFilters) {
           <option value="shipped" selected={filterStatus === 'shipped'}>Shipped</option>
           <option value="delivered" selected={filterStatus === 'delivered'}>Delivered</option>
           <option value="cancelled" selected={filterStatus === 'cancelled'}>Cancelled</option>
+          <option value="partially_refunded" selected={filterStatus === 'partially_refunded'}>Refunded (partial)</option>
           <option value="refunded" selected={filterStatus === 'refunded'}>Refunded</option>
         </select>
       </div>

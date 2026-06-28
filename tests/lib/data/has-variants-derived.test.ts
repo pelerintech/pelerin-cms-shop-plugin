@@ -13,11 +13,15 @@ import { eq } from 'drizzle-orm';
 
 const NOW = new Date();
 const rid = () => crypto.randomUUID();
+let slugCounter = 0;
+let skuCounter = 0;
 
 async function seedProduct(db: any, productId: string, colHasVariants: boolean) {
+  slugCounter++;
+  skuCounter++;
   await insertFixture(db, 'products', {
-    id: productId, sku: 'P', type: 'physical', has_variants: colHasVariants, vat_rate: 0.19,
-    stock: 10, category_id: null, active: true, name: 'P', description: '', slug: 'p',
+    id: productId, sku: `P${skuCounter}`, type: 'physical', has_variants: colHasVariants, vat_rate: 0.19,
+    stock: 10, category_id: null, active: true, name: 'P', description: '', slug: `p-${slugCounter}`,
     created_at: NOW, updated_at: NOW,
   });
 }

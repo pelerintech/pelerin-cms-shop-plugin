@@ -182,6 +182,28 @@ export const RefundOrderSchema = z.object({
 export type RefundOrderInput = z.infer<typeof RefundOrderSchema>;
 
 /**
+ * Schema for a single line-item refund line (r16).
+ * Records WHICH order_item and HOW MANY units were returned.
+ */
+export const LineItemRefundLineSchema = z.object({
+  order_item_id: z.string().min(1),
+  quantity: z.number().int().min(1),
+  amount: z.number().min(0).nullable().optional(),
+  notes: z.string().nullable().optional(),
+});
+
+/**
+ * Schema for a line-item-granular refund request (r16).
+ * `refunds` must be a non-empty array of line-item refund lines.
+ */
+export const LineItemRefundSchema = z.object({
+  refunds: z.array(LineItemRefundLineSchema).min(1),
+  notes: z.string().nullable().optional(),
+});
+
+export type LineItemRefundInput = z.infer<typeof LineItemRefundSchema>;
+
+/**
  * Output schema for an order (mirrors CreateOrderSchema + id, timestamps)
  */
 export const OrderOutputSchema = z.object({

@@ -3,7 +3,7 @@
  * Uses eq — never the sql IN-join idiom.
  */
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import { eq } from 'drizzle-orm';
+import { eq, desc, and, count, like, or } from 'drizzle-orm';
 import { vouchers } from '../../db/schema.ts';
 
 export interface VoucherRow {
@@ -43,10 +43,41 @@ export async function getVoucherById(
 }
 
 /** List all vouchers ordered by created_at DESC. */
-export async function listVouchers(db: LibSQLDatabase): Promise<VoucherRow[]> {
-  const rows = await db.select().from(vouchers);
-  rows.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-  return rows as VoucherRow[];
+export async function listVouchers(db: LibSQLDatabase): Promise<VoucherRow[]>;
+export async function listVouchers(
+  db: LibSQLDatabase,
+  opts: { page?: number; limit?: number; active?: boolean; search?: string },
+): Promise<{ rows: VoucherRow[]; total: number; page: number; limit: number }>;
+export async function listVouchers(
+  db: LibSQLDatabase,
+  opts: { page?: number; limit?: number; active?: boolean; search?: string } = {},
+): Promise<VoucherRow[] | { rows: VoucherRow[]; total: number; page: number; limit: number }> {
+  // r17 Task 9 (list-accessors-sql): push WHERE/ORDER to SQL in every case, and
+  // when pagination args are present push LIMIT/OFFSET + a separate COUNT(*) so
+  // the caller never holds more than one page in Node memory. The no-arg array
+  // shape is preserved for backward compatibility with the admin list API
+  // endpoint (whose handler tests assert `data` is an array).
+  const conditions: any[] = [];
+  if (opts.active !== undefined) conditions.push(eq(vouchers.active, opts.active));
+  if (opts.search) {
+    const s = `%${opts.search.toLowerCase()}%`;
+    conditions.push(or(like(vouchers.code, s), like(vouchers.type, s)));
+  }
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const rows = await db.select().from(vouchers).where(where).orderBy(desc(vouchers.created_at));
+  if (opts.page === undefined && opts.limit === undefined) {
+    return rows as VoucherRow[];
+  }
+  const page = Math.max(1, opts.page ?? 1);
+  const limit = Math.min(100, Math.max(1, opts.limit ?? 50));
+  const [countRow] = await db.select({ value: count() }).from(vouchers).where(where);
+  const total = countRow?.value ?? 0;
+  const paged = await db.select().from(vouchers)
+    .where(where)
+    .orderBy(desc(vouchers.created_at))
+    .limit(limit)
+    .offset((page - 1) * limit);
+  return { rows: paged as VoucherRow[], total, page, limit };
 }
 
 export interface CreateVoucherInput {

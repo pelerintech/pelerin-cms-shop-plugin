@@ -3,7 +3,7 @@ import { db } from 'astro:db';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getOrCreateCart } from '../../../../lib/cart-session';
 import { getCartWithItems, validateCartStock, StockValidationError } from '../../../../lib/data/cart';
-import { createOrder, generateOrderNumber } from '../../../../lib/data/orders';
+import { createOrder } from '../../../../lib/data/orders';
 import { getVoucherByCode, incrementVoucherUsage } from '../../../../lib/data/vouchers';
 import { computeCartTotals } from '../../../../lib/cart-totals';
 import { z } from 'zod';
@@ -101,7 +101,6 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     }
 
     const totals = computeCartTotals(cartItemInputs as any, currency, 0, discountAmount);
-    const orderNumber = await generateOrderNumber(db);
 
     // Build name parts
     const nameParts = data.billing_name.trim().split(/\s+/);
@@ -115,9 +114,10 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     const shippingPostalCode = data.shipping_same_as_billing ? data.billing_postal_code : (data.shipping_postal_code ?? data.billing_postal_code);
     const shippingCountry = data.shipping_same_as_billing ? data.billing_country : (data.shipping_country ?? data.billing_country);
 
-    // Create the order via accessor (handles items, stock decrement, cart clear)
+    // Create the order via accessor (handles items, stock decrement, cart clear).
+    // createOrder generates its own order_number (transactional, with UNIQUE retry).
     const order = await createOrder(db, {
-      order_number: orderNumber,
+      order_number: null,
       user_id: cart.user_id ?? null,
       customer_type: data.customer_type,
       customer_email: data.customer_email,
@@ -178,7 +178,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
 
     return new Response(JSON.stringify({
       success: true,
-      data: { order_id: order.id, order_number: orderNumber, totals, payment_providers: ['stripe', 'euplatesc'] },
+      data: { order_id: order.id, order_number: order.order_number, totals, payment_providers: ['stripe', 'euplatesc'] },
     }), { status: 201, headers });
   } catch (err: any) {
     return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {

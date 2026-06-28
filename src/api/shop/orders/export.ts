@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { db } from 'astro:db';
 import { listOrders } from '../../../lib/data/orders';
+import { escapeCsvCell } from '../../../lib/csv';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
 export const GET: APIRoute = (context) =>
@@ -22,11 +23,19 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       sort: 'created_at', dir: 'desc',
     });
 
-    // Build CSV
+    // Build CSV — every cell is escaped (RFC 4180 + formula-injection defense).
     const headers_csv = ['order_number', 'status', 'customer_name', 'customer_email', 'total', 'currency', 'created_at'];
     const lines = [headers_csv.join(',')];
     for (const o of result.orders) {
-      lines.push([o.order_number, o.status, `"${o.customer_name}"`, o.customer_email, o.total, o.currency, o.created_at?.toISOString()].join(','));
+      lines.push([
+        escapeCsvCell(o.order_number),
+        escapeCsvCell(o.status),
+        escapeCsvCell(o.customer_name),
+        escapeCsvCell(o.customer_email),
+        escapeCsvCell(o.total),
+        escapeCsvCell(o.currency),
+        escapeCsvCell(o.created_at?.toISOString()),
+      ].join(','));
     }
 
     return new Response(lines.join('\n'), {
@@ -34,7 +43,12 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       headers: { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="orders.csv"' },
     });
   } catch (err: any) {
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status, headers: { 'Content-Type': 'application/json' } });
+    // r17 Task 11: a CSV client always gets CSV — return text/csv with a single
+    // error row rather than a JSON body on the error path.
+    const msg = escapeCsvCell(err?.message || 'Server Error');
+    return new Response(`error\n${msg}`, {
+      status: err?.status ?? 500,
+      headers: { 'Content-Type': 'text/csv' },
+    });
   }
 }

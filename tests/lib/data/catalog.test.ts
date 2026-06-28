@@ -121,9 +121,9 @@ test('listProductImages returns images for a product ordered by sort_order', asy
   try {
     const f = await seedMinimal(db);
     // Insert images
-    await insertFixture(db, 'product_images', { id: 'img-1', product_id: f.simpleProductId, variant_id: null, url: '/img1.jpg', alt: 'Img 1', sort_order: 2 });
-    await insertFixture(db, 'product_images', { id: 'img-2', product_id: f.simpleProductId, variant_id: null, url: '/img2.jpg', alt: 'Img 2', sort_order: 1 });
-    const images = await listProductImage(db, f.simpleProductId);
+    await insertFixture(db, 'product_images', { id: 'img-1', product_id: f.simpleProductId, variant_id: null, url: '/img1.jpg', alt: 'Img 1', sort_order: 2, mime: 'image/jpeg', size: 100, width: null, height: null, original_filename: 'img1.jpg' });
+    await insertFixture(db, 'product_images', { id: 'img-2', product_id: f.simpleProductId, variant_id: null, url: '/img2.jpg', alt: 'Img 2', sort_order: 1, mime: 'image/jpeg', size: 100, width: null, height: null, original_filename: 'img2.jpg' });
+    const images = await listProductImage(db, { storage: { getUrl: (k: string) => k } }, f.simpleProductId);
     assert.strictEqual(images.length, 2);
     assert.strictEqual(images[0].sort_order, 1, 'first image must have lower sort_order');
   } finally {
@@ -135,7 +135,7 @@ test('listProductImages on a product with no images returns []', async () => {
   const { db, cleanup } = await createTestDb();
   try {
     const f = await seedMinimal(db);
-    const images = await listProductImage(db, f.simpleProductId);
+    const images = await listProductImage(db, { storage: { getUrl: (k: string) => k } }, f.simpleProductId);
     assert.strictEqual(images.length, 0);
   } finally {
     await cleanup();

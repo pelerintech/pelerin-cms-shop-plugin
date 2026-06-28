@@ -5,10 +5,11 @@ import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import {
   db, eq,
-  products, categories, translations, product_prices, product_images,
+  products, categories, translations, product_prices,
   sql as dbSql,
   shop_settings,
 } from 'astro:db';
+import { listProductImage } from '../../../lib/data/products';
 import Breadcrumbs from '../../../components/admin/Breadcrumbs.astro';
 import TextField from '../../../components/admin/TextField.astro';
 import SelectField from '../../../components/admin/SelectField.astro';
@@ -39,10 +40,8 @@ const priceRows = await db.select().from(product_prices).where(
   dbSql`${product_prices.product_id} = ${id}`
 );
 
-// Fetch images
-const imageRows = await db.select().from(product_images)
-  .where(eq(product_images.product_id, id))
-  .orderBy(product_images.sort_order);
+// Fetch images (through the accessor so storage keys are resolved to URLs — design D8)
+const imageRows = await listProductImage(db, sdk, id);
 
 // Fetch locales from settings
 const localesResult = await db.run(

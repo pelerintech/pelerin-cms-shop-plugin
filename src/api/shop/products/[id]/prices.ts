@@ -39,8 +39,21 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
   try {
     await sdk.auth.requireAdmin(ctx.request);
     const body = await ctx.request.json();
-    await upsertPrice(db, { product_id: ctx.params.id!, variant_id: body.variant_id ?? null, currency: body.currency, price_net: body.price_net });
-    return new Response(JSON.stringify({ success: true, data: body }), { status: 201, headers: { 'Content-Type': 'application/json' } });
+    // A variant-level price has product_id = null (variant_id set); a product-level
+    // price has product_id = the path param (variant_id null). CreatePriceSchema's
+    // superRefine enforces exactly-one-of — so we set product_id = null when a
+    // variant_id is provided.
+    const parsed = CreatePriceSchema.safeParse({
+      product_id: body.variant_id ? null : ctx.params.id!,
+      variant_id: body.variant_id ?? null,
+      currency: body.currency,
+      price_net: body.price_net,
+    });
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ success: false, error: 'Validation failed', fields: Object.fromEntries(parsed.error.issues.map(i => [i.path.join('.'), i.message])) }), { status: 422, headers: { 'Content-Type': 'application/json' } });
+    }
+    await upsertPrice(db, { product_id: parsed.data.product_id, variant_id: parsed.data.variant_id ?? null, currency: parsed.data.currency, price_net: parsed.data.price_net });
+    return new Response(JSON.stringify({ success: true, data: parsed.data }), { status: 201, headers: { 'Content-Type': 'application/json' } });
   } catch (err: any) {
     return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status: err.status ?? 500, headers: { 'Content-Type': 'application/json' } });
   }
