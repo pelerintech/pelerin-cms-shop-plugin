@@ -97,6 +97,7 @@ export async function listProducts(
 
 export interface ProductWithPrices extends ProductListRow {
   prices: { currency: string; price_net: number; price_gross: number }[];
+  variants: { id: string; sku: string | null; stock: number | null; active: boolean; prices: { currency: string; price_net: number }[] }[];
 }
 
 export async function getProductWithPrices(
@@ -129,10 +130,34 @@ export async function getProductWithPrices(
       price_gross: Math.round(p.price_net * (1 + (product.vat_rate ?? 0)) * 100) / 100,
     }));
 
+  // Fetch variants and their prices
+  const variantRows = await db.select().from(product_variants).where(eq(product_variants.product_id, productId));
+  const variantIds = variantRows.map(v => v.id);
+  const variantPrices = variantIds.length > 0
+    ? await db.select().from(product_prices).where(inArray(product_prices.variant_id, variantIds))
+    : [];
+  const variantById = new Map<string, typeof variantPrices>();
+  for (const vp of variantPrices) {
+    if (!variantById.has(vp.variant_id)) {
+      variantById.set(vp.variant_id, []);
+    }
+    variantById.get(vp.variant_id)!.push(vp);
+  }
+  const variants = variantRows.map(v => ({
+    id: v.id,
+    sku: v.sku,
+    stock: v.stock,
+    active: v.active,
+    prices: (variantById.get(v.id) ?? []).map(vp => ({
+      currency: vp.currency,
+      price_net: vp.price_net,
+    })),
+  }));
+
   // Derive has_variants from actual variant rows (ignore the DB column).
   await applyDerivedHasVariants(db, [product]);
 
-  return { ...product, name, description, slug, prices: enrichedPrices } as ProductWithPrices;
+  return { ...product, name, description, slug, prices: enrichedPrices, variants } as ProductWithPrices;
 }
 
 export async function getProductById(

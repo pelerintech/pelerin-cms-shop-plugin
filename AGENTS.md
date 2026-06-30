@@ -76,34 +76,28 @@ Every plugin **must** have this file at its root. It is the contract the CMS rea
 
 ---
 
-## 4. Database (`src/db/config.ts` & `src/db/seed.ts`)
+## 4. Database (`src/db/schema.ts`)
 
-### config.ts
+### schema.ts
 
-Use Astro DB (`astro:db`) to define tables. These tables are **merged** into the CMS database at build time.
+Use **pure Drizzle** (`drizzle-orm`) to define tables. This is the **sole schema definition** — `src/db/config.ts` (astro:db) was deleted in r19. Tables are registered with the CMS via the plugin manifest's `dbConfig` pointing to the CMS's own DB setup.
 
 ```ts
-import { defineDb, defineTable, column } from 'astro:db';
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
-const products = defineTable({
-  columns: {
-    id: column.text({ primaryKey: true }),
-    name: column.text(),
-    // ...
-  },
-});
-
-export { products };
-
-export default defineDb({
-  tables: { products },
+export const products = sqliteTable('products', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  // ...
 });
 ```
+
+All accessor functions in `src/lib/data/` import table objects from `src/db/schema.ts`.
 
 ### seed.ts
 
 Follow the **dummy plugin seed pattern**:
-- Run on every local dev start (`astro:db seedEntrypoint`)
+- Run on every local dev start
 - **Always clear plugin tables first** (FK order — child tables before parents)
 - Re-insert fixture data so the dev environment is predictable
 - Handle missing CMS data gracefully (e.g., if a collection doesn't exist yet, log and return)
@@ -119,6 +113,8 @@ export default async function seed() {
   // ... insert fixtures
 }
 ```
+
+> **Note:** `seed.ts` still uses `astro:db` because it runs as an Astro hook. This is the **only** file allowed to import `astro:db`. All other code uses `sdk.db` (pages) or injected `db` (accessors).
 
 ---
 
@@ -173,7 +169,12 @@ Return JSON with `{ success, data }` or `{ success: false, error }` shape for co
 
 ## 6.5 Data access layer (`src/lib/data/`) — mandatory pattern
 
-**All database access must live in `src/lib/data/` as pure functions that receive `db` as an injected parameter.** API endpoints, pages, and lib modules must NOT write queries inline — they call accessor functions and pass the `db` handle (obtained via `import { db } from 'astro:db'` at the call site only).
+**All database access must live in `src/lib/data/` as pure functions that receive `db` as an injected parameter.** API endpoints, pages, and lib modules must NOT write queries inline — they call accessor functions and pass the `db` handle.
+
+**How `db` is obtained at the call site:**
+- **Admin pages**: `sdk.db` from `createPluginContext()` (see §5)
+- **API endpoints**: injected `db` parameter via `runMethod({ db, sdk, ctx })` pattern (see §2)
+- **Providers**: injected `db` parameter (see payment provider interface)
 
 ```ts
 // src/lib/data/attributes.ts — the accessor
@@ -185,17 +186,19 @@ export async function listAttributes(db: LibSQLDatabase, locale: string) {
   return db.select().from(product_attributes).orderBy(product_attributes.sort_order);
 }
 
-// src/api/shop/attributes/index.ts — the endpoint
-import { db } from 'astro:db';
+// src/pages/admin/attributes/index.astro — the page
+import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listAttributes } from '../../../lib/data/attributes';
 
-const data = await listAttributes(db, locale);
+const sdk = createPluginContext();
+const data = await listAttributes(sdk.db, 'ro');
 ```
 
 **Rules:**
-- Table objects are imported from `src/db/schema.ts` (pure Drizzle), NOT from `astro:db`. The `src/db/schema.ts` file mirrors `src/db/config.ts` (astro:db); a parity test guards drift.
-- Use `inArray()` for IN clauses — NEVER `sql.join()` (produces `near "?": syntax error` in this Drizzle/libsql version).
-- Endpoints may import `db` from `astro:db` ONLY to pass to accessors — never to call `.select()`, `.insert()`, `.update()`, or `.run(sql\`...\`)` directly.
+- Table objects are imported from `src/db/schema.ts` (pure Drizzle). This is the **sole schema definition** — no `astro:db` imports outside `seed.ts`.
+- Use `inArray()` for IN clauses — NEVER `sql.raw()` with positional placeholders (produces `near "?": syntax error` in this Drizzle/libsql version).
+- **No file** other than `seed.ts` may import from `astro:db`.
+- Every new or changed data-access function must have tests in `tests/lib/data/` (see §14).
 
 **Every new or changed data-access function must have tests** in `tests/lib/data/` against the real-SQLite test harness (`tests/db/harness.ts`) — at minimum a smoke test (query executes on populated and empty data, returns expected shape). Critical flows (attributes/variants, cart/checkout, orders) require deep row-level tests.
 
@@ -219,7 +222,7 @@ const sdk = createPluginContext();
 |-----------|---------|---------|
 | `sdk.auth` | `getUser(req)`, `requireAdmin(req)`, `withAuth(req, handler)` | Authentication & authorization |
 | `sdk.collections` | `listCollections()`, `listItems(coll, opts)`, `getItem(coll, id)`, `getItemById(id)`, `createItem(coll, data)`, `updateItem(coll, id, data)`, `deleteItem(coll, id)`, `findByName(coll, name)` | CMS collections CRUD |
-| `sdk.db` | Raw `db` export from `astro:db` | Direct DB access when needed |
+| `sdk.db` | Drizzle `LibSQLDatabase` instance | Passed to accessor functions (never queried directly in pages) |
 | `sdk.storage` | `upload(file)`, `delete(path)`, `getUrl(path)` | File upload (local or S3) |
 | `sdk.webhooks` | `trigger(event, payload)` | Fire CMS webhooks |
 
@@ -237,7 +240,7 @@ The dummy plugin at `../pelerin_cms/dev-plugins/dummy/` is the reference impleme
 1. **Manifest first** — every route, page, and API must be declared in `pelerin.manifest.json`
 2. **DB schema isolation** — plugin tables are defined in the plugin, not in the CMS core
 3. **Seed guards** — check for CMS data existence before seeding; don't crash if collections are missing
-4. **Raw SQL for cross-table reads** — when joining against CMS `collectionItems`, use `db.run(sql'...')` (see dummy's `enquire.astro`)
+4. **Accessors for all DB reads** — never write inline queries in pages or endpoints. Create a dedicated accessor in `src/lib/data/` for each distinct query pattern. Use `inArray()` for IN clauses, never `sql.raw()` with positional placeholders.
 5. **Admin layout wrapping** — all admin pages use `pelerin:admin-layout` with `requireAdmin`
 6. **Consistent JSON responses** — APIs return `{ success: boolean, ... }`
 7. **Route namespacing** — prefix everything with `/admin/plugins/shop` and `/api/plugins/shop` to avoid collisions
@@ -274,8 +277,19 @@ pelerin_ro_shop/
 ├── package.json                # Peer deps + plugin deps
 ├── src/
 │   ├── db/
-│   │   ├── config.ts           # Astro DB table definitions
-│   │   └── seed.ts             # Dev fixture data
+│   │   ├── schema.ts           # Pure Drizzle table definitions (sole schema)
+│   │   └── seed.ts             # Dev fixture data (only file allowed to import astro:db)
+│   ├── lib/
+│   │   └── data/               # All database accessors (tested in tests/lib/data/)
+│   │       ├── attributes.ts
+│   │       ├── attribute-options.ts
+│   │       ├── attribute-assignments.ts
+│   │       ├── cart.ts
+│   │       ├── orders.ts
+│   │       ├── products.ts
+│   │       ├── referrals.ts
+│   │       ├── settings.ts
+│   │       └── vouchers.ts
 │   ├── pages/
 │   │   ├── shop/
 │   │   │   └── index.astro     # Public shop page(s)
@@ -290,16 +304,16 @@ pelerin_ro_shop/
 
 ---
 
-## 11. Open architectural decisions (TBD)
+## 11. Resolved architectural decisions
 
-These will be resolved in upcoming requests. Do not guess — wait for the plan.
+All major architectural decisions have been resolved. See `reespec/decisions.md` for the full log. Key decisions:
 
-- **Products & categories**: CMS collection items vs. dedicated Astro DB tables?
-- **Cart state**: server-side session, client-side localStorage, or hybrid?
-- **Checkout flow**: single-page or multi-step?
-- **Payments**: which provider and how are webhooks handled?
-- **Orders**: table schema, status machine, admin workflow?
-- **Inventory**: simple stock count or with reservations/variants?
+- **Schema**: `src/db/schema.ts` (pure Drizzle) is the sole schema definition. `src/db/config.ts` (astro:db) was deleted in r19.
+- **Data access**: All DB queries go through accessors in `src/lib/data/`. No inline queries in pages or endpoints.
+- **Cart state**: Server-side via `carts` table, linked by session or user ID.
+- **Payments**: Stripe + ePaylesc providers, pluggable via `src/providers/payment/` interface.
+- **Orders**: Full status machine (`order-transitions.ts`), transactional creation, refund support.
+- **Inventory**: Stock count on products and variants, decremented on order creation, restocked on refund.
 
 ---
 
@@ -325,7 +339,7 @@ When implementing a feature:
 
 1. **Design** the DB tables, routes, and APIs in the request's plan
 2. **Update** `pelerin.manifest.json` if new routes or endpoints are added
-3. **Implement** in `src/db/config.ts`, `src/pages/`, `src/api/`
+3. **Implement** in `src/db/schema.ts` (new tables), `src/lib/data/` (new accessors + tests), `src/pages/`, `src/api/`
 4. **Test** by running the CMS with the plugin installed (`npm run plugins:install && npm run dev` from CMS root)
 5. **Seed** data for predictable local dev (update `src/db/seed.ts`)
 
@@ -350,7 +364,7 @@ Tiers 1–3 are aggregated by **`tests/full-suite.test.ts`** (see below). Tier 4
 
 ### Tier 1 — Data accessors (`tests/lib/data/`)
 
-Every database accessor in `src/lib/data/` is tested against a real in-memory SQLite database provisioned by `tests/db/harness.ts`. The harness mirrors `src/db/config.ts` and seeds predictable fixtures. Accessors receive `db: LibSQLDatabase` as an injected parameter (per §6.5), so tests pass the harness `db` directly — no `astro:db` import, no Astro build, no server.
+Every database accessor in `src/lib/data/` is tested against a real in-memory SQLite database provisioned by `tests/db/harness.ts`. The harness creates all tables from `src/db/schema.ts` and seeds predictable fixtures. Accessors receive `db: LibSQLDatabase` as an injected parameter (per §6.5), so tests pass the harness `db` directly — no `astro:db` import, no Astro build, no server.
 
 ```bash
 node --test tests/lib/data/variants.test.ts        # one file
@@ -360,7 +374,7 @@ node --test tests/lib/data/variants.test.ts        # one file
 
 ### Tier 2 — API handlers (`tests/api/handlers/`)
 
-API handlers (`src/api/shop/**`) are split into a thin `export const METHOD: APIRoute` wrapper (imports `astro:db` + `pelerin:plugin-sdk`, not unit-tested) and an injected `runMethod({ db, sdk, ctx })` core that is unit-tested. Tests inject the harness `db`, a fake `sdk` (whose `auth.requireAdmin` can throw on demand), and a fake `ctx`. A static loader (`tests/stubs/loader.mjs`) makes the handler files importable under bare Node by resolving `astro:`/`pelerin:` specifiers to inert stubs — these stubs are **never exercised**; all behavior comes from injection.
+API handlers (`src/api/shop/**`) are split into a thin `export const METHOD: APIRoute` wrapper (imports `pelerin:plugin-sdk`, not unit-tested) and an injected `runMethod({ db, sdk, ctx })` core that is unit-tested. Tests inject the harness `db`, a fake `sdk` (whose `auth.requireAdmin` can throw on demand), and a fake `ctx`. A static loader (`tests/stubs/loader.mjs`) makes the handler files importable under bare Node by resolving `pelerin:` specifiers to inert stubs — these stubs are **never exercised**; all behavior comes from injection.
 
 ```bash
 node --test tests/api/handlers/products/id/variants/variantId.test.ts
@@ -370,7 +384,7 @@ node --test tests/api/handlers/products/id/variants/variantId.test.ts
 
 - **Pure client logic** (e.g. `tests/lib/variant-matrix.test.ts`) — the Cartesian-product / SKU-generation / exists-diff logic extracted from inline `<script>` into `src/lib/variant-matrix.ts`, tested as plain TS under `node --test`. No DOM, no browser.
 - **Client `<script>` syntax guard** (`tests/pages/admin-products-script-syntax.test.ts`) — extracts the client `<script>` from an admin `.astro` page and transforms it with **esbuild** (a transitive Vite/Astro dep at `node_modules/esbuild`) to catch parse-time errors (duplicate `const`, unbalanced braces) that `readFileSync + assert.match` page tests cannot detect. **When you add or edit a client `<script>` in any admin `.astro` page, add an analogous esbuild-syntax guard** rather than relying on source-string regex.
-- **Schema parity / seed structure** (`tests/db/`) — `src/db/schema.ts` (pure Drizzle) must mirror `src/db/config.ts` (astro:db); `tests/db/schema-parity.test.ts` guards drift. Seed files can't be imported under bare Node (`astro:db`), so seed tests assert on the source text.
+- **Schema integrity** (`tests/db/`) — `src/db/schema.ts` (pure Drizzle) is the sole schema definition; `tests/db/schema-integrity.test.ts` verifies all tables are creatable and columns match expectations. Seed files can't be imported under bare Node (`astro:db`), so seed tests assert on the source text.
 - **Static UI structure** (`tests/pages/*.test.ts`) — honest checks of imports, element ids, CSS classes, breadcrumbs. These are NOT behavioral tests; runtime UI behavior is covered by Tier 4 (Playwright). Never treat a passing `readFileSync + assert.match` test as proof a page *works* — it only proves the source contains a string.
 
 ```bash

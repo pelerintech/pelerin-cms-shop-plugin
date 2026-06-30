@@ -72,7 +72,7 @@ const parentOptions = allCats.map(c => ({ value: c.id, label: c.name }));
     });
     const result = await res.json();
     if (result.success) {
-      window.location.href = `/admin/plugins/shop/categories/${result.data.id}`;
+      window.location.href = '/admin/plugins/shop/categories';
     } else {
       const err = document.getElementById('form-error')!;
       err.textContent = result.error || 'Failed to create category';

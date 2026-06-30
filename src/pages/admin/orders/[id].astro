@@ -15,17 +15,21 @@ const orderId = Astro.params.id;
   </div>
 </AdminLayout>
 
-<script>
-  const orderId = Astro.params.id;
+<script define:vars={{ orderId: Astro.params.id }}>
+  var CODE_ID = orderId;
 
   async function loadOrder() {
-    const res = await fetch(`/api/plugins/shop/orders/${orderId}`);
-    const json = await res.json();
-    if (!json.success) {
-      document.getElementById('order-detail').innerHTML = '<div class="text-center py-8 text-error">Order not found</div>';
-      return;
+    try {
+      var res = await fetch('/api/plugins/shop/orders/' + orderId);
+      var json = await res.json();
+      if (json.success) {
+        renderOrder(json.data);
+      } else {
+        document.getElementById('order-detail').innerHTML = '<div class="text-center py-8 text-error">Order not found</div>';
+      }
+    } catch (err) {
+      document.getElementById('order-detail').innerHTML = '<div class="text-center py-8 text-error">Failed to load order: ' + (err.message || 'unknown error') + '</div>';
     }
-    renderOrder(json.data);
   }
 
   function renderOrder(order) {
@@ -70,12 +74,30 @@ const orderId = Astro.params.id;
       '<p class="text-sm text-gray-500">Created: ' + new Date(order.created_at).toLocaleString() + '</p></div>' +
       '<div class="flex items-center gap-3"><span class="badge ' + (statusColors[order.status] || 'badge-ghost') + ' text-lg px-3 py-2">' + order.status + '</span>' +
       (isTerminal ? '' : '<div class="flex gap-2">' +
-        (nextStatuses.length > 0 ? '<div class="dropdown dropdown-end"><button class="btn btn-sm btn-outline">Change Status</button><ul class="dropdown-content menu bg-base-200 rounded-box w-52 p-2 shadow">' +
-          nextStatuses.map(function(s) { return '<li><a href="#" onclick="changeStatus(\'' + s + '\')">' + s + '</a></li>'; }).join('') +
-        '</ul></div>' : '') +
+        (nextStatuses.length > 0 ? '<button class="btn btn-sm btn-outline" onclick="openStatusModal()">Change Status</button>' : '') +
         (isCancellable ? '<button class="btn btn-sm btn-error btn-outline" onclick="cancelOrder()">Cancel</button>' : '') +
         (!isTerminal && order.status !== 'cancelled' ? '<button class="btn btn-sm btn-outline" onclick="showRefund()">Record Refund</button>' : '') +
       '</div>') +
+      // Status change modal
+      '<div id="status-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">' +
+        '<div class="bg-base-100 rounded-lg p-6 w-full max-w-md shadow-xl">' +
+          '<h3 class="text-lg font-bold mb-4">Change Status</h3>' +
+          '<div class="form-control mb-4">' +
+            '<label class="label"><span class="label-text">New Status</span></label>' +
+            '<select id="status-select" class="select select-bordered">' +
+              nextStatuses.map(function(s) { return '<option value="' + s + '">' + s.replace(/_/g, ' ') + '</option>'; }).join('') +
+            '</select>' +
+          '</div>' +
+          '<div class="form-control mb-4">' +
+            '<label class="label"><span class="label-text">Note (optional)</span></label>' +
+            '<textarea id="status-note" class="textarea textarea-bordered" rows="2" placeholder="Add a note..."></textarea>' +
+          '</div>' +
+          '<div class="flex justify-end gap-2">' +
+            '<button class="btn btn-ghost" onclick="closeStatusModal()">Cancel</button>' +
+            '<button class="btn btn-primary" onclick="confirmStatusChange()">Confirm</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
       '</div></div>';
 
     // Determine if shipping address should be shown (not digital-only orders)
@@ -134,11 +156,23 @@ const orderId = Astro.params.id;
     document.getElementById('order-detail').innerHTML = html;
   }
 
-  window.changeStatus = async function(newStatus) {
-    var note = prompt('Note (optional):');
-    var res = await fetch('/api/plugins/shop/orders/' + orderId + '/status', {
+  window.openStatusModal = function() {
+    document.getElementById('status-modal').classList.remove('hidden');
+  };
+
+  window.closeStatusModal = function() {
+    document.getElementById('status-modal').classList.add('hidden');
+  };
+
+  window.confirmStatusChange = async function() {
+    var select = document.getElementById('status-select');
+    var noteEl = document.getElementById('status-note');
+    var newStatus = select.value;
+    var note = noteEl.value.trim() || null;
+    closeStatusModal();
+    var res = await fetch('/api/plugins/shop/orders/' + CODE_ID + '/status', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus, note: note || null }),
+      body: JSON.stringify({ status: newStatus, note: note }),
     });
     var json = await res.json();
     if (json.success) { loadOrder(); }
@@ -147,7 +181,7 @@ const orderId = Astro.params.id;
 
   window.cancelOrder = async function() {
     if (!confirm('Cancel this order?')) return;
-    var res = await fetch('/api/plugins/shop/orders/' + orderId + '/cancel', { method: 'PUT' });
+    var res = await fetch('/api/plugins/shop/orders/' + CODE_ID + '/cancel', { method: 'PUT' });
     var json = await res.json();
     if (json.success) { loadOrder(); }
     else { alert(json.error || 'Failed to cancel'); }
@@ -157,7 +191,7 @@ const orderId = Astro.params.id;
     var amount = prompt('Refund amount:');
     if (!amount) return;
     var notes = prompt('Notes (optional):');
-    var res = await fetch('/api/plugins/shop/orders/' + orderId + '/refund', {
+    var res = await fetch('/api/plugins/shop/orders/' + CODE_ID + '/refund', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refund_amount: parseFloat(amount), refund_notes: notes || null }),
     });

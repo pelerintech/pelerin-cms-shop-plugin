@@ -148,7 +148,7 @@ const otherLocales = shopConfig.locales.filter(l => !l.isDefault);
       const result = await res.json();
 
       if (result.success) {
-        window.location.href = `/admin/plugins/shop/products/${result.data.id}`;
+        window.location.href = '/admin/plugins/shop/products';
       } else {
         if (result.fields) {
           for (const [field, msg] of Object.entries(result.fields)) {
