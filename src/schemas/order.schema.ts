@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { OrderStatus, CustomerType, ShippingType } from './enums'
+import { OrderStatus, CustomerType, ShippingType } from './enums.ts'
 
 /**
  * Address schema — used for both billing and shipping

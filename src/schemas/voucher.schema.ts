@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { VoucherType } from './enums'
+import { VoucherType } from './enums.ts'
 
 const VoucherBaseSchema = z.object({
   code: z.string().min(1),

@@ -1,12 +1,12 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { getSetting, upsertSetting, upsertSettingTyped, getShopConfig } from '../../../lib/data/settings';
+import { getSetting, upsertSetting, upsertSettingTyped, getShopConfig, deleteSetting } from '../../../lib/data/settings';
 import { z } from 'zod';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
 const SETTINGS_KEYS = [
   'shop_name', 'order_number_prefix', 'order_number_year',
-  'order_number_padding', 'default_currency', 'default_locale',
+  'order_number_padding', 'default_currency',
 ];
 
 const GeneralSettingsSchema = z.object({
@@ -15,7 +15,6 @@ const GeneralSettingsSchema = z.object({
   order_number_year: z.boolean().optional(),
   order_number_padding: z.number().int().min(1).optional(),
   default_currency: z.string().optional(),
-  default_locale: z.string().optional(),
 });
 
 export const GET: APIRoute = (context) => { const sdk = createPluginContext(); return runGet({ db: sdk.db, sdk, ctx: context }); }
@@ -58,6 +57,9 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   for (const [key, value] of Object.entries(parsed.data)) {
     if (value !== undefined) await upsertSettingTyped(db, key, value);
   }
+
+  // Clean up old default_locale key (now derived from locales array isDefault)
+  await deleteSetting(db, 'default_locale');
 
   return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }

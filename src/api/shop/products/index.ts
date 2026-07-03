@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listProducts, createProduct } from '../../../lib/data/products';
+import { getShopConfig } from '../../../lib/data/settings';
 import { CreateProductSchema } from '../../../schemas/product.schema';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
@@ -12,10 +13,11 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
     await sdk.auth.requireAdmin(ctx.request);
     const url = new URL(ctx.request.url);
+    const config = await getShopConfig(db);
     const result = await listProducts(db, {
       page: parseInt(url.searchParams.get('page') ?? '1') || 1,
       limit: parseInt(url.searchParams.get('limit') ?? '20') || 20,
-      locale: url.searchParams.get('locale') || 'ro',
+      locale: url.searchParams.get('locale') || config.defaultLocale,
       category_id: url.searchParams.get('category_id') ?? undefined,
       active: url.searchParams.get('active') !== null ? url.searchParams.get('active') === 'true' : undefined,
       search: url.searchParams.get('search') ?? undefined,

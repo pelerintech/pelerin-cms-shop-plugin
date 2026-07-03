@@ -394,7 +394,7 @@ node --test tests/pages/admin-products-script-syntax.test.ts
 
 ### The `tests/full-suite.test.ts` wrapper (Tiers 1–3)
 
-A single test that spawns `node --test <all TIER 1–3 files>` as a child process and asserts success plus `testCount >= 500` (guards against silent false greens — if a regression makes the child skip every file, the count assertion fails loudly). When you add a new Tier 1–3 test file, **add its path to the `TEST_FILES` array** or it won't be part of the canonical suite.
+A single test that spawns `node --test <all TIER 1–3 files>` as a child process and asserts **all tests pass** (child exits 0). If any test file fails, `execFileSync` throws and the wrapper fails loudly with the child's output. When you add a new Tier 1–3 test file, **add its path to the `TEST_FILES` array** or it won't be part of the canonical suite.
 
 ```bash
 node --test tests/full-suite.test.ts        # all unit/accessor/handler/syntax tests

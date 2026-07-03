@@ -8,6 +8,7 @@ import {
   products, categories, product_prices, product_images, translations, product_variants,
   product_attribute_assignments, product_attribute_values, cart_items,
 } from '../../db/schema.ts';
+import { getShopConfig } from './settings.ts';
 
 // ── Products ──
 
@@ -49,7 +50,8 @@ export async function listProducts(
 ): Promise<ListProductsResult> {
   const page = Math.max(1, opts.page ?? 1);
   const limit = Math.min(100, Math.max(1, opts.limit ?? 20));
-  const locale = opts.locale ?? 'ro';
+  const config = await getShopConfig(db);
+  const locale = opts.locale ?? config.defaultLocale;
 
   // Build WHERE in SQL (r17 Task 9) — no full-table load.
   const conditions: any[] = [];
@@ -77,7 +79,7 @@ export async function listProducts(
   // column (a vestige — set false on create, overridden at read).
   await applyDerivedHasVariants(db, paged);
 
-  if (productIds.length > 0 && locale !== 'ro') {
+  if (productIds.length > 0 && locale !== config.defaultLocale) {
     const transRows = await db.select().from(translations).where(inArray(translations.entity_id, productIds));
     const transMap = new Map(
       transRows.filter(t => t.entity_type === 'product' && t.locale === locale).map(t => [t.entity_id, t]),
@@ -111,7 +113,8 @@ export async function getProductWithPrices(
   let name = product.name;
   let description = product.description;
   let slug = product.slug;
-  if (locale !== 'ro') {
+  const productConfig = await getShopConfig(db);
+  if (locale !== productConfig.defaultLocale) {
     const transRows = await db.select().from(translations).where(inArray(translations.entity_id, [productId]));
     const t = transRows.find(t => t.entity_type === 'product' && t.locale === locale);
     if (t) {
@@ -265,6 +268,51 @@ export async function updateProduct(db: LibSQLDatabase, id: string, input: Updat
   await db.update(products).set(updateData).where(eq(products.id, id));
 }
 
+/**
+ * Update a product and upsert translations for any per-locale fields found in
+ * the raw request body.
+ *
+ * Only processes fields matching `name_{code}`, `slug_{code}`, `description_{code}`
+ * where `code` is in `knownLocaleCodes` — avoids colliding with custom fields
+ * like `name_special` that share the prefix but are not locale codes.
+ * Translations for the default locale are never upserted (those live on the
+ * products table directly).
+ */
+export async function updateProductWithTranslations(
+  db: LibSQLDatabase,
+  id: string,
+  productInput: UpdateProductInput,
+  rawBody: Record<string, any>,
+  knownLocaleCodes: Set<string>,
+): Promise<void> {
+  await updateProduct(db, id, productInput);
+
+  const translationFields = ['name', 'slug', 'description'];
+  const localeData: Record<string, { name?: string | null; slug?: string | null; description?: string | null }> = {};
+
+  for (const [key, value] of Object.entries(rawBody)) {
+    for (const field of translationFields) {
+      const suffix = key.slice(field.length + 1); // e.g. "name_en" -> "en"
+      if (key === `${field}_${suffix}` && knownLocaleCodes.has(suffix)) {
+        if (!localeData[suffix]) localeData[suffix] = {};
+        localeData[suffix][field] = value || null;
+      }
+    }
+  }
+
+  for (const [locale, data] of Object.entries(localeData)) {
+    await upsertTranslation(db, {
+      entity_type: 'product',
+      entity_id: id,
+      locale,
+      name: data.name ?? null,
+      description: data.description ?? null,
+      slug: data.slug ?? null,
+      label: null,
+    });
+  }
+}
+
 export async function deleteProduct(db: LibSQLDatabase, id: string): Promise<void> {
   // Transactional cascade (r17 Task 7). Deletes all child rows in FK-safe order,
   // mirroring deleteVariant at product scope. order_items are snapshots and are
@@ -330,10 +378,11 @@ export interface CategoryRow {
 }
 
 export async function listCategories(db: LibSQLDatabase, locale: string): Promise<CategoryRow[]> {
+  const config = await getShopConfig(db);
   let rows = await db.select().from(categories);
   rows.sort((a, b) => (a.sort_order < b.sort_order ? -1 : 1));
 
-  if (locale !== 'ro') {
+  if (locale !== config.defaultLocale) {
     const ids = rows.map(r => r.id);
     if (ids.length > 0) {
       const transRows = await db.select().from(translations).where(inArray(translations.entity_id, ids));
@@ -378,6 +427,51 @@ export async function createCategory(db: LibSQLDatabase, input: { parent_id?: st
 
 export async function updateCategory(db: LibSQLDatabase, id: string, input: Record<string, any>): Promise<void> {
   await db.update(categories).set({ ...input, updated_at: new Date() }).where(eq(categories.id, id));
+}
+
+/**
+ * Update a category and upsert translations for any per-locale fields found in
+ * the raw request body.
+ *
+ * Only processes fields matching `name_{code}`, `slug_{code}`, `description_{code}`
+ * where `code` is in `knownLocaleCodes` — avoids colliding with custom fields
+ * like `name_special` that share the prefix but are not locale codes.
+ * Translations for the default locale are never upserted (those live on the
+ * categories table directly).
+ */
+export async function updateCategoryWithTranslations(
+  db: LibSQLDatabase,
+  id: string,
+  categoryInput: Record<string, any>,
+  rawBody: Record<string, any>,
+  knownLocaleCodes: Set<string>,
+): Promise<void> {
+  await updateCategory(db, id, categoryInput);
+
+  const translationFields = ['name', 'slug', 'description'];
+  const localeData: Record<string, { name?: string | null; slug?: string | null; description?: string | null }> = {};
+
+  for (const [key, value] of Object.entries(rawBody)) {
+    for (const field of translationFields) {
+      const suffix = key.slice(field.length + 1); // e.g. "name_ro" -> "ro"
+      if (key === `${field}_${suffix}` && knownLocaleCodes.has(suffix)) {
+        if (!localeData[suffix]) localeData[suffix] = {};
+        localeData[suffix][field] = value || null;
+      }
+    }
+  }
+
+  for (const [locale, data] of Object.entries(localeData)) {
+    await upsertTranslation(db, {
+      entity_type: 'category',
+      entity_id: id,
+      locale,
+      name: data.name ?? null,
+      description: data.description ?? null,
+      slug: data.slug ?? null,
+      label: null,
+    });
+  }
 }
 
 export class CategoryError extends Error {

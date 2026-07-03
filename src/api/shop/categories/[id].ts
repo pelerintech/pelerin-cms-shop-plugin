@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { getCategoryById, updateCategory, deleteCategory } from '../../../lib/data/products';
+import { getCategoryById, updateCategory, updateCategoryWithTranslations, deleteCategory } from '../../../lib/data/products';
+import { getShopConfig } from '../../../lib/data/settings';
 import { UpdateCategorySchema } from '../../../schemas/category.schema';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
@@ -30,7 +31,9 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     if (!parsed.success) {
       return new Response(JSON.stringify({ success: false, error: 'Validation failed', fields: Object.fromEntries(parsed.error.issues.map(i => [i.path.join('.'), i.message])) }), { status: 422, headers: { 'Content-Type': 'application/json' } });
     }
-    await updateCategory(db, ctx.params.id!, parsed.data);
+    const config = await getShopConfig(db);
+    const knownLocaleCodes = new Set(config.locales.filter(l => !l.isDefault).map(l => l.code));
+    await updateCategoryWithTranslations(db, ctx.params.id!, parsed.data, body, knownLocaleCodes);
     return new Response(JSON.stringify({ success: true, data: { id: ctx.params.id, ...parsed.data } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (err: any) {
     const status = err.status ?? 500;

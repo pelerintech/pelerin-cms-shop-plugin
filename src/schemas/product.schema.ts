@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ProductType, OptionValueType } from './enums'
+import { ProductType, OptionValueType } from './enums.ts'
 
 /**
  * Schema for creating a global product attribute

@@ -18,6 +18,7 @@ import {
   product_attribute_assignments,
   translations,
 } from '../../db/schema.ts';
+import { getShopConfig } from './settings.ts';
 
 export interface AttributeRow {
   id: string;
@@ -100,8 +101,9 @@ export async function getAttribute(
   const [attr] = await db.select().from(product_attributes).where(eq(product_attributes.id, id));
   if (!attr) return null;
 
+  const config = await getShopConfig(db);
   let name = attr.name;
-  if (locale !== 'ro') {
+  if (locale !== config.defaultLocale) {
     const transRows = await db
       .select()
       .from(translations)

@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { CreateAttributeOptionSchema } from '../../../../../schemas/product.schema';
 import { listOptions, createOption, OptionError } from '../../../../../lib/data/attribute-options';
+import { getShopConfig } from '../../../../../lib/data/settings';
 import type { HandlerDeps } from '../../../../../lib/handler-types';
 
 export const GET: APIRoute = (context) => { const sdk = createPluginContext(); return runGet({ db: sdk.db, sdk, ctx: context }); }
@@ -14,7 +15,8 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
 
     const attributeId = ctx.params.id!;
     const url = new URL(ctx.request.url);
-    const locale = url.searchParams.get('locale') || 'ro';
+    const config = await getShopConfig(db);
+    const locale = url.searchParams.get('locale') || config.defaultLocale;
 
     const enriched = await listOptions(db, attributeId, locale);
 

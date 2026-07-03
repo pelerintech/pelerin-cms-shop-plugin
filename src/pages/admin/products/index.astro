@@ -4,9 +4,13 @@
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listProducts, listCategories } from '../../../lib/data/products';
+import { getShopConfig } from '../../../lib/data/settings';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
+
+const shopConfig = await getShopConfig(sdk.db);
+const defaultLocale = shopConfig.defaultLocale;
 
 // Parse query params
 const url = new URL(Astro.request.url);
@@ -17,7 +21,7 @@ const page = parseInt(url.searchParams.get('page') || '1');
 const limit = 20;
 
 // Fetch categories for filter dropdown and name lookup
-const catList = await listCategories(sdk.db, 'ro');
+const catList = await listCategories(sdk.db, defaultLocale);
 const categoryNameMap = new Map<string, string>();
 for (const c of catList) {
   categoryNameMap.set(c.id, c.name);

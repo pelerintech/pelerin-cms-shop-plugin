@@ -118,7 +118,7 @@ const fromPage = new URL(Astro.request.url).searchParams.get('from_page') || '1'
         if (c.stats) {
           document.getElementById('stats-section').style.display = '';
           document.getElementById('stat-orders').textContent = c.stats.total_orders;
-          document.getElementById('stat-revenue').textContent = c.stats.total_revenue.toFixed(2) + ' ' + (c.stats.currency || 'RON');
+          document.getElementById('stat-revenue').textContent = c.stats.total_revenue.toFixed(2) + ' ' + (c.stats.currency || '');
         }
       } else {
         document.getElementById('form-error').classList.remove('hidden');

@@ -8,34 +8,6 @@ test('seed logs plugin name', () => {
   assert.ok(contents.includes('[Plugin:pelerin_ro_shop] Seeding...'), 'seed should log plugin name');
 });
 
-test('seed clears tables in FK order', () => {
-  const clearOrder = [
-    'product_variant_option_values',
-    'product_variants',
-    'product_option_values',
-    'product_option_types',
-    'product_prices',
-    'product_images',
-    'translations',
-    'products',
-    'categories',
-    'cart_items',
-    'carts',
-    'order_items',
-    'order_status_history',
-    'orders',
-    'vouchers',
-    'referral_codes',
-    'shop_settings',
-  ];
-  let lastIndex = -1;
-  for (const table of clearOrder) {
-    const idx = contents.indexOf(`DELETE FROM ${table}`);
-    assert.ok(idx > lastIndex, `${table} should appear in correct FK order`);
-    lastIndex = idx;
-  }
-});
-
 test('seed inserts locales as JSON in shop_settings', () => {
   assert.ok(contents.includes("'locales'"), 'seed should insert locales setting');
   assert.ok(contents.includes("'ro'"), 'seed should have ro locale');

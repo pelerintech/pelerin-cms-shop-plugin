@@ -4,6 +4,7 @@
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listCarts, getCartItemCount, getCartWithItems } from '../../../lib/data/cart';
+import { getShopConfig } from '../../../lib/data/settings';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
@@ -33,19 +34,20 @@ for (const cart of cartList) {
 }
 
 // Compute total value for each cart via accessor (enriched items include price_net + vat_rate)
+const shopConfig = await getShopConfig(sdk.db);
 const cartValues = new Map<string, string>();
 for (const cart of cartList) {
   try {
-    const enriched = await getCartWithItems(sdk.db, cart.id, 'RON');
+    const enriched = await getCartWithItems(sdk.db, cart.id, shopConfig.defaultCurrency);
     if (!enriched || enriched.items.length === 0) {
-      cartValues.set(cart.id, '0.00 RON');
+      cartValues.set(cart.id, '0.00 ' + shopConfig.defaultCurrency);
       continue;
     }
     let total = 0;
     for (const item of enriched.items) {
       total += Math.round(item.price_net * (1 + (item.vat_rate ?? 0)) * item.quantity * 100) / 100;
     }
-    cartValues.set(cart.id, total.toFixed(2) + ' RON');
+    cartValues.set(cart.id, total.toFixed(2) + ' ' + shopConfig.defaultCurrency);
   } catch {
     cartValues.set(cart.id, '—');
   }

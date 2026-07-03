@@ -15,6 +15,7 @@ import {
   product_attributes,
   translations,
 } from '../../db/schema.ts';
+import { getShopConfig } from './settings.ts';
 
 export interface CartRow {
   id: string;
@@ -170,9 +171,10 @@ export async function enrichCartItems(
     const optionIds = Array.from(new Set(variantVav.map(v => v.option_id).filter(Boolean) as string[]));
     const optionLabelsMap = new Map<string, string>();
     if (optionIds.length > 0) {
+      const config = await getShopConfig(db);
       const optTransRows = await db.select().from(translations).where(inArray(translations.entity_id, optionIds));
       for (const t of optTransRows) {
-        if (t.entity_type === 'product_attribute_option' && t.locale === 'ro' && t.label) {
+        if (t.entity_type === 'product_attribute_option' && t.locale === config.defaultLocale && t.label) {
           optionLabelsMap.set(t.entity_id, t.label);
         }
       }

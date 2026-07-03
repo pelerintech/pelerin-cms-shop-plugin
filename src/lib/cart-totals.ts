@@ -59,7 +59,7 @@ export interface CartItemInput {
  */
 export function computeCartTotals(
   items: CartItemInput[],
-  currency: string = 'RON',
+  currency: string,
   shippingCost: number = 0,
   discountAmount: number = 0
 ): CartTotals {

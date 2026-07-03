@@ -22,24 +22,88 @@ export async function getSettings(db: LibSQLDatabase): Promise<Record<string, st
   return result;
 }
 
-/** Get settings with JSON-parsed values for locales and currencies. */
+/** Locale item shape stored in shop_settings JSON blob. */
+export interface LocaleItem {
+  code: string;
+  name: string;
+  isDefault: boolean;
+}
+
+/** Currency item shape stored in shop_settings JSON blob. */
+export interface CurrencyItem {
+  code: string;
+  name: string;
+  isDefault: boolean;
+}
+
+/** Get parsed locales array. Returns empty array if not set. */
+export async function getLocales(db: LibSQLDatabase): Promise<LocaleItem[]> {
+  const raw = await getSetting(db, 'locales');
+  if (!raw) return [];
+  try {
+    const parsed: LocaleItem[] = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Get parsed currencies array. Returns empty array if not set. */
+export async function getCurrencies(db: LibSQLDatabase): Promise<CurrencyItem[]> {
+  const raw = await getSetting(db, 'currencies');
+  if (!raw) return [];
+  try {
+    const parsed: CurrencyItem[] = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Save locales array (upserts the JSON blob). */
+export async function saveLocales(db: LibSQLDatabase, locales: LocaleItem[]): Promise<void> {
+  await upsertSetting(db, 'locales', JSON.stringify(locales));
+}
+
+/** Save currencies array (upserts the JSON blob). */
+export async function saveCurrencies(db: LibSQLDatabase, currencies: CurrencyItem[]): Promise<void> {
+  await upsertSetting(db, 'currencies', JSON.stringify(currencies));
+}
+
+/**
+ * Get settings with JSON-parsed values for locales and currencies.
+ *
+ * Derives defaultLocale/defaultCurrency from the isDefault flag on each
+ * locales/currencies entry. Falls back to the old default_locale/default_currency
+ * keys for backward compatibility during migration.
+ */
 export async function getShopConfig(db: LibSQLDatabase): Promise<{
-  locales: any[];
-  currencies: any[];
+  locales: LocaleItem[];
+  currencies: CurrencyItem[];
   defaultLocale: string;
   defaultCurrency: string;
   raw: Record<string, string>;
 }> {
   const settings = await getSettings(db);
-  let locales: any[] = [];
-  let currencies: any[] = [];
+  let locales: LocaleItem[] = [];
+  let currencies: CurrencyItem[] = [];
   try { locales = JSON.parse(settings.locales || '[]'); } catch {}
   try { currencies = JSON.parse(settings.currencies || '[]'); } catch {}
+
+  // Derive default from isDefault flag; fall back to old key for backward compat.
+  // When no config exists at all, return empty string — callers should handle this.
+  const defaultLocale = locales.find(l => l.isDefault)?.code
+    || settings.default_locale
+    || '';
+  const defaultCurrency = currencies.find(c => c.isDefault)?.code
+    || settings.default_currency
+    || '';
+
   return {
     locales,
     currencies,
-    defaultLocale: locales.find(l => l.isDefault)?.code || 'ro',
-    defaultCurrency: currencies.find(c => c.isDefault)?.code || 'RON',
+    defaultLocale,
+    defaultCurrency,
     raw: settings,
   };
 }

@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { getProductWithPrices, updateProduct, deleteProduct } from '../../../lib/data/products';
+import { getProductWithPrices, updateProductWithTranslations, deleteProduct } from '../../../lib/data/products';
+import { getShopConfig } from '../../../lib/data/settings';
 import { UpdateProductSchema } from '../../../schemas/product.schema';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
@@ -14,7 +15,8 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
     await sdk.auth.requireAdmin(ctx.request);
     const url = new URL(ctx.request.url);
-    const locale = url.searchParams.get('locale') || 'ro';
+    const config = await getShopConfig(db);
+    const locale = url.searchParams.get('locale') || config.defaultLocale;
     const product = await getProductWithPrices(db, ctx.params.id!, locale);
     if (!product) return new Response(JSON.stringify({ success: false, error: 'Product not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
     return new Response(JSON.stringify({ success: true, data: product }), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -32,7 +34,9 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     if (!parsed.success) {
       return new Response(JSON.stringify({ success: false, error: 'Validation failed', fields: Object.fromEntries(parsed.error.issues.map(i => [i.path.join('.'), i.message])) }), { status: 422, headers: { 'Content-Type': 'application/json' } });
     }
-    await updateProduct(db, ctx.params.id!, parsed.data);
+    const config = await getShopConfig(db);
+    const knownLocaleCodes = new Set(config.locales.filter(l => !l.isDefault).map(l => l.code));
+    await updateProductWithTranslations(db, ctx.params.id!, parsed.data, body, knownLocaleCodes);
     return new Response(JSON.stringify({ success: true, data: { id: ctx.params.id, ...parsed.data } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (err: any) {
     const status = err.status ?? 500;

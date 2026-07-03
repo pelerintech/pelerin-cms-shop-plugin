@@ -7,6 +7,7 @@ import {
   deleteAttribute,
   AttributeUpdateConflictError,
 } from '../../../lib/data/attributes';
+import { getShopConfig } from '../../../lib/data/settings';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
 export const GET: APIRoute = (context) => { const sdk = createPluginContext(); return runGet({ db: sdk.db, sdk, ctx: context }); }
@@ -21,7 +22,8 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
 
     const id = ctx.params.id!;
     const url = new URL(ctx.request.url);
-    const locale = url.searchParams.get('locale') || 'ro';
+    const config = await getShopConfig(db);
+    const locale = url.searchParams.get('locale') || config.defaultLocale;
 
     const data = await getAttribute(db, id, locale);
     if (!data) {

@@ -16,16 +16,16 @@ const user = await sdk.auth.requireAdmin(Astro.request);
 
 const id = Astro.params.id;
 
-// Fetch attribute via accessor
-const attribute = await getAttribute(sdk.db, id, 'ro');
-if (!attribute) {
-  return Astro.redirect('/admin/plugins/shop/settings/attributes');
-}
-
 // Fetch locales from settings via accessor
 const shopConfig = await getShopConfig(sdk.db);
 const defaultLocale = shopConfig.defaultLocale;
 const otherLocales = shopConfig.locales.filter(l => !l.isDefault);
+
+// Fetch attribute via accessor
+const attribute = await getAttribute(sdk.db, id, defaultLocale);
+if (!attribute) {
+  return Astro.redirect('/admin/plugins/shop/settings/attributes');
+}
 
 // Fetch translations for this attribute via accessor
 const transRows = await listTranslations(sdk.db, 'product_attribute', id);
@@ -34,7 +34,7 @@ const transByLocale = new Map(transRows.map((t: any) => [t.locale, t]));
 // Fetch options for select-type attributes via accessor
 let options: any[] = [];
 if (attribute.type === 'select') {
-  options = await listOptions(sdk.db, id, 'ro');
+  options = await listOptions(sdk.db, id, defaultLocale);
 }
 
 // Fetch option translations via accessor

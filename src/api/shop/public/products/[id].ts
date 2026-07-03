@@ -8,6 +8,7 @@ import {
 } from '../../../../db/schema';
 import { getProductWithPrices, listProductImage } from '../../../../lib/data/products';
 import { listVariants } from '../../../../lib/data/variants';
+import { getShopConfig } from '../../../../lib/data/settings';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 
 export const GET: APIRoute = (context) => { const sdk = createPluginContext(); return runGet({ db: sdk.db, sdk, ctx: context }); }
@@ -16,7 +17,8 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
     const productId = ctx.params.id!;
     const url = new URL(ctx.request.url);
-    const locale = url.searchParams.get('locale') || 'ro';
+    const config = await getShopConfig(db);
+    const locale = url.searchParams.get('locale') || config.defaultLocale;
 
     const product = await getProductWithPrices(db, productId, locale);
     if (!product || !product.active) {

@@ -10,6 +10,7 @@ import {
   product_attribute_assignments,
   translations,
 } from '../../db/schema.ts';
+import { getShopConfig } from './settings.ts';
 
 export interface OptionRow {
   id: string;
@@ -68,8 +69,9 @@ export async function getOption(
   const [opt] = await db.select().from(product_attribute_options).where(eq(product_attribute_options.id, optionId));
   if (!opt) return null;
 
+  const config = await getShopConfig(db);
   let label = opt.value;
-  if (locale !== 'ro') {
+  if (locale !== config.defaultLocale) {
     const transRows = await db.select().from(translations).where(inArray(translations.entity_id, [optionId]));
     const translated = transRows.find(t => t.entity_type === 'product_attribute_option' && t.locale === locale && t.label);
     if (translated) label = translated.label;

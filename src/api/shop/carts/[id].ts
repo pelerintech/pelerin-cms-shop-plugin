@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getCartWithItems } from '../../../lib/data/cart';
 import { computeCartTotals } from '../../../lib/cart-totals';
+import { getShopConfig } from '../../../lib/data/settings';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
 export const GET: APIRoute = (context) => { const sdk = createPluginContext(); return runGet({ db: sdk.db, sdk, ctx: context }); }
@@ -10,15 +11,16 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
     await sdk.auth.requireAdmin(ctx.request);
     const cartId = ctx.params.id!;
+    const config = await getShopConfig(db);
 
-    const result = await getCartWithItems(db, cartId, 'RON');
+    const result = await getCartWithItems(db, cartId, config.defaultCurrency);
     if (!result) {
       return new Response(JSON.stringify({ success: false, error: 'Cart not found' }), {
         status: 404, headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    const totals = computeCartTotals(result.items as any, 'RON', 0, 0);
+    const totals = computeCartTotals(result.items as any, config.defaultCurrency, 0, 0);
     const ageMs = Date.now() - new Date(result.cart.created_at).getTime();
     const ageHours = Math.floor(ageMs / (1000 * 60 * 60 * 1000));
 

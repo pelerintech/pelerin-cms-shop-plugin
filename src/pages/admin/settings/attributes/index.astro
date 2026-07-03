@@ -7,18 +7,22 @@ import Breadcrumbs from '../../../../components/admin/Breadcrumbs.astro';
 import { listAttributes } from '../../../../lib/data/attributes';
 import { listOptions } from '../../../../lib/data/attribute-options';
 import { countAssignmentsByAttributeIds } from '../../../../lib/data/attribute-assignments';
+import { getShopConfig } from '../../../../lib/data/settings';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
 
+const shopConfig = await getShopConfig(sdk.db);
+const defaultLocale = shopConfig.defaultLocale;
+
 // Fetch all attributes via accessor
-const attributes = await listAttributes(sdk.db, 'ro');
+const attributes = await listAttributes(sdk.db, defaultLocale);
 
 // Fetch option counts for select-type attributes (via accessor per attribute)
 const selectAttributes = attributes.filter(a => a.type === 'select');
 const optionCounts = new Map<string, number>();
 for (const attr of selectAttributes) {
-  const options = await listOptions(sdk.db, attr.id, 'ro');
+  const options = await listOptions(sdk.db, attr.id, defaultLocale);
   optionCounts.set(attr.id, options.length);
 }
 

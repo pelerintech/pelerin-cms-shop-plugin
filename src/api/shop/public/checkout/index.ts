@@ -5,6 +5,7 @@ import { getCartWithItems, validateCartStock, StockValidationError } from '../..
 import { createOrder } from '../../../../lib/data/orders';
 import { getVoucherByCode, incrementVoucherUsage } from '../../../../lib/data/vouchers';
 import { computeCartTotals } from '../../../../lib/cart-totals';
+import { getShopConfig } from '../../../../lib/data/settings';
 import { z } from 'zod';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 
@@ -29,7 +30,7 @@ const CheckoutSchema = z
     shipping_state: z.string().nullable().default(null),
     shipping_postal_code: z.string().nullable().default(null),
     shipping_country: z.string().nullable().default(null),
-    currency: z.string().min(1).default('RON'),
+    currency: z.string().min(1).optional(),
     referral_code: z.string().nullable().default(null),
   })
   .superRefine((data, ctx) => {
@@ -50,8 +51,9 @@ export const POST: APIRoute = (context) => { const sdk = createPluginContext(); 
 export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
     const { cart, setCookie } = await getOrCreateCart(db, sdk, ctx.request);
+    const config = await getShopConfig(db);
 
-    const result = await getCartWithItems(db, cart.id, 'RON');
+    const result = await getCartWithItems(db, cart.id, config.defaultCurrency);
     const items = result?.items ?? [];
     if (items.length === 0) {
       return new Response(JSON.stringify({ success: false, error: 'Cart is empty' }), {
@@ -69,7 +71,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     }
 
     const data = parsed.data;
-    const currency = data.currency;
+    const currency = data.currency ?? config.defaultCurrency;
 
     // Stock re-validation via accessor
     try {

@@ -7,9 +7,11 @@ import Breadcrumbs from '../../../components/admin/Breadcrumbs.astro';
 import TextField from '../../../components/admin/TextField.astro';
 import SelectField from '../../../components/admin/SelectField.astro';
 import CheckboxField from '../../../components/admin/CheckboxField.astro';
+import { getShopConfig } from '../../../lib/data/settings';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
+const shopConfig = await getShopConfig(sdk.db);
 ---
 
 <AdminLayout title="New Order" currentPath="/admin/plugins/shop/orders" user={user}>
@@ -29,7 +31,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
 
   <div class="card bg-base-100 shadow-lg col-span-12">
     <div class="card-body">
-      <form id="order-form" class="space-y-6">
+      <form id="order-form" class="space-y-6" data-default-currency={shopConfig.defaultCurrency}>
 
         <!-- Section 1: Customer -->
         <div class="card bg-base-200/50">
@@ -485,7 +487,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       customer_name: fd.get('customer_name'),
       customer_phone: fd.get('customer_phone') || null,
       status: 'pending',
-      currency: 'RON',
+      currency: document.getElementById('order-form').getAttribute('data-default-currency') || '',
       subtotal_net: subtotal,
       vat_total: vatTotal,
       shipping_cost: shipping,

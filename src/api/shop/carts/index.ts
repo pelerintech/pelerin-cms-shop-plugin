@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listCarts, getCartWithItems, getCartItemCount } from '../../../lib/data/cart';
+import { getShopConfig } from '../../../lib/data/settings';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
 export const GET: APIRoute = (context) => { const sdk = createPluginContext(); return runGet({ db: sdk.db, sdk, ctx: context }); }
@@ -18,10 +19,11 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       userId: userIdFilter ?? undefined,
     });
 
+    const config = await getShopConfig(db);
     const enriched = [];
     for (const cart of cartList) {
       const counts = await getCartItemCount(db, cart.id);
-      const withItems = await getCartWithItems(db, cart.id, 'RON');
+      const withItems = await getCartWithItems(db, cart.id, config.defaultCurrency);
       let totalValue = 0;
       if (withItems) {
         for (const item of withItems.items) {

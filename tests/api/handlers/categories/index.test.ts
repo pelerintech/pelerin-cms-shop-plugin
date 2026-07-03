@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { ensureLoader } from '../../../stubs/register.mjs';
-import { matrix } from '../_matrix.ts';
+import { matrix, createTestDb, seedMinimal, makeFakeSdk, makeCtx } from '../_matrix.ts';
+import { translations } from '../../../db/harness.ts';
+import { eq, and } from 'drizzle-orm';
 
 ensureLoader();
 const { runGet, runPost } = await import('../../../../src/api/shop/categories/index.ts');
@@ -45,3 +47,73 @@ test('POST error-wrap → 500', () =>
     url,
     body: { name: 'ErrCat', slug: 'err-cat', sort_order: 1 },
   }));
+
+test('POST without locale fields → 201, no translation rows created', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url,
+      body: { name: 'Plain Cat', slug: 'plain-cat-uniq', sort_order: 20 },
+      method: 'POST',
+    });
+    const res = await runPost({ db, sdk, ctx });
+    assert.equal(res.status, 201);
+    const b = await res.json();
+    assert.equal(b.success, true);
+    assert.ok(b.data?.id, 'data.id should exist');
+
+    // Verify NO translation rows were created
+    const transRows = await db.select().from(translations).where(
+      and(
+        eq(translations.entity_id, b.data.id),
+        eq(translations.entity_type, 'category'),
+      ),
+    );
+    assert.equal(transRows.length, 0, 'No translation rows should exist when no locale fields sent');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('POST with translation fields → 201, translation row created', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    // seedMinimal has 'ro' as default locale, so 'en' is the non-default (known) locale
+    await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url,
+      body: {
+        name: 'New Cat',
+        slug: 'new-cat-trans',
+        sort_order: 10,
+        name_en: 'New Cat EN',
+        slug_en: 'new-cat-en',
+        description_en: 'Description in English',
+      },
+      method: 'POST',
+    });
+    const res = await runPost({ db, sdk, ctx });
+    assert.equal(res.status, 201);
+    const b = await res.json();
+    assert.equal(b.success, true);
+    assert.ok(b.data?.id, 'data.id should exist');
+
+    // Verify translation row was created
+    const transRows = await db.select().from(translations).where(
+      and(
+        eq(translations.entity_id, b.data.id),
+        eq(translations.entity_type, 'category'),
+      ),
+    );
+    const enTrans = transRows.find(t => t.locale === 'en');
+    assert.ok(enTrans, 'EN translation should exist');
+    assert.equal(enTrans.name, 'New Cat EN');
+    assert.equal(enTrans.slug, 'new-cat-en');
+    assert.equal(enTrans.description, 'Description in English');
+  } finally {
+    await cleanup();
+  }
+});

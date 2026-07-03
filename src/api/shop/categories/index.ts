@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { listCategories, createCategory } from '../../../lib/data/products';
+import { listCategories, createCategory, updateCategoryWithTranslations } from '../../../lib/data/products';
+import { getShopConfig } from '../../../lib/data/settings';
 import { CreateCategorySchema } from '../../../schemas/category.schema';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
@@ -12,7 +13,8 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
     await sdk.auth.requireAdmin(ctx.request);
     const url = new URL(ctx.request.url);
-    const locale = url.searchParams.get('locale') || 'ro';
+    const config = await getShopConfig(db);
+    const locale = url.searchParams.get('locale') || config.defaultLocale;
     const cats = await listCategories(db, locale);
     return new Response(JSON.stringify({ success: true, data: cats }), {
       status: 200, headers: { 'Content-Type': 'application/json' },
@@ -37,6 +39,10 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       }), { status: 422, headers: { 'Content-Type': 'application/json' } });
     }
     const id = await createCategory(db, parsed.data);
+    // Upsert translations for non-default locale fields in the raw body
+    const config = await getShopConfig(db);
+    const knownLocaleCodes = new Set(config.locales.filter(l => !l.isDefault).map(l => l.code));
+    await updateCategoryWithTranslations(db, id, parsed.data, body, knownLocaleCodes);
     return new Response(JSON.stringify({ success: true, data: { id, ...parsed.data } }), {
       status: 201, headers: { 'Content-Type': 'application/json' },
     });

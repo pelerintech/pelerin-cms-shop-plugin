@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listProducts, getProductWithPrices } from '../../../../lib/data/products';
+import { getShopConfig } from '../../../../lib/data/settings';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 
 function computeGross(priceNet: number, vatRate: number | null): {
@@ -16,8 +17,9 @@ export const GET: APIRoute = (context) => { const sdk = createPluginContext(); r
 export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
     const url = new URL(ctx.request.url);
-    const locale = url.searchParams.get('locale') || 'ro';
-    const currency = url.searchParams.get('currency') || 'RON';
+    const config = await getShopConfig(db);
+    const locale = url.searchParams.get('locale') || config.defaultLocale;
+    const currency = url.searchParams.get('currency') || config.defaultCurrency;
     const category_id = url.searchParams.get('category_id') || undefined;
 
     const result = await listProducts(db, { page: 1, limit: 100, locale, category_id, active: true });
