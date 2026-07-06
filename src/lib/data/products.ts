@@ -9,6 +9,7 @@ import {
   product_attribute_assignments, product_attribute_values, cart_items,
 } from '../../db/schema.ts';
 import { getShopConfig } from './settings.ts';
+import { upsertTranslationWithSlugGuard } from './slug-resolution.ts';
 
 // ── Products ──
 
@@ -301,7 +302,7 @@ export async function updateProductWithTranslations(
   }
 
   for (const [locale, data] of Object.entries(localeData)) {
-    await upsertTranslation(db, {
+    await upsertTranslationWithSlugGuard(db, {
       entity_type: 'product',
       entity_id: id,
       locale,
@@ -377,10 +378,28 @@ export interface CategoryRow {
   updated_at: Date | null;
 }
 
-export async function listCategories(db: LibSQLDatabase, locale: string): Promise<CategoryRow[]> {
+export interface ListCategoriesOptions {
+  search?: string;
+}
+
+export async function listCategories(
+  db: LibSQLDatabase,
+  locale: string,
+  opts: ListCategoriesOptions = {},
+): Promise<CategoryRow[]> {
   const config = await getShopConfig(db);
-  let rows = await db.select().from(categories);
-  rows.sort((a, b) => (a.sort_order < b.sort_order ? -1 : 1));
+
+  // Build WHERE clause for search (pushed to SQL, r24)
+  const conditions: any[] = [];
+  if (opts.search) {
+    const s = `%${opts.search.toLowerCase()}%`;
+    conditions.push(or(like(categories.name, s), like(categories.slug, s)));
+  }
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  let rows = await db.select().from(categories)
+    .where(where)
+    .orderBy(asc(categories.sort_order));
 
   if (locale !== config.defaultLocale) {
     const ids = rows.map(r => r.id);
@@ -394,6 +413,7 @@ export async function listCategories(db: LibSQLDatabase, locale: string): Promis
         if (t) {
           (r as any).name = t.name ?? r.name;
           (r as any).description = t.description ?? r.description;
+          (r as any).slug = t.slug ?? r.slug;
         }
       }
     }
@@ -462,7 +482,7 @@ export async function updateCategoryWithTranslations(
   }
 
   for (const [locale, data] of Object.entries(localeData)) {
-    await upsertTranslation(db, {
+    await upsertTranslationWithSlugGuard(db, {
       entity_type: 'category',
       entity_id: id,
       locale,
@@ -473,6 +493,15 @@ export async function updateCategoryWithTranslations(
     });
   }
 }
+
+// Re-export slug resolution types and functions for convenience.
+export {
+  SlugCollisionError,
+  resolveCategoryBySlug,
+  resolveProductBySlug,
+  upsertTranslationWithSlugGuard,
+  findSlugCollisions,
+} from './slug-resolution.ts';
 
 export class CategoryError extends Error {
   status: number;

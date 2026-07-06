@@ -3,25 +3,22 @@
 // Route: /admin/plugins/shop/products/new
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { listCategories } from '../../../lib/data/products';
 import { getShopConfig } from '../../../lib/data/settings';
 import Breadcrumbs from '../../../components/admin/Breadcrumbs.astro';
 import TextField from '../../../components/admin/TextField.astro';
 import SelectField from '../../../components/admin/SelectField.astro';
 import CheckboxField from '../../../components/admin/CheckboxField.astro';
 import RichTextEditor from '../../../components/admin/RichTextEditor.astro';
+import SearchSelect from '../../../components/admin/SearchSelect.astro';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
 
-// Fetch shop config (locales + currencies) via accessor — must come before listCategories
+// Fetch shop config (locales + currencies) via accessor
 const shopConfig = await getShopConfig(sdk.db);
 const defaultLocale = shopConfig.defaultLocale;
 const otherLocales = shopConfig.locales.filter(l => !l.isDefault);
 const hasLocales = shopConfig.locales.length > 0;
-
-const catList = await listCategories(sdk.db, defaultLocale);
-const catOptions = catList.map(c => ({ value: c.id, label: c.name }));
 ---
 
 <AdminLayout title="New Product" currentPath="/admin/plugins/shop/products" user={user}>
@@ -60,7 +57,13 @@ const catOptions = catList.map(c => ({ value: c.id, label: c.name }));
                   { value: 'physical', label: 'Physical' },
                   { value: 'digital', label: 'Digital' },
                 ]} />
-                <SelectField name="category_id" label="Category" placeholder="None" options={catOptions} />
+                <SearchSelect
+                  name="category_id"
+                  label="Category"
+                  searchUrl="/api/plugins/shop/categories?search={query}"
+                  itemUrl="/api/plugins/shop/categories/{id}"
+                  placeholder="Search for a category..."
+                />
               </div>
               <div class="grid grid-cols-2 gap-4">
                 <TextField name="vat_rate" label="VAT Rate" type="number" step="0.01" min="0" max="1" placeholder="0.19" />

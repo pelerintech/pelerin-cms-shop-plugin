@@ -68,4 +68,10 @@ describe('Products new page - card layout', () => {
     const content = readFileSync(PAGE_PATH, 'utf-8');
     assert.match(content, /form-error/, 'Should still have form-error alert div');
   });
+
+  it('uses SearchSelect for category_id field', () => {
+    const content = readFileSync(PAGE_PATH, 'utf-8');
+    assert.match(content, /<SearchSelect/, 'Should use SearchSelect component for category field');
+    assert.doesNotMatch(content, /<SelectField name="category_id"/, 'Should NOT use SelectField for category_id (replaced by SearchSelect)');
+  });
 });

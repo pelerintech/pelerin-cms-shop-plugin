@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { getProductWithPrices, updateProductWithTranslations, deleteProduct } from '../../../lib/data/products';
+import { getProductWithPrices, updateProductWithTranslations, deleteProduct, SlugCollisionError } from '../../../lib/data/products';
 import { getShopConfig } from '../../../lib/data/settings';
 import { UpdateProductSchema } from '../../../schemas/product.schema';
 import type { HandlerDeps } from '../../../lib/handler-types';
@@ -39,6 +39,9 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     await updateProductWithTranslations(db, ctx.params.id!, parsed.data, body, knownLocaleCodes);
     return new Response(JSON.stringify({ success: true, data: { id: ctx.params.id, ...parsed.data } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (err: any) {
+    if (err instanceof SlugCollisionError) {
+      return new Response(JSON.stringify({ success: false, error: 'Validation failed', fields: { [`slug_${err.locale}`]: err.message } }), { status: 422, headers: { 'Content-Type': 'application/json' } });
+    }
     const status = err.status ?? 500;
     return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status, headers: { 'Content-Type': 'application/json' } });
   }

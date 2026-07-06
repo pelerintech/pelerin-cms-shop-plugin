@@ -1,0 +1,320 @@
+---
+/**
+ * SearchSelect — type-ahead entity lookup component for admin forms.
+ *
+ * The user types characters to search, sees matching results in a dropdown,
+ * and picks one. The selected ID is stored in a hidden input for form
+ * submission. A custom event 'searchselect-select' is dispatched on the
+ * wrapper element with the full item data for pages that need to react.
+ *
+ * Consistent with the CMS SearchSelect pattern but adapted for the shop's
+ * API contract ({ success: true, data: ... } response shape).
+ */
+interface Props {
+  // Standard form field
+  name: string;           // hidden input name (stores the selected ID)
+  label: string;          // field label
+  value?: string;         // currently selected ID
+  required?: boolean;
+  placeholder?: string;
+  error?: string;
+
+  // API configuration
+  searchUrl: string;      // e.g. "/api/plugins/shop/categories?search={query}"
+  itemUrl: string;        // e.g. "/api/plugins/shop/categories/{id}"
+
+  // Response parsing
+  displayField?: string;  // default "name"
+  idField?: string;       // default "id"
+
+  // Behavior
+  excludeId?: string;     // exclude this ID from results (self-referential)
+  minChars?: number;      // default 2
+}
+
+const {
+  name,
+  label,
+  value = '',
+  required = false,
+  placeholder = 'Search...',
+  error = '',
+  searchUrl,
+  itemUrl,
+  displayField = 'name',
+  idField = 'id',
+  excludeId,
+  minChars = 2,
+} = Astro.props;
+---
+
+<div class="form-control">
+  <label class="label">
+    <span class="label-text">
+      {label}{required && <span class="text-error ml-1">*</span>}
+    </span>
+  </label>
+
+  <div
+    class="relative searchselect-wrapper"
+    data-searchselect
+    data-search-url={searchUrl}
+    data-item-url={itemUrl}
+    data-display-field={displayField}
+    data-id-field={idField}
+    data-exclude-id={excludeId || ''}
+    data-min-chars={minChars}
+  >
+    <input type="hidden" name={name} value={value || ''} data-hidden-value />
+    <div class="relative">
+      <input
+        type="text"
+        class={`searchselect-input input input-bordered w-full ${error ? 'input-error' : ''}`}
+        placeholder={placeholder}
+        autocomplete="off"
+        data-search-input
+      />
+      <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+        <svg
+          class="w-4 h-4 text-base-content/50"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
+        </svg>
+      </div>
+    </div>
+    <ul
+      class="searchselect-dropdown absolute z-50 w-full mt-1 bg-base-100 border border-base-300 rounded-md shadow-lg hidden max-h-60 overflow-y-auto"
+      data-dropdown
+    >
+    </ul>
+    <div class="searchselect-loading hidden text-sm text-base-content/50 py-2 px-3" data-loading>
+      Searching...
+    </div>
+    <div class="searchselect-empty hidden text-sm text-base-content/50 py-2 px-3" data-empty>
+      No items found
+    </div>
+    <div class="searchselect-hint text-xs text-base-content/40 py-1 px-3" data-hint>
+      Type at least {minChars} characters to search
+    </div>
+  </div>
+
+  {error && <span class="text-error text-sm mt-1" data-field={name}>{error}</span>}
+</div>
+
+<script is:inline>
+  (function () {
+    const wrappers = document.querySelectorAll('[data-searchselect]');
+
+    wrappers.forEach(function (wrapper) {
+      const hiddenInput = wrapper.querySelector('[data-hidden-value]');
+      const searchInput = wrapper.querySelector('[data-search-input]');
+      const dropdown = wrapper.querySelector('[data-dropdown]');
+      const loadingEl = wrapper.querySelector('[data-loading]');
+      const emptyEl = wrapper.querySelector('[data-empty]');
+      const hintEl = wrapper.querySelector('[data-hint]');
+
+      const searchUrlTemplate = wrapper.dataset.searchUrl;
+      const itemUrlTemplate = wrapper.dataset.itemUrl;
+      const displayFieldName = wrapper.dataset.displayField || 'name';
+      const idFieldName = wrapper.dataset.idField || 'id';
+      const excludeId = wrapper.dataset.excludeId || '';
+      const minChars = parseInt(wrapper.dataset.minChars || '2', 10);
+
+      if (!searchInput) return;
+
+      let itemsCache = [];
+      let isLoading = false;
+      let debounceTimer = null;
+
+      async function fetchItems(query) {
+        if (isLoading) return;
+        isLoading = true;
+
+        showLoading();
+
+        try {
+          const url = new URL(
+            searchUrlTemplate.replace('{query}', encodeURIComponent(query)),
+            window.location.origin
+          );
+
+          const response = await fetch(url.toString());
+          if (!response.ok) throw new Error('Failed to fetch items');
+
+          const json = await response.json();
+          itemsCache = (json.success && Array.isArray(json.data)) ? json.data : [];
+
+          // Filter out excluded ID
+          if (excludeId) {
+            itemsCache = itemsCache.filter(function (item) {
+              return item[idFieldName] !== excludeId;
+            });
+          }
+
+          if (itemsCache.length === 0) {
+            showEmpty();
+          } else {
+            renderDropdown(itemsCache);
+          }
+        } catch (error) {
+          showEmpty();
+        } finally {
+          isLoading = false;
+          hideLoading();
+        }
+      }
+
+      function showLoading() {
+        if (loadingEl) loadingEl.classList.remove('hidden');
+        if (dropdown) dropdown.classList.add('hidden');
+        if (emptyEl) emptyEl.classList.add('hidden');
+        if (hintEl) hintEl.classList.add('hidden');
+      }
+
+      function hideLoading() {
+        if (loadingEl) loadingEl.classList.add('hidden');
+      }
+
+      function showEmpty() {
+        if (emptyEl) emptyEl.classList.remove('hidden');
+        if (dropdown) dropdown.classList.add('hidden');
+        if (hintEl) hintEl.classList.add('hidden');
+      }
+
+      function showHint() {
+        if (hintEl) hintEl.classList.remove('hidden');
+        if (dropdown) dropdown.classList.add('hidden');
+        if (emptyEl) emptyEl.classList.add('hidden');
+      }
+
+      function hideAll() {
+        if (dropdown) dropdown.classList.add('hidden');
+        if (emptyEl) emptyEl.classList.add('hidden');
+        if (hintEl) hintEl.classList.add('hidden');
+      }
+
+      function renderDropdown(items) {
+        if (!items.length) {
+          showEmpty();
+          return;
+        }
+
+        if (emptyEl) emptyEl.classList.add('hidden');
+        if (hintEl) hintEl.classList.add('hidden');
+        if (dropdown) dropdown.classList.remove('hidden');
+        dropdown.innerHTML = '';
+
+        items.forEach(function (item) {
+          const li = document.createElement('li');
+          li.className = 'px-3 py-2 cursor-pointer hover:bg-base-200 transition-colors';
+          const displayValue = item[displayFieldName] || item.name || item.id;
+          li.textContent = displayValue;
+          li.dataset.value = item[idFieldName];
+          li.dataset.displayValue = displayValue;
+
+          li.addEventListener('click', function () {
+            selectItem(item);
+          });
+
+          dropdown.appendChild(li);
+        });
+      }
+
+      function selectItem(item) {
+        const displayValue = item[displayFieldName] || item.name || item.id;
+        const itemId = item[idFieldName];
+
+        searchInput.value = displayValue;
+        hiddenInput.value = itemId;
+        if (dropdown) dropdown.classList.add('hidden');
+        if (hintEl) hintEl.classList.add('hidden');
+
+        // Dispatch custom event for page-level listeners (e.g. order product search)
+        wrapper.dispatchEvent(new CustomEvent('searchselect-select', {
+          bubbles: true,
+          detail: { id: itemId, display: displayValue, item: item },
+        }));
+      }
+
+      searchInput.addEventListener('input', function (e) {
+        const query = e.target.value.trim();
+
+        clearTimeout(debounceTimer);
+
+        if (!query) {
+          hideAll();
+          itemsCache = [];
+          hiddenInput.value = '';
+          return;
+        }
+
+        if (query.length < minChars) {
+          showHint();
+          return;
+        }
+
+        debounceTimer = setTimeout(function () {
+          fetchItems(query);
+        }, 300);
+      });
+
+      searchInput.addEventListener('focus', function () {
+        const query = searchInput.value.trim();
+        if (query.length >= minChars && !itemsCache.length) {
+          fetchItems(query);
+        } else if (itemsCache.length) {
+          if (dropdown) dropdown.classList.remove('hidden');
+          if (hintEl) hintEl.classList.add('hidden');
+        } else {
+          showHint();
+        }
+      });
+
+      searchInput.addEventListener('blur', function () {
+        setTimeout(function () {
+          if (!wrapper.contains(document.activeElement)) {
+            if (dropdown) dropdown.classList.add('hidden');
+          }
+        }, 200);
+      });
+
+      document.addEventListener('click', function (e) {
+        if (!wrapper.contains(e.target)) {
+          if (dropdown) dropdown.classList.add('hidden');
+        }
+      });
+
+      // Load initial value display (edit mode)
+      const initialValue = hiddenInput.value;
+      if (initialValue && itemUrlTemplate) {
+        (async function () {
+          try {
+            const url = new URL(
+              itemUrlTemplate.replace('{id}', encodeURIComponent(initialValue)),
+              window.location.origin
+            );
+            const response = await fetch(url.toString());
+            if (response.ok) {
+              const json = await response.json();
+              if (json.success && json.data) {
+                const item = json.data;
+                const displayValue = item[displayFieldName] || item.name || item.id;
+                searchInput.value = displayValue;
+              }
+            }
+          } catch (error) {
+            // ignore — input stays empty
+          }
+        })();
+      }
+    });
+  })();
+</script>

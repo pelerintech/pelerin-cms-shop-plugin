@@ -18,6 +18,7 @@ const TEST_FILES = [
   'tests/lib/data/attributes.test.ts',
   'tests/lib/data/attribute-assignments.test.ts',
   'tests/lib/data/attribute-values.test.ts',
+  'tests/lib/data/categories-search.test.ts',
   'tests/lib/data/variants.test.ts',
   'tests/lib/data/price-inheritance.test.ts',
   'tests/lib/data/has-variants-derived.test.ts',
@@ -106,6 +107,7 @@ const TEST_FILES = [
   'tests/db/seed-new-flow.test.ts',
   'tests/pages/custom-fields-visibility.test.ts',
   'tests/pages/admin-products-script-syntax.test.ts',
+  'tests/pages/admin-searchselect-syntax.test.ts',
   'tests/pages/admin-import-ui.test.ts',
   'tests/pages/admin-import-script-syntax.test.ts',
   'tests/pages/admin-orders-partial-refund.test.ts',
@@ -143,6 +145,11 @@ const TEST_FILES = [
   'tests/pages/admin-categories-new-ui.test.ts',
   // ── r22: locale round-trip regression guards ──
   'tests/lib/data/locale-roundtrip.test.ts',
+  // ── r23: locale slug routing ──
+  'tests/lib/data/slug-resolution.test.ts',
+  'tests/lib/data/slug-collision-guard.test.ts',
+  'tests/lib/data/find-slug-collisions.test.ts',
+  'tests/pages/admin-slug-collision-warning.test.ts',
 ];
 
 test('full test suite passes (node --test <all test files>)', () => {

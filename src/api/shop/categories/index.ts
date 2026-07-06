@@ -15,7 +15,8 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     const url = new URL(ctx.request.url);
     const config = await getShopConfig(db);
     const locale = url.searchParams.get('locale') || config.defaultLocale;
-    const cats = await listCategories(db, locale);
+    const search = url.searchParams.get('search') || undefined;
+    const cats = await listCategories(db, locale, { search });
     return new Response(JSON.stringify({ success: true, data: cats }), {
       status: 200, headers: { 'Content-Type': 'application/json' },
     });

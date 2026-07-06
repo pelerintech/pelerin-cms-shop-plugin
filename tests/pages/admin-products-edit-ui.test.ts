@@ -145,4 +145,10 @@ describe('Products edit page - card layout', () => {
     assert.doesNotMatch(content, /tab ===/, 'Should not have tab-based routing');
     assert.doesNotMatch(content, /create-variant-form/, 'Should not have variant creation');
   });
+
+  it('uses SearchSelect for category_id field', () => {
+    const content = readFileSync(PAGE_PATH, 'utf-8');
+    assert.match(content, /<SearchSelect/, 'Should use SearchSelect component for category field');
+    assert.doesNotMatch(content, /<SelectField name="category_id"/, 'Should NOT use SelectField for category_id (replaced by SearchSelect)');
+  });
 });

@@ -5,9 +5,8 @@ import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import Breadcrumbs from '../../../components/admin/Breadcrumbs.astro';
 import TextField from '../../../components/admin/TextField.astro';
-import SelectField from '../../../components/admin/SelectField.astro';
 import TextareaField from '../../../components/admin/TextareaField.astro';
-import { listCategories } from '../../../lib/data/products';
+import SearchSelect from '../../../components/admin/SearchSelect.astro';
 import { getShopConfig } from '../../../lib/data/settings';
 
 const sdk = createPluginContext();
@@ -18,9 +17,6 @@ const locales = shopConfig.locales;
 const defaultLocale = shopConfig.defaultLocale;
 const otherLocales = locales.filter(l => !l.isDefault);
 const hasLocales = locales.length > 0;
-
-const allCats = await listCategories(sdk.db, defaultLocale);
-const parentOptions = allCats.map(c => ({ value: c.id, label: c.name }));
 ---
 
 <AdminLayout title="New Category" currentPath="/admin/plugins/shop/categories" user={user}>
@@ -48,7 +44,13 @@ const parentOptions = allCats.map(c => ({ value: c.id, label: c.name }));
 
       <form id="category-form" class="space-y-6" data-default-locale={defaultLocale} data-locale-codes={JSON.stringify(otherLocales.map(l => l.code))}>
         <div class="space-y-4">
-          <TextField name="parent_id" label="Parent Category" placeholder="None (top-level)" options={parentOptions} />
+          <SearchSelect
+            name="parent_id"
+            label="Parent Category"
+            searchUrl="/api/plugins/shop/categories?search={query}"
+            itemUrl="/api/plugins/shop/categories/{id}"
+            placeholder="Search for a parent category..."
+          />
           <TextField name="sort_order" label="Sort Order" type="number" value="0" placeholder="0" />
         </div>
 

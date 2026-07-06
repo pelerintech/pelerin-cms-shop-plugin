@@ -64,3 +64,18 @@ test('category new page shows warning when no locales configured', () => {
     'Page should check hasLocales before rendering warning',
   );
 });
+
+test('category new page uses SearchSelect for parent category', () => {
+  assert.ok(
+    source.includes('<SearchSelect'),
+    'Page should use SearchSelect component for parent category field',
+  );
+  assert.ok(
+    source.includes('name="parent_id"'),
+    'SearchSelect should have name="parent_id"',
+  );
+  assert.ok(
+    !source.includes('options={parentOptions}'),
+    'Page should NOT use options={parentOptions} for parent category (replaced by SearchSelect)',
+  );
+});

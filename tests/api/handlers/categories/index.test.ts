@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { ensureLoader } from '../../../stubs/register.mjs';
 import { matrix, createTestDb, seedMinimal, makeFakeSdk, makeCtx } from '../_matrix.ts';
+import { insertFixture } from '../../../db/harness.ts';
 import { translations } from '../../../db/harness.ts';
 import { eq, and } from 'drizzle-orm';
 
@@ -113,6 +114,45 @@ test('POST with translation fields → 201, translation row created', async () =
     assert.equal(enTrans.name, 'New Cat EN');
     assert.equal(enTrans.slug, 'new-cat-en');
     assert.equal(enTrans.description, 'Description in English');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('GET with search param filters categories by name/slug', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+
+    // Insert a category with a distinctive name for searching
+    await insertFixture(db, 'categories', {
+      id: 'cat-electronics',
+      parent_id: null,
+      name: 'Electronics',
+      slug: 'electronics',
+      description: null,
+      sort_order: 50,
+      created_at: new Date(),
+      updated_at: null,
+    });
+
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: 'http://localhost/api/plugins/shop/categories?search=elec',
+    });
+    const res = await runGet({ db, sdk, ctx });
+    assert.equal(res.status, 200);
+    const b = await res.json();
+    assert.equal(b.success, true);
+    assert.ok(Array.isArray(b.data), 'data should be an array');
+
+    // All returned categories should match "elec" in name or slug
+    const allMatch = b.data.every((c: any) =>
+      c.name.toLowerCase().includes('elec') || c.slug.toLowerCase().includes('elec'),
+    );
+    assert.ok(allMatch, 'all returned categories should match search term');
+    assert.ok(b.data.length > 0, 'should return at least one matching category');
+    assert.ok(b.data.some((c: any) => c.name === 'Electronics'), 'should include Electronics');
   } finally {
     await cleanup();
   }

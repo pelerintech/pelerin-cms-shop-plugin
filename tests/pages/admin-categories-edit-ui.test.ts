@@ -75,3 +75,18 @@ test('category edit page shows warning when no locales configured', () => {
     'Page should check hasLocales before rendering warning',
   );
 });
+
+test('category edit page uses SearchSelect for parent category with excludeId', () => {
+  assert.ok(
+    source.includes('<SearchSelect'),
+    'Page should use SearchSelect component for parent category field',
+  );
+  assert.ok(
+    source.includes('excludeId'),
+    'SearchSelect should have excludeId to prevent self-parenting',
+  );
+  assert.ok(
+    !source.includes('options={parentOptions}'),
+    'Page should NOT use options={parentOptions} for parent category (replaced by SearchSelect)',
+  );
+});

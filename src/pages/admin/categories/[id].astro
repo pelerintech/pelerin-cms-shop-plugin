@@ -5,9 +5,9 @@ import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import Breadcrumbs from '../../../components/admin/Breadcrumbs.astro';
 import TextField from '../../../components/admin/TextField.astro';
-import SelectField from '../../../components/admin/SelectField.astro';
 import TextareaField from '../../../components/admin/TextareaField.astro';
-import { getCategoryById, listCategories, listTranslations } from '../../../lib/data/products';
+import SearchSelect from '../../../components/admin/SearchSelect.astro';
+import { getCategoryById, listTranslations, findSlugCollisions } from '../../../lib/data/products';
 import { getShopConfig } from '../../../lib/data/settings';
 
 const sdk = createPluginContext();
@@ -28,12 +28,6 @@ if (!category) {
   return Astro.redirect('/admin/plugins/shop/categories');
 }
 
-// Fetch all categories for parent dropdown
-const allCats = await listCategories(sdk.db, defaultLocale);
-const parentOptions = allCats
-  .filter(c => c.id !== id) // exclude self
-  .map(c => ({ value: c.id, label: c.name }));
-
 // Fetch translations via accessor
 const transRows = await listTranslations(sdk.db, 'category', id);
 
@@ -42,6 +36,9 @@ const translationByLocale: Record<string, any> = {};
 for (const t of transRows as any[]) {
   translationByLocale[t.locale] = t;
 }
+
+// Check for slug collisions across configured locales
+const slugCollisions = await findSlugCollisions(sdk.db, 'category', id, locales.map((l: any) => l.code));
 ---
 
 <AdminLayout title={`Edit: ${category.name}`} currentPath="/admin/plugins/shop/categories" user={user}>
@@ -69,7 +66,15 @@ for (const t of transRows as any[]) {
 
       <form id="category-form" class="space-y-6" data-default-locale={defaultLocale} data-locale-codes={JSON.stringify(otherLocales.map(l => l.code))}>
         <div class="space-y-4">
-          <TextField name="parent_id" label="Parent Category" value={category.parent_id || ''} placeholder="None (top-level)" options={parentOptions} />
+          <SearchSelect
+            name="parent_id"
+            label="Parent Category"
+            value={category.parent_id || ''}
+            searchUrl="/api/plugins/shop/categories?search={query}"
+            itemUrl="/api/plugins/shop/categories/{id}"
+            excludeId={id}
+            placeholder="Search for a parent category..."
+          />
           <TextField name="sort_order" label="Sort Order" type="number" value={String(category.sort_order)} placeholder="0" />
         </div>
 
@@ -109,6 +114,12 @@ for (const t of transRows as any[]) {
         </div>
 
         <div id="form-error" class="alert alert-error hidden"></div>
+
+        {slugCollisions.length > 0 && (
+          <div class="alert alert-warning">
+            <span>Slug collision detected in: {slugCollisions.join(', ')}. Another entity already uses this slug in the listed locale(s). Saving may fail with a validation error.</span>
+          </div>
+        )}
 
         <div class="flex justify-end gap-2 pt-4 border-t border-base-200">
           <button type="submit" class="btn btn-primary">Save Changes</button>

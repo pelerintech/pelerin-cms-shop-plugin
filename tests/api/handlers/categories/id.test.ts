@@ -88,6 +88,34 @@ test('PUT [id] error-wrap → 500', () =>
     params: { id: 'x' },
   }));
 
+test('PUT [id] slug collision → 422 with field-level error', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    // categoryBooksId already has en slug 'books'. Create a second category.
+    const secondCatId = crypto.randomUUID();
+    await db.insert(categories).values({
+      id: secondCatId, parent_id: null, name: 'Second', description: null,
+      slug: 'second-' + secondCatId.slice(0, 8), sort_order: 99, created_at: null, updated_at: null,
+    });
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: `${base}/${secondCatId}`,
+      body: { name: 'Second Cat', slug_en: 'books' },
+      method: 'PUT',
+      params: { id: secondCatId },
+    });
+    const res = await runPut({ db, sdk, ctx });
+    assert.equal(res.status, 422, `expected 422, got ${res.status}`);
+    const b = await res.json();
+    assert.equal(b.success, false);
+    assert.ok(b.fields && b.fields.slug_en, 'should have slug_en field error');
+    assert.ok(b.fields.slug_en.length > 0, 'slug_en error message should be non-empty');
+  } finally {
+    await cleanup();
+  }
+});
+
 test('PUT [id] with translation fields → 200, translation row created', async () => {
   const { db, cleanup } = await createTestDb();
   try {
