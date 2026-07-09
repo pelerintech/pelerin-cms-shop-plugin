@@ -53,9 +53,9 @@ describe('euPlatesc adapter — initiate payment', () => {
     assert.match(content, /invoice_id|order_number/, 'Should include invoice_id parameter');
   });
 
-  it('reads credentials from shop_settings', () => {
+  it('reads credentials via getSetting accessor', () => {
     const content = readFileSync(EUPL_PATH, 'utf-8');
-    assert.match(content, /shop_settings/, 'Should read from shop_settings');
+    assert.match(content, /getSetting.*euplatesc_/, 'Should use getSetting accessor for euplatesc credentials');
   });
 
   it('returns redirect_url and provider_session_id', () => {

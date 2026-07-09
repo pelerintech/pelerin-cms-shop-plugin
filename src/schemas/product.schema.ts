@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ProductType, OptionValueType } from './enums'
+import { ProductType, OptionValueType } from './enums.ts'
 
 /**
  * Schema for creating a global product attribute
@@ -154,17 +154,22 @@ export const BulkUpsertPricesSchema = z.object({
 export type BulkUpsertPricesInput = z.infer<typeof BulkUpsertPricesSchema>;
 
 /**
- * Schema for creating a product image
+ * Schema for the multipart-derived product image upload input.
+ *
+ * The `file` itself is validated by presence (not Zod). `storage_key`/`mime`/
+ * `size`/`width`/`height`/`original_filename` come from `sdk.storage.upload()`
+ * and the `File` object (NOT user input), so they are absent from this
+ * user-facing schema. The `url` column holds a storage KEY resolved to a URL at
+ * the accessor layer (design D2).
  */
-export const CreateProductImageSchema = z.object({
+export const UploadProductImageSchema = z.object({
   product_id: z.string().min(1),
   variant_id: z.string().nullable().default(null),
-  url: z.string().min(1),
   alt: z.string().nullable().default(null),
   sort_order: z.number().int().default(0),
 });
 
-export type CreateProductImageInput = z.infer<typeof CreateProductImageSchema>;
+export type UploadProductImageInput = z.infer<typeof UploadProductImageSchema>;
 
 /**
  * Schema for creating a translation
@@ -180,6 +185,27 @@ export const CreateTranslationSchema = z.object({
 });
 
 export type CreateTranslationInput = z.infer<typeof CreateTranslationSchema>;
+
+/**
+ * Schema for upserting a PRODUCT translation from the admin UI (r17 Task 6).
+ * Contains ONLY the translatable content fields — `entity_type`, `entity_id`,
+ * and `locale` come from the route path params and ALWAYS win over any body
+ * value (closes the path-param hijack). At least one content field is required
+ * (an empty body is a 422, not a no-op empty-translation write).
+ */
+export const UpsertProductTranslationSchema = z
+  .object({
+    name: z.string().nullable(),
+    description: z.string().nullable(),
+    slug: z.string().nullable(),
+    label: z.string().nullable(),
+  })
+  .partial()
+  .refine((data) => Object.values(data).some((v) => v !== undefined), {
+    message: 'At least one content field (name, description, slug, label) is required',
+  });
+
+export type UpsertProductTranslationInput = z.infer<typeof UpsertProductTranslationSchema>;
 
 /**
  * Output schema for a product (includes id, timestamps)

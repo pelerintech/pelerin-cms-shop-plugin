@@ -5,6 +5,7 @@ import {
   listAssignments,
   createAssignment,
   deleteAssignment,
+  countAssignmentsByAttributeIds,
 } from '../../../src/lib/data/attribute-assignments.ts';
 
 test('listAssignments returns assignments for a product with offered_options populated for dimensions', async () => {
@@ -142,6 +143,66 @@ test('createAssignment accepts dimension with empty offered_option_ids (no subse
     assert.ok(id, 'dimension assignment with empty offered_option_ids must succeed');
     const assignments = await listAssignments(db, freshProductId, 'ro');
     assert.ok(assignments.some(a => a.id === id), 'assignment must be persisted');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('countAssignmentsByAttributeIds returns correct counts per attribute', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    // Harness seeds:
+    //   - Color (attrColorId) assigned to variant product (1 assignment)
+    //   - Storage (attrStorageId) assigned to variant product (1 assignment)
+    //   - Brand (attrBrandId) assigned to simple + variant (2 assignments)
+    //   - Weight (attrWeightId) assigned to simple product (1 assignment)
+    const counts = await countAssignmentsByAttributeIds(db, [
+      f.attrColorId,
+      f.attrStorageId,
+      f.attrBrandId,
+      f.attrWeightId,
+    ]);
+    assert.strictEqual(counts.get(f.attrColorId), 1, 'Color assigned to 1 product');
+    assert.strictEqual(counts.get(f.attrStorageId), 1, 'Storage assigned to 1 product');
+    assert.strictEqual(counts.get(f.attrBrandId), 2, 'Brand assigned to 2 products');
+    assert.strictEqual(counts.get(f.attrWeightId), 1, 'Weight assigned to 1 product');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('countAssignmentsByAttributeIds skips attributes with 0 assignments', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const counts = await countAssignmentsByAttributeIds(db, [
+      f.attrColorId,
+      'nonexistent-attr',
+    ]);
+    assert.ok(counts.has(f.attrColorId), 'must have entry for Color');
+    assert.ok(!counts.has('nonexistent-attr'), 'must skip nonexistent attribute');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('countAssignmentsByAttributeIds returns empty map for empty input', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const counts = await countAssignmentsByAttributeIds(db, []);
+    assert.strictEqual(counts.size, 0, 'empty input must return empty map');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('countAssignmentsByAttributeIds on empty db returns empty map', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const counts = await countAssignmentsByAttributeIds(db, ['any-id']);
+    assert.strictEqual(counts.size, 0, 'empty db must return empty map');
   } finally {
     await cleanup();
   }

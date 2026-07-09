@@ -1,6 +1,5 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db } from 'astro:db';
 import { eq, inArray } from 'drizzle-orm';
 import {
   products, product_prices, product_variants, product_images,
@@ -9,16 +8,17 @@ import {
 } from '../../../../db/schema';
 import { getProductWithPrices, listProductImage } from '../../../../lib/data/products';
 import { listVariants } from '../../../../lib/data/variants';
+import { getShopConfig } from '../../../../lib/data/settings';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 
-export const GET: APIRoute = (context) =>
-  runGet({ db, sdk: createPluginContext(), ctx: context });
+export const GET: APIRoute = (context) => { const sdk = createPluginContext(); return runGet({ db: sdk.db, sdk, ctx: context }); }
 
 export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
     const productId = ctx.params.id!;
     const url = new URL(ctx.request.url);
-    const locale = url.searchParams.get('locale') || 'ro';
+    const config = await getShopConfig(db);
+    const locale = url.searchParams.get('locale') || config.defaultLocale;
 
     const product = await getProductWithPrices(db, productId, locale);
     if (!product || !product.active) {
@@ -26,7 +26,7 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     }
 
     // Images
-    const images = await listProductImage(db, productId);
+    const images = await listProductImage(db, sdk, productId);
 
     // Variants
     const variants = await listVariants(db, productId, locale);

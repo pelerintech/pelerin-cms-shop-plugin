@@ -338,30 +338,34 @@ export async function createVariants(
       }
     }
 
+    // Transactional (r17 Task 10) — the variant row + its attribute values are
+    // inserted atomically; a failure on a value rolls back the variant + prior values.
     const variantId = crypto.randomUUID();
-    await db.insert(product_variants).values({
-      id: variantId,
-      product_id: productId,
-      sku: combo.sku || null,
-      stock: combo.stock ?? null,
-      active: combo.active !== undefined ? combo.active : true,
-    });
+    await db.transaction(async (tx) => {
+      await tx.insert(product_variants).values({
+        id: variantId,
+        product_id: productId,
+        sku: combo.sku || null,
+        stock: combo.stock ?? null,
+        active: combo.active !== undefined ? combo.active : true,
+      });
 
-    for (const optionId of combo.option_ids) {
-      const assignmentId = assignmentOptionMap.get(optionId);
-      if (assignmentId) {
-        await db.insert(product_attribute_values).values({
-          id: crypto.randomUUID(),
-          entity_type: 'variant',
-          entity_id: variantId,
-          assignment_id: assignmentId,
-          option_id: optionId,
-          value_text: null,
-          value_number: null,
-          value_boolean: null,
-        });
+      for (const optionId of combo.option_ids) {
+        const assignmentId = assignmentOptionMap.get(optionId);
+        if (assignmentId) {
+          await tx.insert(product_attribute_values).values({
+            id: crypto.randomUUID(),
+            entity_type: 'variant',
+            entity_id: variantId,
+            assignment_id: assignmentId,
+            option_id: optionId,
+            value_text: null,
+            value_number: null,
+            value_boolean: null,
+          });
+        }
       }
-    }
+    });
 
     existingValues.set(variantId, comboSet);
     created.push({
@@ -440,53 +444,57 @@ export async function updateVariant(
   }
 
   if (input.field_values && Array.isArray(input.field_values)) {
-    for (const fv of input.field_values) {
-      // Validate assignment belongs to this product and is field role
-      const [assignment] = await db
-        .select()
-        .from(product_attribute_assignments)
-        .where(
-          and(
-            eq(product_attribute_assignments.id, fv.assignment_id),
-            eq(product_attribute_assignments.product_id, existing.product_id),
-            eq(product_attribute_assignments.role, 'field'),
-          ),
-        );
-      if (!assignment) continue;
+    // Transactional (r17 Task 10) — the value inserts/updates run in one tx so a
+    // mid-loop failure rolls back the whole dimension/value set.
+    await db.transaction(async (tx) => {
+      for (const fv of input.field_values) {
+        // Validate assignment belongs to this product and is field role
+        const [assignment] = await tx
+          .select()
+          .from(product_attribute_assignments)
+          .where(
+            and(
+              eq(product_attribute_assignments.id, fv.assignment_id),
+              eq(product_attribute_assignments.product_id, existing.product_id),
+              eq(product_attribute_assignments.role, 'field'),
+            ),
+          );
+        if (!assignment) continue;
 
-      const [existingValue] = await db
-        .select()
-        .from(product_attribute_values)
-        .where(
-          and(
-            eq(product_attribute_values.entity_type, 'variant'),
-            eq(product_attribute_values.entity_id, variantId),
-            eq(product_attribute_values.assignment_id, fv.assignment_id),
-          ),
-        );
+        const [existingValue] = await tx
+          .select()
+          .from(product_attribute_values)
+          .where(
+            and(
+              eq(product_attribute_values.entity_type, 'variant'),
+              eq(product_attribute_values.entity_id, variantId),
+              eq(product_attribute_values.assignment_id, fv.assignment_id),
+            ),
+          );
 
-      if (existingValue) {
-        await db.update(product_attribute_values)
-          .set({
+        if (existingValue) {
+          await tx.update(product_attribute_values)
+            .set({
+              option_id: fv.option_id ?? null,
+              value_text: fv.value_text ?? null,
+              value_number: fv.value_number ?? null,
+              value_boolean: fv.value_boolean ?? null,
+            })
+            .where(eq(product_attribute_values.id, existingValue.id));
+        } else {
+          await tx.insert(product_attribute_values).values({
+            id: crypto.randomUUID(),
+            entity_type: 'variant',
+            entity_id: variantId,
+            assignment_id: fv.assignment_id,
             option_id: fv.option_id ?? null,
             value_text: fv.value_text ?? null,
             value_number: fv.value_number ?? null,
             value_boolean: fv.value_boolean ?? null,
-          })
-          .where(eq(product_attribute_values.id, existingValue.id));
-      } else {
-        await db.insert(product_attribute_values).values({
-          id: crypto.randomUUID(),
-          entity_type: 'variant',
-          entity_id: variantId,
-          assignment_id: fv.assignment_id,
-          option_id: fv.option_id ?? null,
-          value_text: fv.value_text ?? null,
-          value_number: fv.value_number ?? null,
-          value_boolean: fv.value_boolean ?? null,
-        });
+          });
+        }
       }
-    }
+    });
   }
 
   const [updated] = await db.select().from(product_variants).where(eq(product_variants.id, variantId));

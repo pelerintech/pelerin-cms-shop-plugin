@@ -36,10 +36,9 @@ describe('Stripe adapter — initiate payment', () => {
     assert.match(content, /checkout\.sessions\.create|sessions\.create/, 'Should call Stripe checkout sessions create');
   });
 
-  it('loads credentials from shop_settings', () => {
+  it('loads credentials via getSetting accessor', () => {
     const content = readFileSync(STRIPE_PATH, 'utf-8');
-    assert.match(content, /shop_settings/, 'Should read from shop_settings');
-    assert.match(content, /stripe_secret_key/, 'Should read stripe_secret_key');
+    assert.match(content, /getSetting.*stripe_secret_key/, 'Should use getSetting accessor for stripe_secret_key');
   });
 
   it('builds line items from order', () => {

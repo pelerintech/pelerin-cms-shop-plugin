@@ -2,7 +2,7 @@
   "name": "pelerin_ro_shop",
   "displayName": "Shop",
   "version": "1.0.0",
-  "dbConfig": "./src/db/config.ts",
+  "dbConfig": "./src/db/schema.ts",
   "dbSeed": "./src/db/seed.ts",
   "publicPages": [],
   "adminPages": [
@@ -75,6 +75,8 @@
     { "pattern": "/api/plugins/shop/settings/payments/stripe", "entrypoint": "./src/api/shop/settings/payments/stripe.ts" },
     { "pattern": "/api/plugins/shop/settings/payments/euplatesc", "entrypoint": "./src/api/shop/settings/payments/euplatesc.ts" },
     { "pattern": "/api/plugins/shop/settings/general", "entrypoint": "./src/api/shop/settings/general.ts" },
+    { "pattern": "/api/plugins/shop/settings/locales", "entrypoint": "./src/api/shop/settings/locales.ts" },
+    { "pattern": "/api/plugins/shop/settings/currencies", "entrypoint": "./src/api/shop/settings/currencies.ts" },
     { "pattern": "/api/plugins/shop/orders", "entrypoint": "./src/api/shop/orders/index.ts" },
     { "pattern": "/api/plugins/shop/orders/[id]", "entrypoint": "./src/api/shop/orders/[id].ts" },
     { "pattern": "/api/plugins/shop/orders/[id]/status", "entrypoint": "./src/api/shop/orders/[id]/status.ts" },

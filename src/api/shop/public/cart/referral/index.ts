@@ -1,22 +1,21 @@
 import type { APIRoute } from 'astro';
-import { db } from 'astro:db';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getOrCreateCart } from '../../../../../lib/cart-session';
 import { getCartWithItems, setCartReferral } from '../../../../../lib/data/cart';
 import { getReferralByCode } from '../../../../../lib/data/referrals';
 import { computeCartTotals } from '../../../../../lib/cart-totals';
+import { getShopConfig } from '../../../../../lib/data/settings';
 import { ApplyCartReferralSchema } from '../../../../../schemas/cart.schema';
 import type { HandlerDeps } from '../../../../../lib/handler-types';
 
-export const POST: APIRoute = (context) =>
-  runPost({ db, sdk: createPluginContext(), ctx: context });
+export const POST: APIRoute = (context) => { const sdk = createPluginContext(); return runPost({ db: sdk.db, sdk, ctx: context }); }
 
-export const DELETE: APIRoute = (context) =>
-  runDelete({ db, sdk: createPluginContext(), ctx: context });
+export const DELETE: APIRoute = (context) => { const sdk = createPluginContext(); return runDelete({ db: sdk.db, sdk, ctx: context }); }
 
 export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
     const { cart, setCookie } = await getOrCreateCart(db, sdk, ctx.request);
+    const config = await getShopConfig(db);
     const body = await ctx.request.json();
     const parsed = ApplyCartReferralSchema.safeParse(body);
 
@@ -35,18 +34,18 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       });
     }
 
-    const result = await getCartWithItems(db, cart.id, 'RON');
+    const result = await getCartWithItems(db, cart.id, config.defaultCurrency);
     const items = result?.items ?? [];
 
     let discountAmount = 0;
     if (referral.discount_type && referral.discount_value !== null) {
-      const baseTotals = computeCartTotals(items as any, 'RON');
+      const baseTotals = computeCartTotals(items as any, config.defaultCurrency);
       if (referral.discount_type === 'fixed_amount') discountAmount = Math.min(referral.discount_value, baseTotals.subtotal_net);
       else if (referral.discount_type === 'percentage') discountAmount = Math.round(baseTotals.subtotal_net * (referral.discount_value / 100) * 100) / 100;
     }
 
     await setCartReferral(db, cart.id, referral.code);
-    const totals = computeCartTotals(items as any, 'RON', 0, discountAmount);
+    const totals = computeCartTotals(items as any, config.defaultCurrency, 0, discountAmount);
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (setCookie) headers['Set-Cookie'] = setCookie;

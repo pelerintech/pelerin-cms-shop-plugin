@@ -5,6 +5,7 @@
  */
 
 import type { OrderStatus } from '../../schemas/enums';
+import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 
 /** Subset of order fields needed by payment providers */
 export interface PaymentOrder {
@@ -43,6 +44,6 @@ export interface WebhookResult {
 export interface PaymentProvider {
   readonly name: string;
   readonly refundable: boolean;
-  initiatePayment(order: PaymentOrder, options: PaymentOptions): Promise<PaymentInitResult>;
-  handleWebhook(request: Request): Promise<WebhookResult>;
+  initiatePayment(db: LibSQLDatabase, order: PaymentOrder, options: PaymentOptions): Promise<PaymentInitResult>;
+  handleWebhook(db: LibSQLDatabase, request: Request): Promise<WebhookResult>;
 }

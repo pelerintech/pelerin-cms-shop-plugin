@@ -50,6 +50,83 @@ test('PUT auth-fail → 401', () =>
 
 // euplatesc PUT has no Zod validation (raw body) → no validation-fail cell.
 
+// r17 Task 5: Zod validation on payment settings. These tests fail until the
+// PUT handler validates with EuplatescSettingsSchema before writing.
+test('PUT validation-fail → 422 with fields when euplatesc_merchant_id is null (no encrypt/upsert)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: base,
+      body: { euplatesc_merchant_id: null },
+      method: 'PUT',
+    });
+    const res = await runPut({ db, sdk, ctx });
+    assert.equal(res.status, 422);
+    const b = await res.json();
+    assert.equal(b.success, false);
+    assert.equal(b.error, 'Validation failed');
+    assert.ok(b.fields && Object.keys(b.fields).length > 0, 'fields non-empty');
+    // No setting row should have been written for the invalid key.
+    const { eq } = await import('drizzle-orm');
+    const [row] = await db
+      .select()
+      .from(shop_settings)
+      .where(eq(shop_settings.key, 'euplatesc_merchant_id'));
+    assert.ok(!row, 'no upsertSetting should run on validation failure');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('PUT validation-fail → 422 when euplatesc_secret_key is a number (no encrypt)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: base,
+      body: { euplatesc_secret_key: 12345 },
+      method: 'PUT',
+    });
+    const res = await runPut({ db, sdk, ctx });
+    assert.equal(res.status, 422);
+    const b = await res.json();
+    assert.equal(b.success, false);
+    assert.ok(b.fields && 'euplatesc_secret_key' in b.fields, 'fields.euplatesc_secret_key present');
+    // encrypt(non-string) must never run → no row written
+    const { eq } = await import('drizzle-orm');
+    const [row] = await db
+      .select()
+      .from(shop_settings)
+      .where(eq(shop_settings.key, 'euplatesc_secret_key'));
+    assert.ok(!row, 'no encrypt/upsertSetting should run on validation failure');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('PUT validation-fail → 422 when euplatesc_secret_key is an object', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: base,
+      body: { euplatesc_secret_key: { obj: 1 } },
+      method: 'PUT',
+    });
+    const res = await runPut({ db, sdk, ctx });
+    assert.equal(res.status, 422);
+    const b = await res.json();
+    assert.equal(b.success, false);
+    assert.ok(b.fields && 'euplatesc_secret_key' in b.fields);
+  } finally {
+    await cleanup();
+  }
+});
+
 test('PUT happy-path → 200, settings written to shop_settings', async () => {
   const { db, cleanup } = await createTestDb();
   try {

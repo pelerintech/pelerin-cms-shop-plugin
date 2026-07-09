@@ -3,8 +3,8 @@
  * Uses eq — never the sql IN-join idiom.
  */
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import { eq } from 'drizzle-orm';
-import { referral_codes } from '../../db/schema.ts';
+import { eq, desc, and, count, like, or, inArray, notInArray } from 'drizzle-orm';
+import { referral_codes, orders } from '../../db/schema.ts';
 
 export interface ReferralRow {
   id: string;
@@ -39,10 +39,39 @@ export async function getReferralById(
 }
 
 /** List all referral codes ordered by created_at DESC. */
-export async function listReferrals(db: LibSQLDatabase): Promise<ReferralRow[]> {
-  const rows = await db.select().from(referral_codes);
-  rows.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-  return rows as ReferralRow[];
+export async function listReferrals(db: LibSQLDatabase): Promise<ReferralRow[]>;
+export async function listReferrals(
+  db: LibSQLDatabase,
+  opts: { page?: number; limit?: number; active?: boolean; search?: string },
+): Promise<{ rows: ReferralRow[]; total: number; page: number; limit: number }>;
+export async function listReferrals(
+  db: LibSQLDatabase,
+  opts: { page?: number; limit?: number; active?: boolean; search?: string } = {},
+): Promise<ReferralRow[] | { rows: ReferralRow[]; total: number; page: number; limit: number }> {
+  // r17 Task 9 (list-accessors-sql): push WHERE/ORDER to SQL always; push
+  // LIMIT/OFFSET + COUNT(*) when pagination args are present. No-arg array shape
+  // preserved for the admin list API endpoint backward compatibility.
+  const conditions: any[] = [];
+  if (opts.active !== undefined) conditions.push(eq(referral_codes.active, opts.active));
+  if (opts.search) {
+    const s = `%${opts.search.toLowerCase()}%`;
+    conditions.push(or(like(referral_codes.code, s), like(referral_codes.name, s)));
+  }
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  if (opts.page === undefined && opts.limit === undefined) {
+    const rows = await db.select().from(referral_codes).where(where).orderBy(desc(referral_codes.created_at));
+    return rows as ReferralRow[];
+  }
+  const page = Math.max(1, opts.page ?? 1);
+  const limit = Math.min(100, Math.max(1, opts.limit ?? 50));
+  const [countRow] = await db.select({ value: count() }).from(referral_codes).where(where);
+  const total = countRow?.value ?? 0;
+  const paged = await db.select().from(referral_codes)
+    .where(where)
+    .orderBy(desc(referral_codes.created_at))
+    .limit(limit)
+    .offset((page - 1) * limit);
+  return { rows: paged as ReferralRow[], total, page, limit };
 }
 
 export interface CreateReferralInput {
@@ -95,4 +124,30 @@ export async function updateReferral(db: LibSQLDatabase, id: string, input: Upda
 /** Delete a referral by id. */
 export async function deleteReferral(db: LibSQLDatabase, id: string): Promise<void> {
   await db.delete(referral_codes).where(eq(referral_codes.id, id));
+}
+
+/** Count completed orders attributed to each referral code.
+ * Excludes cancelled and refunded orders. Returns a map of code → count. */
+export async function countOrdersByReferralCodes(
+  db: LibSQLDatabase,
+  codes: string[],
+): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+  if (codes.length === 0) return result;
+
+  const rows = await db
+    .select({ referral_code: orders.referral_code, cnt: count() })
+    .from(orders)
+    .where(
+      and(
+        inArray(orders.referral_code, codes),
+        notInArray(orders.status, ['cancelled', 'refunded'])
+      )
+    )
+    .groupBy(orders.referral_code);
+
+  for (const row of rows) {
+    result.set(row.referral_code, Number(row.cnt));
+  }
+  return result;
 }

@@ -12,6 +12,7 @@ test('OrderStatus enum exports correct values', () => {
     'delivered',
     'cancelled',
     'refund_requested',
+    'partially_refunded',
     'refunded',
   ]);
 });

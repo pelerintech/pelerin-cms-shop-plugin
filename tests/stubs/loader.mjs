@@ -2,16 +2,16 @@
  * Node ESM loader hook for unit-testing API handlers outside the Astro build.
  *
  * It does two things:
- *  1. Resolves the `astro:db` and `pelerin:plugin-sdk` virtual modules to
- *     static stub modules (tests/stubs/*.mjs) so handler files import cleanly.
- *     The stubs are never exercised — handlers' `runMethod` functions receive
- *     `db`/`sdk` as injected deps, and the thin wrappers are never called.
+ *  1. Resolves the `pelerin:plugin-sdk` virtual module to a static stub module
+ *     (tests/stubs/plugin-sdk.mjs) so handler files import cleanly.
+ *     The stub is never exercised — handlers' `runMethod` functions receive
+ *     `sdk` as an injected dep, and the thin wrapper is never called.
  *  2. Adds `.ts` extension resolution for relative specifiers, mirroring
  *     Astro/Vite's behaviour, so the handler dependency graph (data accessors,
  *     schemas) resolves under bare Node.
  *
  * Registered via tests/stubs/register.mjs (module.register) from each handler
- * test file. This is a STATIC resolution shim — it does NOT provide fake db/sdk
+ * test file. This is a STATIC resolution shim — it does NOT provide fake sdk
  * behaviour and has no per-test mutable state (the design's stated reason for
  * rejecting module-load mocking). Fakes come from injection.
  */
@@ -20,16 +20,12 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve as pathResolve } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const astroDbUrl = pathToFileURL(pathResolve(__dirname, 'astro-db.mjs')).href;
 const pluginSdkUrl = pathToFileURL(pathResolve(__dirname, 'plugin-sdk.mjs')).href;
 
 const KNOWN_EXT = /\.(ts|tsx|mjs|js|jsx|cjs|json|node)$/i;
 const isRelative = (s) => s.startsWith('.') || s.startsWith('/');
 
 export async function resolve(specifier, context, nextResolve) {
-  if (specifier === 'astro:db' || specifier.startsWith('astro:')) {
-    return { url: astroDbUrl, shortCircuit: true };
-  }
   if (specifier === 'pelerin:plugin-sdk' || specifier.startsWith('pelerin:')) {
     return { url: pluginSdkUrl, shortCircuit: true };
   }

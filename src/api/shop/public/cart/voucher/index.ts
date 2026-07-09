@@ -1,22 +1,21 @@
 import type { APIRoute } from 'astro';
-import { db } from 'astro:db';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getOrCreateCart } from '../../../../../lib/cart-session';
 import { getCartWithItems, setCartVoucher } from '../../../../../lib/data/cart';
 import { getVoucherByCode } from '../../../../../lib/data/vouchers';
 import { computeCartTotals } from '../../../../../lib/cart-totals';
+import { getShopConfig } from '../../../../../lib/data/settings';
 import { ApplyCartVoucherSchema } from '../../../../../schemas/cart.schema';
 import type { HandlerDeps } from '../../../../../lib/handler-types';
 
-export const POST: APIRoute = (context) =>
-  runPost({ db, sdk: createPluginContext(), ctx: context });
+export const POST: APIRoute = (context) => { const sdk = createPluginContext(); return runPost({ db: sdk.db, sdk, ctx: context }); }
 
-export const DELETE: APIRoute = (context) =>
-  runDelete({ db, sdk: createPluginContext(), ctx: context });
+export const DELETE: APIRoute = (context) => { const sdk = createPluginContext(); return runDelete({ db: sdk.db, sdk, ctx: context }); }
 
 export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
     const { cart, setCookie } = await getOrCreateCart(db, sdk, ctx.request);
+    const config = await getShopConfig(db);
     const body = await ctx.request.json();
     const parsed = ApplyCartVoucherSchema.safeParse(body);
 
@@ -53,7 +52,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       });
     }
 
-    const result = await getCartWithItems(db, cart.id, 'RON');
+    const result = await getCartWithItems(db, cart.id, config.defaultCurrency);
     const items = result?.items ?? [];
     if (items.length === 0) {
       return new Response(JSON.stringify({ success: false, error: 'Cart is empty' }), {
@@ -61,7 +60,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       });
     }
 
-    const baseTotals = computeCartTotals(items as any, 'RON');
+    const baseTotals = computeCartTotals(items as any, config.defaultCurrency);
     if (voucher.min_order_value !== null && baseTotals.subtotal_net < voucher.min_order_value) {
       return new Response(JSON.stringify({ success: false, error: 'Minimum order value not met' }), {
         status: 422, headers: { 'Content-Type': 'application/json' },
@@ -73,7 +72,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     else if (voucher.type === 'percentage') discountAmount = Math.round(baseTotals.subtotal_net * ((voucher.value ?? 0) / 100) * 100) / 100;
 
     await setCartVoucher(db, cart.id, voucher.code);
-    const totals = computeCartTotals(items as any, 'RON', 0, discountAmount);
+    const totals = computeCartTotals(items as any, config.defaultCurrency, 0, discountAmount);
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (setCookie) headers['Set-Cookie'] = setCookie;

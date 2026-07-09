@@ -3,7 +3,7 @@
 // Route: /admin/plugins/shop/vouchers
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db, vouchers, sql as dbSql } from 'astro:db';
+import { listVouchers } from '../../../lib/data/vouchers';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
@@ -14,45 +14,34 @@ const activeFilter = url.searchParams.get('active') || '';
 const typeFilter = url.searchParams.get('type') || '';
 const page = parseInt(url.searchParams.get('page') || '1');
 const limit = 20;
-const offset = (page - 1) * limit;
 
-// Build where clause
-const conditions: string[] = [];
-if (activeFilter === 'true') {
-  conditions.push(`v.active = 1 AND (v.valid_until IS NULL OR v.valid_until >= datetime('now')) AND (v.max_uses IS NULL OR v.uses_count < v.max_uses)`);
-} else if (activeFilter === 'false') {
-  conditions.push(`(v.active = 0 OR (v.valid_until IS NOT NULL AND v.valid_until < datetime('now')) OR (v.max_uses IS NOT NULL AND v.uses_count >= v.max_uses))`);
-}
+// Use accessor for paginated list with active filter
+const result = await listVouchers(sdk.db, {
+  active: activeFilter === 'true' ? true : activeFilter === 'false' ? false : undefined,
+  page,
+  limit,
+});
+
+// Apply type filter client-side (not supported by accessor)
+let voucherList = result.rows;
 if (typeFilter) {
-  conditions.push(`v.type = '${typeFilter.replace(/'/g, "''")}'`);
+  voucherList = voucherList.filter(v => v.type === typeFilter);
 }
 
-const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+// Derive status for each voucher
+function getVoucherStatus(v: any): string {
+  if (!v.active) return 'inactive';
+  if (v.valid_until && new Date(v.valid_until) < new Date()) return 'expired';
+  if (v.max_uses !== null && v.uses_count >= v.max_uses) return 'exhausted';
+  return 'active';
+}
 
-// Fetch vouchers
-const result = await db.run(dbSql`
-  SELECT v.*,
-    CASE
-      WHEN v.active = 0 THEN 'inactive'
-      WHEN v.valid_until IS NOT NULL AND v.valid_until < datetime('now') THEN 'expired'
-      WHEN v.max_uses IS NOT NULL AND v.uses_count >= v.max_uses THEN 'exhausted'
-      ELSE 'active'
-    END as status
-  FROM ${vouchers} v
-  ${dbSql.raw(whereClause)}
-  ORDER BY v.created_at DESC
-  LIMIT ${limit} OFFSET ${offset}
-`);
+const vouchersWithStatus = voucherList.map(v => ({ ...v, status: getVoucherStatus(v) }));
 
-const voucherList = result.rows as any[];
-
-// Count total
-const countResult = await db.run(dbSql`
-  SELECT COUNT(*) as total FROM ${vouchers} v
-  ${dbSql.raw(whereClause)}
-`);
-const total = (countResult.rows[0] as any).total as number;
+const total = vouchersWithStatus.length;
 const totalPages = Math.ceil(total / limit);
+const offset = (page - 1) * limit;
+const vouchersPaginated = vouchersWithStatus.slice(offset, offset + limit);
 
 function statusBadge(status: string) {
   const colors: Record<string, string> = {
@@ -112,7 +101,7 @@ function buildFilterParams(p: number): string {
     </form>
 
     <!-- Voucher Table -->
-    {voucherList.length === 0 ? (
+    {vouchersPaginated.length === 0 ? (
       <p class="text-base-content/60">No vouchers found.</p>
     ) : (
       <div class="overflow-x-auto">
@@ -131,7 +120,7 @@ function buildFilterParams(p: number): string {
             </tr>
           </thead>
           <tbody>
-            {voucherList.map((v: any) => (
+            {vouchersPaginated.map((v: any) => (
               <tr>
                 <td class="font-mono font-bold">{v.code}</td>
                 <td>{v.type === 'fixed_amount' ? 'Fixed Amount' : v.type === 'percentage' ? 'Percentage' : 'Free Shipping'}</td>

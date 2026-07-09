@@ -4,8 +4,8 @@ import {
   CreateProductSchema,
   UpdateProductSchema,
   CreateVariantSchema,
-  CreateOptionTypeSchema,
-  CreateOptionValueSchema,
+  CreateAttributeSchema,
+  CreateAttributeOptionSchema,
 } from '../../src/schemas/product.schema.ts';
 
 test('CreateProductSchema rejects empty SKU', () => {
@@ -82,27 +82,24 @@ test('CreateVariantSchema requires positive quantity stock (or null)', () => {
   assert.strictEqual(ok2.success, true);
 });
 
-test('CreateOptionTypeSchema validates value_type enum', () => {
-  const bad = CreateOptionTypeSchema.safeParse({
-    product_id: 'uuid-123',
-    label: 'Size',
-    value_type: 'invalid',
+test('CreateAttributeSchema validates type enum', () => {
+  const bad = CreateAttributeSchema.safeParse({
+    name: 'Color',
+    type: 'invalid',
   });
   assert.strictEqual(bad.success, false);
 
-  const good = CreateOptionTypeSchema.safeParse({
-    product_id: 'uuid-123',
-    label: 'Size',
-    value_type: 'short_text',
+  const good = CreateAttributeSchema.safeParse({
+    name: 'Color',
+    type: 'select',
   });
   assert.strictEqual(good.success, true);
 });
 
-test('CreateOptionValueSchema validates basic shape', () => {
-  const result = CreateOptionValueSchema.safeParse({
-    option_type_id: 'uuid-123',
-    value: 'Red',
-    label: 'Red',
+test('CreateAttributeOptionSchema validates basic shape', () => {
+  const result = CreateAttributeOptionSchema.safeParse({
+    attribute_id: 'uuid-123',
+    value: 'red',
   });
   assert.strictEqual(result.success, true);
 });

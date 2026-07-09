@@ -3,7 +3,7 @@
  * Uses inArray/eq — never the sql IN-join idiom.
  */
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import { inArray, eq, and, isNull } from 'drizzle-orm';
+import { inArray, eq, and, isNull, lt, desc, count } from 'drizzle-orm';
 import {
   carts,
   cart_items,
@@ -15,6 +15,7 @@ import {
   product_attributes,
   translations,
 } from '../../db/schema.ts';
+import { getShopConfig } from './settings.ts';
 
 export interface CartRow {
   id: string;
@@ -170,9 +171,10 @@ export async function enrichCartItems(
     const optionIds = Array.from(new Set(variantVav.map(v => v.option_id).filter(Boolean) as string[]));
     const optionLabelsMap = new Map<string, string>();
     if (optionIds.length > 0) {
+      const config = await getShopConfig(db);
       const optTransRows = await db.select().from(translations).where(inArray(translations.entity_id, optionIds));
       for (const t of optTransRows) {
-        if (t.entity_type === 'product_attribute_option' && t.locale === 'ro' && t.label) {
+        if (t.entity_type === 'product_attribute_option' && t.locale === config.defaultLocale && t.label) {
           optionLabelsMap.set(t.entity_id, t.label);
         }
       }
@@ -196,22 +198,31 @@ export async function enrichCartItems(
     }
   }
 
+  // Batched price fetch (r17 Task 10) — at most 2 product_prices queries
+  // (one inArray(variant_id), one inArray(product_id)), built into a Map keyed
+  // by (variantId|productId, currency). Replaces the per-item N+1 query.
+  const priceMap = new Map<string, number>();
+  if (variantIds.length > 0) {
+    const variantPriceRows = await db.select().from(product_prices)
+      .where(and(inArray(product_prices.variant_id, variantIds), eq(product_prices.currency, currency)));
+    for (const p of variantPriceRows) priceMap.set(`v:${p.variant_id}`, p.price_net);
+  }
+  if (productIds.length > 0) {
+    const productPriceRows = await db.select().from(product_prices)
+      .where(and(inArray(product_prices.product_id, productIds), eq(product_prices.currency, currency)));
+    for (const p of productPriceRows) {
+      // Product-level price = row where variant_id is null.
+      if (p.variant_id === null) priceMap.set(`p:${p.product_id}`, p.price_net);
+    }
+  }
+
   const result: EnrichedCartItem[] = [];
   for (const item of items) {
     let priceNet = 0;
     if (item.variant_id) {
-      const priceRows = await db
-        .select()
-        .from(product_prices)
-        .where(and(eq(product_prices.variant_id, item.variant_id), eq(product_prices.currency, currency)));
-      if (priceRows.length > 0) priceNet = priceRows[0].price_net;
+      priceNet = priceMap.get(`v:${item.variant_id}`) ?? 0;
     } else if (item.product_id) {
-      const priceRows = await db
-        .select()
-        .from(product_prices)
-        .where(and(eq(product_prices.product_id, item.product_id), eq(product_prices.currency, currency)));
-      const productLevelPrice = priceRows.find(p => p.variant_id === null);
-      if (productLevelPrice) priceNet = productLevelPrice.price_net;
+      priceNet = priceMap.get(`p:${item.product_id}`) ?? 0;
     }
 
     const product = productMap.get(item.product_id);
@@ -356,18 +367,40 @@ export async function setCartReferral(db: LibSQLDatabase, cartId: string, code: 
 /** List all carts ordered by updated_at DESC, with optional filters. */
 export async function listCarts(
   db: LibSQLDatabase,
-  opts: { abandonedSinceHours?: number; userId?: string } = {},
-): Promise<CartRow[]> {
-  let rows = await db.select().from(carts);
-  if (opts.userId) {
-    rows = rows.filter(c => c.user_id === opts.userId);
-  }
+  opts: { abandonedSinceHours?: number; userId?: string },
+): Promise<CartRow[]>;
+export async function listCarts(
+  db: LibSQLDatabase,
+  opts: { abandonedSinceHours?: number; userId?: string; page: number; limit: number },
+): Promise<{ rows: CartRow[]; total: number; page: number; limit: number }>;
+export async function listCarts(
+  db: LibSQLDatabase,
+  opts: { abandonedSinceHours?: number; userId?: string; page?: number; limit?: number } = {},
+): Promise<CartRow[] | { rows: CartRow[]; total: number; page: number; limit: number }> {
+  // r17 Task 9 (list-accessors-sql): push WHERE/ORDER to SQL always; push
+  // LIMIT/OFFSET + COUNT(*) when pagination args are present. No-arg/array shape
+  // preserved for the admin list API endpoint backward compatibility.
+  const conditions: any[] = [];
+  if (opts.userId) conditions.push(eq(carts.user_id, opts.userId));
   if (opts.abandonedSinceHours) {
     const cutoff = new Date(Date.now() - opts.abandonedSinceHours * 60 * 60 * 1000);
-    rows = rows.filter(c => c.updated_at < cutoff);
+    conditions.push(lt(carts.updated_at, cutoff));
   }
-  rows.sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
-  return rows as CartRow[];
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  if (opts.page === undefined && opts.limit === undefined) {
+    const rows = await db.select().from(carts).where(where).orderBy(desc(carts.updated_at));
+    return rows as CartRow[];
+  }
+  const page = Math.max(1, opts.page ?? 1);
+  const limit = Math.min(100, Math.max(1, opts.limit ?? 50));
+  const [countRow] = await db.select({ value: count() }).from(carts).where(where);
+  const total = countRow?.value ?? 0;
+  const paged = await db.select().from(carts)
+    .where(where)
+    .orderBy(desc(carts.updated_at))
+    .limit(limit)
+    .offset((page - 1) * limit);
+  return { rows: paged as CartRow[], total, page, limit };
 }
 
 /** Get item count and total quantity for a cart. */

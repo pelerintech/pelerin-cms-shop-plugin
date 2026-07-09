@@ -3,7 +3,7 @@
 // Route: /admin/plugins/shop/referral-codes
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db, referral_codes, orders, sql as dbSql } from 'astro:db';
+import { listReferrals, countOrdersByReferralCodes } from '../../../lib/data/referrals';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
@@ -13,46 +13,20 @@ const url = new URL(Astro.request.url);
 const activeFilter = url.searchParams.get('active') || '';
 const page = parseInt(url.searchParams.get('page') || '1');
 const limit = 20;
-const offset = (page - 1) * limit;
 
-// Build where clause
-const conditions: string[] = [];
-if (activeFilter === 'true') conditions.push('rc.active = 1');
-else if (activeFilter === 'false') conditions.push('rc.active = 0');
-
-const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
-// Fetch referral codes
-const result = await db.run(dbSql`
-  SELECT * FROM ${referral_codes} rc
-  ${dbSql.raw(whereClause)}
-  ORDER BY rc.created_at DESC
-  LIMIT ${limit} OFFSET ${offset}
-`);
-
-const codeList = result.rows as any[];
-
-// Count total
-const countResult = await db.run(dbSql`
-  SELECT COUNT(*) as total FROM ${referral_codes} rc
-  ${dbSql.raw(whereClause)}
-`);
-const total = (countResult.rows[0] as any).total as number;
+// Use accessor for paginated list with active filter
+const result = await listReferrals(sdk.db, {
+  active: activeFilter === 'true' ? true : activeFilter === 'false' ? false : undefined,
+  page,
+  limit,
+});
+const codeList = result.rows;
+const total = result.total;
 const totalPages = Math.ceil(total / limit);
 
-// Fetch order attribution counts for all referral codes
+// Fetch order attribution counts for all referral codes (via accessor)
 const codes = codeList.map(c => c.code);
-let orderCounts = new Map<string, number>();
-if (codes.length > 0) {
-  const placeholders = codes.map(() => '?').join(',');
-  const orderResult = await db.run(
-    dbSql`SELECT ${orders.referral_code}, COUNT(*) as cnt FROM ${orders} WHERE ${orders.referral_code} IN (${dbSql.raw(placeholders)}) AND ${orders.status} NOT IN ('cancelled', 'refunded') GROUP BY ${orders.referral_code}`,
-    ...codes
-  );
-  for (const row of orderResult.rows as any[]) {
-    orderCounts.set(row.referral_code, Number(row.cnt));
-  }
-}
+const orderCounts = await countOrdersByReferralCodes(sdk.db, codes);
 
 function discountLabel(c: any): string {
   if (!c.discount_type) return '—';

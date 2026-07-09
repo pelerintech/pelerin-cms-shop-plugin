@@ -1,8 +1,8 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db } from 'astro:db';
 import { getSetting, upsertSetting } from '../../../../lib/data/settings';
 import { encrypt } from '../../../../lib/crypto';
+import { EuplatescSettingsSchema } from '../../../../schemas/settings.schema';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 
 const SETTINGS_KEYS = ['euplatesc_merchant_id', 'euplatesc_secret_key'];
@@ -13,11 +13,9 @@ function maskValue(value: string | null): string | null {
   return `****${value.slice(-4)}`;
 }
 
-export const GET: APIRoute = (context) =>
-  runGet({ db, sdk: createPluginContext(), ctx: context });
+export const GET: APIRoute = (context) => { const sdk = createPluginContext(); return runGet({ db: sdk.db, sdk, ctx: context }); }
 
-export const PUT: APIRoute = (context) =>
-  runPut({ db, sdk: createPluginContext(), ctx: context });
+export const PUT: APIRoute = (context) => { const sdk = createPluginContext(); return runPut({ db: sdk.db, sdk, ctx: context }); }
 
 export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try { await sdk.auth.requireAdmin(ctx.request); } catch {
@@ -43,13 +41,21 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
   }
 
-  const body = await ctx.request.json();
-
-  if (body.euplatesc_merchant_id !== undefined) {
-    await upsertSetting(db, 'euplatesc_merchant_id', body.euplatesc_merchant_id);
+  let body: any;
+  try { body = await ctx.request.json(); } catch {
+    return new Response(JSON.stringify({ success: false, error: 'Invalid JSON body' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
   }
-  if (body.euplatesc_secret_key !== undefined) {
-    const encrypted = await encrypt(body.euplatesc_secret_key);
+
+  const parsed = EuplatescSettingsSchema.safeParse(body);
+  if (!parsed.success) {
+    return new Response(JSON.stringify({ success: false, error: 'Validation failed', fields: Object.fromEntries(parsed.error.issues.map(i => [i.path.join('.'), i.message])) }), { status: 422, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  if (parsed.data.euplatesc_merchant_id !== undefined) {
+    await upsertSetting(db, 'euplatesc_merchant_id', parsed.data.euplatesc_merchant_id);
+  }
+  if (parsed.data.euplatesc_secret_key !== undefined) {
+    const encrypted = await encrypt(parsed.data.euplatesc_secret_key);
     await upsertSetting(db, 'euplatesc_secret_key', encrypted);
   }
 

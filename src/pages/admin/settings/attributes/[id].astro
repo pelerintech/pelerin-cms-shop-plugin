@@ -3,70 +3,48 @@
 // Route: /admin/plugins/shop/settings/attributes/[id]
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db, product_attributes, product_attribute_options, shop_settings, sql as dbSql } from 'astro:db';
 import Breadcrumbs from '../../../../components/admin/Breadcrumbs.astro';
 import TextField from '../../../../components/admin/TextField.astro';
 import SelectField from '../../../../components/admin/SelectField.astro';
+import { getAttribute } from '../../../../lib/data/attributes';
+import { listOptions } from '../../../../lib/data/attribute-options';
+import { listTranslations, listTranslationsByEntityIds } from '../../../../lib/data/products';
+import { getShopConfig } from '../../../../lib/data/settings';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
 
 const id = Astro.params.id;
 
-// Fetch attribute
-const [attribute] = await db
-  .select()
-  .from(product_attributes)
-  .where(dbSql`${product_attributes.id} = ${id}`);
+// Fetch locales from settings via accessor
+const shopConfig = await getShopConfig(sdk.db);
+const defaultLocale = shopConfig.defaultLocale;
+const otherLocales = shopConfig.locales.filter(l => !l.isDefault);
 
+// Fetch attribute via accessor
+const attribute = await getAttribute(sdk.db, id, defaultLocale);
 if (!attribute) {
   return Astro.redirect('/admin/plugins/shop/settings/attributes');
 }
 
-// Fetch locales from settings
-const localesResult = await db.run(
-  dbSql`SELECT ${shop_settings.value} FROM ${shop_settings} WHERE ${shop_settings.key} = 'locales' LIMIT 1`
-);
-let locales: { code: string; name: string; isDefault: boolean }[] = [];
-if (localesResult.rows.length > 0) {
-  try {
-    locales = JSON.parse((localesResult.rows[0] as any).value);
-  } catch {}
-}
-const defaultLocale = locales.find(l => l.isDefault)?.code || 'ro';
-const otherLocales = locales.filter(l => !l.isDefault);
+// Fetch translations for this attribute via accessor
+const transRows = await listTranslations(sdk.db, 'product_attribute', id);
+const transByLocale = new Map(transRows.map((t: any) => [t.locale, t]));
 
-// Fetch translations for this attribute
-const transResult = await db.run(
-  dbSql`SELECT * FROM translations WHERE entity_type = 'product_attribute' AND entity_id = ${id}`
-);
-const transRows = transResult.rows as any[];
-const transByLocale = new Map(transRows.map(t => [t.locale, t]));
-
-// Fetch options for select-type attributes
+// Fetch options for select-type attributes via accessor
 let options: any[] = [];
 if (attribute.type === 'select') {
-  const optResult = await db
-    .select()
-    .from(product_attribute_options)
-    .where(dbSql`${product_attribute_options.attribute_id} = ${id}`)
-    .orderBy(product_attribute_options.sort_order);
-  options = optResult;
+  options = await listOptions(sdk.db, id, defaultLocale);
 }
 
-// Fetch option translations
+// Fetch option translations via accessor
 const optionTransMap = new Map<string, Map<string, any>>();
 if (options.length > 0) {
   const optIds = options.map(o => o.id);
-  const placeholders = optIds.map(() => '?').join(',');
-  const optTransResult = await db.run(
-    dbSql`SELECT * FROM translations WHERE entity_type = 'product_attribute_option' AND entity_id IN (${dbSql.raw(placeholders)})`,
-    ...optIds
-  );
-  for (const row of optTransResult.rows) {
-    const r = row as any;
-    if (!optionTransMap.has(r.entity_id)) optionTransMap.set(r.entity_id, new Map());
-    optionTransMap.get(r.entity_id)!.set(r.locale, r);
+  const optTransRows = await listTranslationsByEntityIds(sdk.db, 'product_attribute_option', optIds);
+  for (const row of optTransRows) {
+    if (!optionTransMap.has(row.entity_id)) optionTransMap.set(row.entity_id, new Map());
+    optionTransMap.get(row.entity_id)!.set(row.locale, row);
   }
 }
 

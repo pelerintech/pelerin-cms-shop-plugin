@@ -91,7 +91,7 @@ test('cart item schema accepts valid payload', () => {
 test('shop settings schema validates order_number keys', () => {
   const result = ShopSettingsSchema.safeParse({
     order_number_prefix: 'ORD',
-    order_number_year: '2025',
+    order_number_year: true,
     order_number_padding: 6,
     order_number_sequence: 42,
   });

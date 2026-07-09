@@ -5,6 +5,8 @@ import { z } from 'zod';
  * pending → awaiting_payment → paid → processing → shipped → delivered
  * cancelled can happen from: pending, awaiting_payment, paid, processing
  * refund_requested → refunded
+ * delivered → partially_refunded (line-item refund) → refunded (when all items refunded)
+ * partially_refunded → refund_requested (manual escalation) → refunded
  */
 export const OrderStatus = z.enum([
   'pending',
@@ -15,6 +17,7 @@ export const OrderStatus = z.enum([
   'delivered',
   'cancelled',
   'refund_requested',
+  'partially_refunded',
   'refunded',
 ]);
 

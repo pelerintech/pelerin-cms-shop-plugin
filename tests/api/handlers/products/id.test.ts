@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { ensureLoader } from '../../../stubs/register.mjs';
 import { matrix } from '../_matrix.ts';
 import { makeFakeSdk, makeCtx, poisonDb, unauthorizedError } from '../../helpers.ts';
-import { createTestDb, seedMinimal } from '../../../db/harness.ts';
+import { createTestDb, seedMinimal, products } from '../../../db/harness.ts';
 
 ensureLoader();
 const { runGet, runPut, runDelete } = await import('../../../../src/api/shop/products/[id].ts');
@@ -71,6 +71,36 @@ test('PUT happy-path → 200, data.id matches', async () => {
 
 test('PUT error-wrap → 500', () =>
   matrix.errorWrap({ run: runPut, url: base + 'x', body: { name: 'X' }, params: { id: 'x' } }));
+
+test('PUT slug collision → 422 with field-level error', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    // Create a second product.
+    const secondProdId = crypto.randomUUID();
+    await db.insert(products).values({
+      id: secondProdId, sku: 'BOOK-002', type: 'physical', has_variants: false,
+      vat_rate: 0.05, stock: 10, category_id: f.categoryBooksId, active: true,
+      name: 'Second Book', description: null, slug: 'second-book',
+      created_at: new Date(), updated_at: new Date(),
+    });
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: base + secondProdId,
+      body: { name: 'Second Book', slug_en: 'programming-book' },
+      method: 'PUT',
+      params: { id: secondProdId },
+    });
+    const res = await runPut({ db, sdk, ctx });
+    assert.equal(res.status, 422, `expected 422, got ${res.status}`);
+    const b = await res.json();
+    assert.equal(b.success, false);
+    assert.ok(b.fields && b.fields.slug_en, 'should have slug_en field error');
+    assert.ok(b.fields.slug_en.length > 0, 'slug_en error message should be non-empty');
+  } finally {
+    await cleanup();
+  }
+});
 
 test('PUT ignores has_variants input: column is never written from body (derived at read)', async () => {
   const { db, cleanup } = await createTestDb();

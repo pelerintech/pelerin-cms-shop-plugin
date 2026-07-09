@@ -3,10 +3,14 @@
 // Route: /admin/plugins/shop/products
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db, products, categories, sql as dbSql } from 'astro:db';
+import { listProducts, listCategories } from '../../../lib/data/products';
+import { getShopConfig } from '../../../lib/data/settings';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
+
+const shopConfig = await getShopConfig(sdk.db);
+const defaultLocale = shopConfig.defaultLocale;
 
 // Parse query params
 const url = new URL(Astro.request.url);
@@ -15,39 +19,38 @@ const filterType = url.searchParams.get('type') || '';
 const filterActive = url.searchParams.get('active') || '';
 const page = parseInt(url.searchParams.get('page') || '1');
 const limit = 20;
-const offset = (page - 1) * limit;
 
-// Build where clause
-const conditions: string[] = [];
-if (filterCategory) conditions.push(`p.category_id = '${filterCategory}'`);
-if (filterType) conditions.push(`p.type = '${filterType}'`);
-if (filterActive === 'true') conditions.push('p.active = 1');
-if (filterActive === 'false') conditions.push('p.active = 0');
+// Fetch categories for filter dropdown and name lookup
+const catList = await listCategories(sdk.db, defaultLocale);
+const categoryNameMap = new Map<string, string>();
+for (const c of catList) {
+  categoryNameMap.set(c.id, c.name);
+}
 
-const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+// Use accessor for paginated list with filters
+const result = await listProducts(sdk.db, {
+  category_id: filterCategory || undefined,
+  active: filterActive === 'true' ? true : filterActive === 'false' ? false : undefined,
+  page,
+  limit,
+});
 
-// Fetch products with category names
-const result = await db.run(dbSql`
-  SELECT p.*, c.name as category_name
-  FROM ${products} p
-  LEFT JOIN ${categories} c ON p.category_id = c.id
-  ${dbSql.raw(whereClause)}
-  ORDER BY p.created_at DESC
-  LIMIT ${limit} OFFSET ${offset}
-`);
+// Apply type filter client-side (not supported by accessor)
+let productList = result.products;
+if (filterType) {
+  productList = productList.filter(p => p.type === filterType);
+}
 
-const productList = result.rows as any[];
-
-// Count total
-const countResult = await db.run(dbSql`
-  SELECT COUNT(*) as total FROM ${products} p
-  ${dbSql.raw(whereClause)}
-`);
-const total = (countResult.rows[0] as any).total as number;
+const total = productList.length;
 const totalPages = Math.ceil(total / limit);
+const offset = (page - 1) * limit;
+productList = productList.slice(offset, offset + limit);
 
-// Fetch categories for filter dropdown
-const catList = await db.select().from(categories).orderBy(categories.name);
+// Enrich with category names
+const productListWithCategory = productList.map(p => ({
+  ...p,
+  category_name: p.category_id ? categoryNameMap.get(p.category_id) || '-' : '-',
+}));
 ---
 
 <AdminLayout title="Products" currentPath="/admin/plugins/shop/products" user={user}>
@@ -97,7 +100,7 @@ const catList = await db.select().from(categories).orderBy(categories.name);
     </form>
 
     <!-- Product Table -->
-    {productList.length === 0 ? (
+    {productListWithCategory.length === 0 ? (
       <p class="text-base-content/60">No products found.</p>
     ) : (
       <div class="overflow-x-auto">
@@ -113,12 +116,12 @@ const catList = await db.select().from(categories).orderBy(categories.name);
             </tr>
           </thead>
           <tbody>
-            {productList.map(p => (
+            {productListWithCategory.map(p => (
               <tr>
                 <td class="font-medium">{p.name}</td>
                 <td><code class="text-xs">{p.sku || '-'}</code></td>
                 <td><span class="badge badge-sm">{p.type}</span></td>
-                <td>{p.category_name || '-'}</td>
+                <td>{p.category_name}</td>
                 <td>
                   <span class={`badge badge-sm ${p.active ? 'badge-success' : 'badge-error'}`}>
                     {p.active ? 'Active' : 'Inactive'}

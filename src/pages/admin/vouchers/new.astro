@@ -107,7 +107,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       });
       var json = await res.json();
       if (json.success) {
-        window.location.href = `/admin/plugins/shop/vouchers/${json.data.id}`;
+        window.location.href = '/admin/plugins/shop/vouchers';
       } else {
         errorsEl.classList.remove('hidden');
         if (json.fields) {

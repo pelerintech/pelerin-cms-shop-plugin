@@ -1,29 +1,25 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db } from 'astro:db';
-import { getSetting, upsertSetting, getShopConfig } from '../../../lib/data/settings';
+import { getSetting, upsertSetting, upsertSettingTyped, getShopConfig, deleteSetting } from '../../../lib/data/settings';
 import { z } from 'zod';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
 const SETTINGS_KEYS = [
   'shop_name', 'order_number_prefix', 'order_number_year',
-  'order_number_padding', 'default_currency', 'default_locale',
+  'order_number_padding', 'default_currency',
 ];
 
 const GeneralSettingsSchema = z.object({
   shop_name: z.string().optional(),
   order_number_prefix: z.string().optional(),
-  order_number_year: z.string().optional(),
-  order_number_padding: z.string().optional(),
+  order_number_year: z.boolean().optional(),
+  order_number_padding: z.number().int().min(1).optional(),
   default_currency: z.string().optional(),
-  default_locale: z.string().optional(),
 });
 
-export const GET: APIRoute = (context) =>
-  runGet({ db, sdk: createPluginContext(), ctx: context });
+export const GET: APIRoute = (context) => { const sdk = createPluginContext(); return runGet({ db: sdk.db, sdk, ctx: context }); }
 
-export const PUT: APIRoute = (context) =>
-  runPut({ db, sdk: createPluginContext(), ctx: context });
+export const PUT: APIRoute = (context) => { const sdk = createPluginContext(); return runPut({ db: sdk.db, sdk, ctx: context }); }
 
 export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try { await sdk.auth.requireAdmin(ctx.request); } catch {
@@ -59,8 +55,11 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   }
 
   for (const [key, value] of Object.entries(parsed.data)) {
-    if (value !== undefined) await upsertSetting(db, key, String(value));
+    if (value !== undefined) await upsertSettingTyped(db, key, value);
   }
+
+  // Clean up old default_locale key (now derived from locales array isDefault)
+  await deleteSetting(db, 'default_locale');
 
   return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }

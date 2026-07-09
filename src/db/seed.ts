@@ -3,9 +3,9 @@
  * Clears plugin tables and re-inserts fixture data so the dev environment
  * is always predictable.
  */
-import { db, sql } from 'astro:db';
+import { sql } from 'drizzle-orm';
 
-export default async function seed() {
+export default async function seed(db: any) {
   console.log('[Plugin:pelerin_ro_shop] Seeding...');
 
   // Clear all plugin tables in FK-safe order (children first)
@@ -21,6 +21,7 @@ export default async function seed() {
   await db.run(sql`DELETE FROM categories`);
   await db.run(sql`DELETE FROM cart_items`);
   await db.run(sql`DELETE FROM carts`);
+  await db.run(sql`DELETE FROM order_refunds`);
   await db.run(sql`DELETE FROM order_items`);
   await db.run(sql`DELETE FROM order_status_history`);
   await db.run(sql`DELETE FROM orders`);
@@ -34,7 +35,7 @@ export default async function seed() {
       (${crypto.randomUUID()}, 'locales', ${JSON.stringify([{ code: 'ro', name: 'Română', isDefault: true }, { code: 'en', name: 'English', isDefault: false }])}),
       (${crypto.randomUUID()}, 'currencies', ${JSON.stringify([{ code: 'RON', name: 'Leu românesc', isDefault: true }, { code: 'EUR', name: 'Euro', isDefault: false }])}),
       (${crypto.randomUUID()}, 'order_number_prefix', 'ORD'),
-      (${crypto.randomUUID()}, 'order_number_year', ${new Date().getFullYear().toString()}),
+      (${crypto.randomUUID()}, 'order_number_year', 'true'),
       (${crypto.randomUUID()}, 'order_number_padding', '6'),
       (${crypto.randomUUID()}, 'order_number_sequence', '0')
   `);
@@ -238,6 +239,16 @@ export default async function seed() {
   await db.run(sql`
     INSERT INTO referral_codes (id, code, name, discount_type, discount_value, active, notes, created_at, updated_at) VALUES
       (${crypto.randomUUID()}, 'PARTNER10', 'Partner A', 'percentage', 10, 1, NULL, ${new Date().toISOString()}, ${new Date().toISOString()})
+  `);
+
+  // ─── Product images (sample, dev predictability) ───
+  // url holds a storage KEY (resolved to a URL at the accessor layer via
+  // sdk.storage.getUrl under the running CMS). See design D2.
+  const sampleImgTs = Date.now();
+  await db.run(sql`
+    INSERT INTO product_images (id, product_id, variant_id, url, alt, sort_order, mime, size, width, height, original_filename)
+    VALUES
+      (${crypto.randomUUID()}, ${prodSimple}, NULL, ${'products/' + prodSimple + '/' + sampleImgTs + '-sample.png'}, 'Sample', 0, 'image/png', 0, NULL, NULL, 'sample.png')
   `);
 
   console.log('[Plugin:pelerin_ro_shop] Seeded vouchers and referral codes.');

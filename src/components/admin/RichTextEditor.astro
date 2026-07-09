@@ -113,133 +113,132 @@ const editorId = `${name}-${Math.random().toString(36).substring(2, 9)}`;
 </div>
 
 <script is:inline>
-  let marked = null;
+  // Guard against redeclaration when multiple RichTextEditor instances render on the
+  // same page — each inline script runs in the global scope, so `let`/`const`/`function`
+  // declarations would collide. Only the first instance initializes shared state.
+  (function () {
+    if (window.__rtEditorInitialized) return;
+    window.__rtEditorInitialized = true;
 
-  async function loadMarked() {
-    if (marked) return marked;
-    try {
-      const module = await import('marked');
-      marked = module.marked || module['default'] || module;
+    let marked = null;
+    const markdownEditors = {};
 
-      // Configure marked with GFM and proper options
-      // gfm: GitHub Flavored Markdown (enables tables, strikethrough, etc.)
-      // breaks: Convert \n to <br> (like GitHub comments)
-      marked.setOptions({
-        gfm: true,
-        breaks: true,
-      });
+    async function loadMarked() {
+      if (marked) return marked;
+      try {
+        const module = await import('marked');
+        marked = module.marked || module['default'] || module;
 
-      return marked;
-    } catch (e) {
-      console.error('Failed to load marked library:', e);
-      return null;
-    }
-  }
+        marked.setOptions({
+          gfm: true,
+          breaks: true,
+        });
 
-  const markdownEditors = {};
-
-  async function initMarkdownEditor(editorId) {
-    // Skip if already initialized
-    if (markdownEditors[editorId]) return;
-
-    const textarea = document.getElementById(`markdown-editor-${editorId}`);
-    const preview = document.getElementById(`markdown-preview-${editorId}`);
-
-    if (!textarea || !preview) {
-      console.warn(`RichTextEditor: Elements not found for editorId: ${editorId}`);
-      return;
-    }
-
-    const m = await loadMarked();
-
-    const updatePreview = () => {
-      const text = textarea.value;
-      if (m) {
-        try {
-          const html = m.parse(text);
-          preview.innerHTML = html;
-        } catch (e) {
-          preview.innerHTML = '<span class="text-error">Preview error</span>';
-        }
-      } else {
-        preview.textContent = text.substring(0, 200) + (text.length > 200 ? '...' : '');
+        return marked;
+      } catch (e) {
+        console.error('Failed to load marked library:', e);
+        return null;
       }
+    }
+
+    async function initMarkdownEditor(editorId) {
+      if (markdownEditors[editorId]) return;
+
+      const textarea = document.getElementById(`markdown-editor-${editorId}`);
+      const preview = document.getElementById(`markdown-preview-${editorId}`);
+
+      if (!textarea || !preview) {
+        console.warn(`RichTextEditor: Elements not found for editorId: ${editorId}`);
+        return;
+      }
+
+      const m = await loadMarked();
+
+      const updatePreview = () => {
+        const text = textarea.value;
+        if (m) {
+          try {
+            const html = m.parse(text);
+            preview.innerHTML = html;
+          } catch (e) {
+            preview.innerHTML = '<span class="text-error">Preview error</span>';
+          }
+        } else {
+          preview.textContent = text.substring(0, 200) + (text.length > 200 ? '...' : '');
+        }
+      };
+
+      textarea.addEventListener('input', updatePreview);
+
+      markdownEditors[editorId] = { textarea, preview, updatePreview };
+
+      updatePreview();
+    }
+
+    window.insertMarkdown = function (prefix, suffix) {
+      const activeTextarea = document.activeElement;
+      if (!activeTextarea || activeTextarea.tagName !== 'TEXTAREA') return;
+
+      const editorId = activeTextarea.dataset.editorId;
+      if (!editorId || !markdownEditors[editorId]) return;
+
+      const activeEditor = markdownEditors[editorId];
+      const textarea = activeEditor.textarea;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      const selection = text.substring(start, end);
+
+      const newText = text.substring(0, start) + prefix + selection + suffix + text.substring(end);
+      textarea.value = newText;
+
+      const newCursorPos = start + prefix.length + selection.length + suffix.length;
+      textarea.focus();
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+
+      activeEditor.updatePreview();
     };
 
-    textarea.addEventListener('input', updatePreview);
+    function initAllEditors() {
+      const textareas = document.querySelectorAll(
+        '[data-field-type="rich-text"] textarea[data-editor-id]'
+      );
+      textareas.forEach((textarea) => {
+        const editorId = textarea.dataset.editorId;
+        if (editorId && !markdownEditors[editorId]) {
+          initMarkdownEditor(editorId);
+        }
+      });
+    }
 
-    markdownEditors[editorId] = { textarea, preview, updatePreview };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initAllEditors);
+    } else {
+      setTimeout(initAllEditors, 0);
+    }
 
-    // Initial preview update
-    updatePreview();
-  }
-
-  window.insertMarkdown = function (prefix, suffix) {
-    const activeTextarea = document.activeElement;
-    if (!activeTextarea || activeTextarea.tagName !== 'TEXTAREA') return;
-
-    const editorId = activeTextarea.dataset.editorId;
-    if (!editorId || !markdownEditors[editorId]) return;
-
-    const activeEditor = markdownEditors[editorId];
-    const textarea = activeEditor.textarea;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-    const selection = text.substring(start, end);
-
-    const newText = text.substring(0, start) + prefix + selection + suffix + text.substring(end);
-    textarea.value = newText;
-
-    const newCursorPos = start + prefix.length + selection.length + suffix.length;
-    textarea.focus();
-    textarea.setSelectionRange(newCursorPos, newCursorPos);
-
-    activeEditor.updatePreview();
-  };
-
-  function initAllEditors() {
-    const textareas = document.querySelectorAll(
-      '[data-field-type="rich-text"] textarea[data-editor-id]'
-    );
-    textareas.forEach((textarea) => {
-      const editorId = textarea.dataset.editorId;
-      if (editorId && !markdownEditors[editorId]) {
-        initMarkdownEditor(editorId);
-      }
-    });
-  }
-
-  // Initialize on DOM ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initAllEditors);
-  } else {
-    // DOM already loaded, initialize after a small delay to ensure all components rendered
-    setTimeout(initAllEditors, 0);
-  }
-
-  // Also observe for dynamically added editors (e.g., after client-side navigation)
-  const observer = new MutationObserver((mutations) => {
-    let shouldInit = false;
-    for (const mutation of mutations) {
-      if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-        for (const node of mutation.addedNodes) {
-          if (
-            node.nodeType === Node.ELEMENT_NODE &&
-            (node.matches?.('[data-field-type="rich-text"]') ||
-              node.querySelector?.('[data-field-type="rich-text"]'))
-          ) {
-            shouldInit = true;
-            break;
+    const observer = new MutationObserver((mutations) => {
+      let shouldInit = false;
+      for (const mutation of mutations) {
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+          for (const node of mutation.addedNodes) {
+            if (
+              node.nodeType === Node.ELEMENT_NODE &&
+              (node.matches?.('[data-field-type="rich-text"]') ||
+                node.querySelector?.('[data-field-type="rich-text"]'))
+            ) {
+              shouldInit = true;
+              break;
+            }
           }
         }
+        if (shouldInit) break;
       }
-      if (shouldInit) break;
-    }
-    if (shouldInit) {
-      setTimeout(initAllEditors, 100);
-    }
-  });
+      if (shouldInit) {
+        setTimeout(initAllEditors, 100);
+      }
+    });
 
-  observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true });
+  })();
 </script>

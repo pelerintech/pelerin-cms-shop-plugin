@@ -5,7 +5,6 @@ import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import Breadcrumbs from '../../../components/admin/Breadcrumbs.astro';
 import TextField from '../../../components/admin/TextField.astro';
-import SelectField from '../../../components/admin/SelectField.astro';
 import CheckboxField from '../../../components/admin/CheckboxField.astro';
 
 const sdk = createPluginContext();
@@ -27,23 +26,16 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     <a href="/admin/plugins/shop" class="btn btn-ghost">Back</a>
   </div>
 
+  <!-- General Settings -->
   <div class="card bg-base-100 shadow-lg col-span-12">
     <div class="card-body">
+      <h2 class="card-title mb-4">Shop Info & Order Numbering</h2>
       <form id="settings-form" class="space-y-6">
         <div class="space-y-4">
           <TextField name="shop_name" label="Shop Name" placeholder="My Shop" />
           <TextField name="order_number_prefix" label="Order Number Prefix" placeholder="ORD" />
           <CheckboxField name="order_number_year" label="Include Year in Order Number" />
           <TextField name="order_number_padding" label="Order Number Padding" type="number" min="1" max="10" value="5" />
-          <SelectField name="default_currency" label="Default Currency" placeholder="None" options={[
-            { value: 'RON', label: 'RON' },
-            { value: 'EUR', label: 'EUR' },
-            { value: 'USD', label: 'USD' },
-          ]} />
-          <SelectField name="default_locale" label="Default Locale" placeholder="None" options={[
-            { value: 'ro', label: 'Romanian (ro)' },
-            { value: 'en', label: 'English (en)' },
-          ]} />
         </div>
 
         <div id="form-error" class="alert alert-error hidden"></div>
@@ -55,10 +47,70 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       </form>
     </div>
   </div>
+
+  <!-- Locales -->
+  <div class="card bg-base-100 shadow-lg col-span-12">
+    <div class="card-body">
+      <h2 class="card-title mb-4">Locales</h2>
+      <div class="overflow-x-auto">
+        <table class="table w-full">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Name</th>
+              <th>Default</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="locales-body">
+            <!-- rows populated by JS -->
+          </tbody>
+        </table>
+      </div>
+      <div id="locales-error" class="alert alert-error hidden mt-2"></div>
+      <div id="locales-success" class="alert alert-success hidden mt-2"></div>
+      <div class="flex justify-end gap-2 pt-4 border-t border-base-200">
+        <button type="button" class="btn btn-outline btn-sm" id="add-locale-btn">+ Add Locale</button>
+        <button type="button" class="btn btn-primary btn-sm" id="save-locales-btn">Save Locales</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Currencies -->
+  <div class="card bg-base-100 shadow-lg col-span-12">
+    <div class="card-body">
+      <h2 class="card-title mb-4">Currencies</h2>
+      <div class="overflow-x-auto">
+        <table class="table w-full">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Name</th>
+              <th>Default</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="currencies-body">
+            <!-- rows populated by JS -->
+          </tbody>
+        </table>
+      </div>
+      <div id="currencies-error" class="alert alert-error hidden mt-2"></div>
+      <div id="currencies-success" class="alert alert-success hidden mt-2"></div>
+      <div class="flex justify-end gap-2 pt-4 border-t border-base-200">
+        <button type="button" class="btn btn-outline btn-sm" id="add-currency-btn">+ Add Currency</button>
+        <button type="button" class="btn btn-primary btn-sm" id="save-currencies-btn">Save Currencies</button>
+      </div>
+    </div>
+  </div>
 </AdminLayout>
 
 <script>
   var API_URL = '/api/plugins/shop/settings/general';
+  var LOCALES_API = '/api/plugins/shop/settings/locales';
+  var CURRENCIES_API = '/api/plugins/shop/settings/currencies';
+
+  // ─── General settings form ───
 
   async function loadSettings() {
     try {
@@ -91,7 +143,6 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     formData.forEach(function(value, key) {
       if (value) body[key] = value;
     });
-    // Always include checkbox value
     if (form.order_number_year.checked) {
       body.order_number_year = 'true';
     } else {
@@ -127,5 +178,204 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     }
   });
 
+  // ─── Locales management ───
+
+  var localesData = [];
+
+  function renderLocales(items) {
+    localesData = items || [];
+    var tbody = document.getElementById('locales-body');
+    tbody.innerHTML = '';
+    for (var i = 0; i < localesData.length; i++) {
+      var item = localesData[i];
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><input type="text" value="' + escapeHtml(item.code) + '" class="input input-bordered input-sm w-24 locale-code" readonly /></td>' +
+        '<td><input type="text" value="' + escapeHtml(item.name) + '" class="input input-bordered input-sm w-48 locale-name" /></td>' +
+        '<td><input type="radio" name="locale-default" class="radio radio-sm" ' + (item.isDefault ? 'checked' : '') + ' /></td>' +
+        '<td><button type="button" class="btn btn-ghost btn-sm text-error locale-delete">Delete</button></td>';
+      tbody.appendChild(tr);
+    }
+    // Wire up delete buttons
+    tbody.querySelectorAll('.locale-delete').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        btn.closest('tr').remove();
+      });
+    });
+  }
+
+  document.getElementById('add-locale-btn').addEventListener('click', function() {
+    var tbody = document.getElementById('locales-body');
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input type="text" placeholder="e.g. bg" class="input input-bordered input-sm w-24 locale-code" readonly required /></td>' +
+      '<td><input type="text" placeholder="Display name" class="input input-bordered input-sm w-48 locale-name" /></td>' +
+      '<td><input type="radio" name="locale-default" class="radio radio-sm" /></td>' +
+      '<td><button type="button" class="btn btn-ghost btn-sm text-error locale-delete">Delete</button></td>';
+    // Make code input editable for new rows
+    var codeInput = tr.querySelector('.locale-code');
+    codeInput.readOnly = false;
+    tbody.appendChild(tr);
+    tr.querySelector('.locale-delete').addEventListener('click', function() {
+      tr.remove();
+    });
+  });
+
+  document.getElementById('save-locales-btn').addEventListener('click', async function() {
+    var rows = document.querySelectorAll('#locales-body tr');
+    var locales = [];
+    for (var i = 0; i < rows.length; i++) {
+      var tr = rows[i];
+      var code = tr.querySelector('.locale-code').value.trim();
+      var name = tr.querySelector('.locale-name').value.trim();
+      var isDefault = tr.querySelector('input[name="locale-default"]').checked;
+      if (!code || !name) continue;
+      locales.push({ code: code, name: name, isDefault: isDefault });
+    }
+
+    var errorEl = document.getElementById('locales-error');
+    var successEl = document.getElementById('locales-success');
+    var saveBtn = document.getElementById('save-locales-btn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+    errorEl.classList.add('hidden');
+    successEl.classList.add('hidden');
+
+    try {
+      var res = await fetch(LOCALES_API, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ locales: locales }) });
+      var json = await res.json();
+      if (json.success) {
+        successEl.classList.remove('hidden');
+        successEl.textContent = 'Locales saved. Reloading...';
+        setTimeout(function() { location.reload(); }, 800);
+      } else {
+        errorEl.classList.remove('hidden');
+        errorEl.textContent = json.error || 'Failed to save locales.';
+      }
+    } catch (err) {
+      errorEl.classList.remove('hidden');
+      errorEl.textContent = err.message || 'Network error.';
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Locales';
+    }
+  });
+
+  async function loadLocales() {
+    try {
+      var res = await fetch(LOCALES_API);
+      var json = await res.json();
+      if (json.success && json.data) {
+        renderLocales(json.data);
+      }
+    } catch (err) {
+      console.error('Failed to load locales:', err);
+    }
+  }
+
+  // ─── Currencies management ───
+
+  var currenciesData = [];
+
+  function renderCurrencies(items) {
+    currenciesData = items || [];
+    var tbody = document.getElementById('currencies-body');
+    tbody.innerHTML = '';
+    for (var i = 0; i < currenciesData.length; i++) {
+      var item = currenciesData[i];
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><input type="text" value="' + escapeHtml(item.code) + '" class="input input-bordered input-sm w-24 currency-code" readonly /></td>' +
+        '<td><input type="text" value="' + escapeHtml(item.name) + '" class="input input-bordered input-sm w-48 currency-name" /></td>' +
+        '<td><input type="radio" name="currency-default" class="radio radio-sm" ' + (item.isDefault ? 'checked' : '') + ' /></td>' +
+        '<td><button type="button" class="btn btn-ghost btn-sm text-error currency-delete">Delete</button></td>';
+      tbody.appendChild(tr);
+    }
+    tbody.querySelectorAll('.currency-delete').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        btn.closest('tr').remove();
+      });
+    });
+  }
+
+  document.getElementById('add-currency-btn').addEventListener('click', function() {
+    var tbody = document.getElementById('currencies-body');
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input type="text" placeholder="e.g. USD" class="input input-bordered input-sm w-24 currency-code" readonly required /></td>' +
+      '<td><input type="text" placeholder="Display name" class="input input-bordered input-sm w-48 currency-name" /></td>' +
+      '<td><input type="radio" name="currency-default" class="radio radio-sm" /></td>' +
+      '<td><button type="button" class="btn btn-ghost btn-sm text-error currency-delete">Delete</button></td>';
+    var codeInput = tr.querySelector('.currency-code');
+    codeInput.readOnly = false;
+    tbody.appendChild(tr);
+    tr.querySelector('.currency-delete').addEventListener('click', function() {
+      tr.remove();
+    });
+  });
+
+  document.getElementById('save-currencies-btn').addEventListener('click', async function() {
+    var rows = document.querySelectorAll('#currencies-body tr');
+    var currencies = [];
+    for (var i = 0; i < rows.length; i++) {
+      var tr = rows[i];
+      var code = tr.querySelector('.currency-code').value.trim();
+      var name = tr.querySelector('.currency-name').value.trim();
+      var isDefault = tr.querySelector('input[name="currency-default"]').checked;
+      if (!code || !name) continue;
+      currencies.push({ code: code, name: name, isDefault: isDefault });
+    }
+
+    var errorEl = document.getElementById('currencies-error');
+    var successEl = document.getElementById('currencies-success');
+    var saveBtn = document.getElementById('save-currencies-btn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+    errorEl.classList.add('hidden');
+    successEl.classList.add('hidden');
+
+    try {
+      var res = await fetch(CURRENCIES_API, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currencies: currencies }) });
+      var json = await res.json();
+      if (json.success) {
+        successEl.classList.remove('hidden');
+        successEl.textContent = 'Currencies saved. Reloading...';
+        setTimeout(function() { location.reload(); }, 800);
+      } else {
+        errorEl.classList.remove('hidden');
+        errorEl.textContent = json.error || 'Failed to save currencies.';
+      }
+    } catch (err) {
+      errorEl.classList.remove('hidden');
+      errorEl.textContent = err.message || 'Network error.';
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Currencies';
+    }
+  });
+
+  async function loadCurrencies() {
+    try {
+      var res = await fetch(CURRENCIES_API);
+      var json = await res.json();
+      if (json.success && json.data) {
+        renderCurrencies(json.data);
+      }
+    } catch (err) {
+      console.error('Failed to load currencies:', err);
+    }
+  }
+
+  // ─── Utility ───
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ─── Initialize ───
   loadSettings();
+  loadLocales();
+  loadCurrencies();
 </script>

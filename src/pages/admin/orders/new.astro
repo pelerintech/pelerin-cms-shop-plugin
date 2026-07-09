@@ -7,9 +7,11 @@ import Breadcrumbs from '../../../components/admin/Breadcrumbs.astro';
 import TextField from '../../../components/admin/TextField.astro';
 import SelectField from '../../../components/admin/SelectField.astro';
 import CheckboxField from '../../../components/admin/CheckboxField.astro';
+import { getShopConfig } from '../../../lib/data/settings';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
+const shopConfig = await getShopConfig(sdk.db);
 ---
 
 <AdminLayout title="New Order" currentPath="/admin/plugins/shop/orders" user={user}>
@@ -29,7 +31,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
 
   <div class="card bg-base-100 shadow-lg col-span-12">
     <div class="card-body">
-      <form id="order-form" class="space-y-6">
+      <form id="order-form" class="space-y-6" data-default-currency={shopConfig.defaultCurrency}>
 
         <!-- Section 1: Customer -->
         <div class="card bg-base-200/50">
@@ -167,6 +169,17 @@ const user = await sdk.auth.requireAdmin(Astro.request);
         <div class="alert alert-info">
           <span id="selected-product-name"></span>
         </div>
+
+        <!-- Variant selector (hidden if no variants) -->
+        <div id="variant-section" class="hidden">
+          <label class="label"><span class="label-text">Variant</span></label>
+          <select id="variant-select" class="select select-bordered w-full">
+            <option value="">— Product level —</option>
+          </select>
+        </div>
+        <!-- Variant name display -->
+        <div id="variant-name-display" class="hidden text-sm text-base-content/70 mt-1"></div>
+
         <div class="grid grid-cols-2 gap-4">
           <TextField name="modal-qty" label="Quantity" type="number" value="1" min="1" />
           <TextField name="modal-price" label="Price (net)" type="number" step="0.01" min="0" />
@@ -195,6 +208,8 @@ const user = await sdk.auth.requireAdmin(Astro.request);
 <script>
   var items = [];
   var selectedProduct = null;
+  var selectedVariantId = null;
+  var productDetailCache = {};
   var searchTimeout = null;
 
   // Toggle company fields
@@ -221,6 +236,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
   // ── Product search modal ──
   document.getElementById('open-item-modal').addEventListener('click', function() {
     selectedProduct = null;
+    selectedVariantId = null;
     document.getElementById('selected-product').classList.add('hidden');
     document.getElementById('product-results').innerHTML = '';
     document.getElementById('product-search').value = '';
@@ -250,18 +266,14 @@ const user = await sdk.auth.requireAdmin(Astro.request);
           return '<div class="flex items-center justify-between p-2 hover:bg-base-200 rounded cursor-pointer" data-id="' + p.id + '" data-name="' + p.name + '" data-sku="' + (p.sku || '') + '">' +
             '<div><span class="font-medium">' + p.name + '</span>' +
             (p.sku ? '<span class="text-xs text-base-content/50 ml-2">(' + p.sku + ')</span>' : '') +
+            (p.has_variants ? '<span class="text-xs text-info ml-2">(variants)</span>' : '') +
             '</div>' +
             '<button type="button" class="btn btn-xs btn-outline">Select</button></div>';
         }).join('');
         // Attach click handlers
         results.querySelectorAll('[data-id]').forEach(function(row) {
           row.addEventListener('click', function() {
-            selectedProduct = {
-              id: this.getAttribute('data-id'),
-              name: this.getAttribute('data-name'),
-              sku: this.getAttribute('data-sku') || null
-            };
-            showSelectedProduct(selectedProduct);
+            loadProductDetail(this.getAttribute('data-id'));
           });
         });
       } else {
@@ -272,14 +284,95 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     }
   }
 
+  async function loadProductDetail(productId) {
+    try {
+      var res = await fetch('/api/plugins/shop/products/' + productId + '?locale=ro');
+      var json = await res.json();
+      if (!json.success || !json.data) {
+        document.getElementById('product-results').innerHTML = '<p class="text-error text-sm">Failed to load product</p>';
+        return;
+      }
+      productDetailCache[productId] = json.data;
+      selectedProduct = {
+        id: json.data.id,
+        name: json.data.name,
+        sku: json.data.sku || null,
+      };
+      selectedVariantId = null;
+      showSelectedProduct(json.data);
+    } catch (err) {
+      document.getElementById('product-results').innerHTML = '<p class="text-error text-sm">Failed to load product</p>';
+    }
+  }
+
   function showSelectedProduct(product) {
     document.getElementById('selected-product').classList.remove('hidden');
     document.getElementById('selected-product-name').textContent = product.name + (product.sku ? ' (' + product.sku + ')' : '');
-    document.getElementById('modal-price').value = '';
-    document.getElementById('modal-vat').value = '';
+
+    // Set up variant selector
+    var variantSection = document.getElementById('variant-section');
+    var variantSelect = document.getElementById('variant-select');
+    if (product.variants && product.variants.length > 0) {
+      variantSection.classList.remove('hidden');
+      variantSelect.innerHTML = '<option value="">— Product level —</option>' +
+        product.variants.map(function(v) {
+          return '<option value="' + v.id + '">' + (v.sku || 'Variant') + (v.stock !== null ? ' (stock: ' + v.stock + ')' : '') + '</option>';
+        }).join('');
+      // Prefill with first variant's price if available
+      updatePriceFromVariant(product);
+    } else {
+      variantSection.classList.add('hidden');
+    }
+
+    // Prefill price and VAT from the first product-level price
+    var primaryPrice = (product.prices && product.prices.length > 0) ? product.prices[0] : null;
+    var priceInput = document.getElementById('modal-price');
+    var vatInput = document.getElementById('modal-vat');
+    if (primaryPrice && !selectedVariantId) {
+      priceInput.value = (primaryPrice.price_net / 100).toFixed(2);
+    }
+    // vat_rate is stored as float (0.19), convert to percentage (19)
+    vatInput.value = product.vat_rate !== null ? (product.vat_rate * 100).toFixed(0) : '';
     document.getElementById('modal-qty').value = '1';
     document.getElementById('confirm-add-item').disabled = false;
   }
+
+  function updatePriceFromVariant(product) {
+    var variantSelect = document.getElementById('variant-select');
+    var variantId = variantSelect.value;
+    var variantNameDisplay = document.getElementById('variant-name-display');
+
+    if (!variantId) {
+      variantNameDisplay.classList.add('hidden');
+      variantNameDisplay.textContent = '';
+      // Reset product name to base product name
+      document.getElementById('selected-product-name').textContent = product.name + (product.sku ? ' (' + product.sku + ')' : '');
+      return;
+    }
+    var variant = product.variants.find(function(v) { return v.id === variantId; });
+    if (!variant) return;
+
+    // Show final product name (with variant) and update display
+    var variantLabel = variant.sku || 'Variant ' + variant.id.substring(0, 8);
+    var finalName = product.name + ' — ' + variantLabel;
+    document.getElementById('selected-product-name').textContent = finalName + (variant.sku ? ' (' + variant.sku + ')' : '');
+    variantNameDisplay.textContent = 'Variant selected — this will be the item name on the order';
+    variantNameDisplay.classList.remove('hidden');
+
+    var priceInput = document.getElementById('modal-price');
+    // Use variant price if available, otherwise fall back to product-level price
+    if (variant.prices && variant.prices.length > 0) {
+      priceInput.value = (variant.prices[0].price_net / 100).toFixed(2);
+    } else if (product.prices && product.prices.length > 0) {
+      priceInput.value = (product.prices[0].price_net / 100).toFixed(2);
+    }
+  }
+
+  document.getElementById('variant-select').addEventListener('change', function() {
+    if (!selectedProduct || !productDetailCache[selectedProduct.id]) return;
+    selectedVariantId = this.value || null;
+    updatePriceFromVariant(productDetailCache[selectedProduct.id]);
+  });
 
   document.getElementById('confirm-add-item').addEventListener('click', function() {
     if (!selectedProduct) return;
@@ -296,11 +389,23 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       return;
     }
 
+    // If a variant is selected, use variant name/SKU as the item name
+    var itemName = selectedProduct.name;
+    var itemSku = selectedProduct.sku;
+    if (selectedVariantId && productDetailCache[selectedProduct.id]) {
+      var v = productDetailCache[selectedProduct.id].variants.find(function(v) { return v.id === selectedVariantId; });
+      if (v) {
+        itemName = selectedProduct.name + ' — ' + (v.sku || 'Variant');
+        itemSku = v.sku || itemSku;
+      }
+    }
+
     var gross = price * (1 + vat);
     items.push({
       product_id: selectedProduct.id,
-      product_name: selectedProduct.name,
-      sku: selectedProduct.sku,
+      variant_id: selectedVariantId,
+      product_name: itemName,
+      sku: itemSku,
       quantity: qty,
       price_net: price,
       vat_rate: vat,
@@ -313,6 +418,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
 
     // Reset modal
     selectedProduct = null;
+    selectedVariantId = null;
     document.getElementById('selected-product').classList.add('hidden');
     document.getElementById('product-results').innerHTML = '';
     document.getElementById('product-search').value = '';
@@ -324,7 +430,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
   function renderItems() {
     document.getElementById('items-list').innerHTML = items.map(function(item, i) {
       return '<div class="flex justify-between items-center p-2 bg-base-200 rounded">' +
-        '<span class="flex-1">' + item.product_name + (item.sku ? ' <span class="text-xs text-base-content/50">(' + item.sku + ')</span>' : '') + ' x' + item.quantity + ' @ ' + item.price_net.toFixed(2) + ' ' + item.currency + ' (VAT ' + ((item.vat_rate || 0) * 100).toFixed(0) + '%)</span>' +
+        '<span class="flex-1">' + item.product_name + (item.sku ? ' <span class="text-xs text-base-content/50">(' + item.sku + ')</span>' : '') + '<br>x' + item.quantity + ' @ ' + item.price_net.toFixed(2) + ' ' + item.currency + ' (VAT ' + ((item.vat_rate || 0) * 100).toFixed(0) + '%)</span>' +
         '<span class="font-mono mx-4">' + item.price_gross.toFixed(2) + ' ' + item.currency + '</span>' +
         '<button type="button" class="btn btn-xs btn-error" onclick="removeItem(' + i + ')">✕</button></div>';
     }).join('');
@@ -381,7 +487,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       customer_name: fd.get('customer_name'),
       customer_phone: fd.get('customer_phone') || null,
       status: 'pending',
-      currency: 'RON',
+      currency: document.getElementById('order-form').getAttribute('data-default-currency') || '',
       subtotal_net: subtotal,
       vat_total: vatTotal,
       shipping_cost: shipping,
@@ -429,7 +535,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       });
       var json = await res.json();
       if (json.success) {
-        window.location.href = '/admin/plugins/shop/orders/' + json.data.id;
+        window.location.href = '/admin/plugins/shop/orders';
       } else {
         errorsEl.classList.remove('hidden');
         if (json.fields) {

@@ -3,7 +3,8 @@
 // Route: /admin/plugins/shop/carts
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { db, carts, cart_items, products, product_prices, product_variants, sql as dbSql } from 'astro:db';
+import { listCarts, getCartItemCount, getCartWithItems } from '../../../lib/data/cart';
+import { getShopConfig } from '../../../lib/data/settings';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
@@ -14,83 +15,42 @@ const abandonedSince = url.searchParams.get('abandoned_since'); // optional — 
 const hoursAgo = abandonedSince ? parseInt(abandonedSince) : null;
 const page = parseInt(url.searchParams.get('page') || '1');
 const limit = 20;
-const offset = (page - 1) * limit;
 
-// Build query: show all carts by default, or filter by abandoned_since
-let whereClause = '';
-if (hoursAgo !== null && !isNaN(hoursAgo)) {
-  const cutoff = new Date(Date.now() - hoursAgo * 60 * 60 * 1000);
-  whereClause = `WHERE c.updated_at < '${cutoff.toISOString()}'`;
-}
-
-const result = await db.run(dbSql`
-  SELECT 
-    c.id, c.session_id, c.user_id, c.applied_voucher_code, c.applied_referral_code,
-    c.created_at, c.updated_at,
-    COUNT(ci.id) as item_count,
-    COALESCE(SUM(ci.quantity), 0) as total_quantity
-  FROM ${carts} c
-  LEFT JOIN ${cart_items} ci ON ci.cart_id = c.id
-  ${dbSql.raw(whereClause)}
-  GROUP BY c.id
-  ORDER BY c.updated_at DESC
-  LIMIT ${limit} OFFSET ${offset}
-`);
-
-const cartList = result.rows as any[];
-
-// Count total
-const countResult = await db.run(dbSql`
-  SELECT COUNT(DISTINCT c.id) as total FROM ${carts} c
-  ${dbSql.raw(whereClause)}
-`);
-const total = (countResult.rows[0] as any).total as number;
+// Use accessor for paginated list with abandoned_since filter
+const result = await listCarts(sdk.db, {
+  abandonedSinceHours: hoursAgo ?? undefined,
+  page,
+  limit,
+});
+const cartList = (result as any).rows;
+const total = (result as any).total;
 const totalPages = Math.ceil(total / limit);
 
-// Compute total value for each cart (simplified: sum gross price of items)
-async function getCartValue(cartId: string): Promise<string> {
-  try {
-    const itemsResult = await db.run(dbSql`
-      SELECT ci.product_id, ci.variant_id, ci.quantity, p.vat_rate
-      FROM ${cart_items} ci
-      LEFT JOIN ${products} p ON p.id = ci.product_id
-      WHERE ci.cart_id = ${cartId}
-    `);
-    const items = itemsResult.rows as any[];
-    if (items.length === 0) return '0.00 RON';
-
-    let total = 0;
-    for (const item of items) {
-      let priceNet = 0;
-      if (item.variant_id) {
-        const pr = await db.run(dbSql`
-          SELECT price_net FROM ${product_prices}
-          WHERE ${product_prices.variant_id} = ${item.variant_id}
-          AND ${product_prices.currency} = 'RON' LIMIT 1
-        `);
-        if (pr.rows.length > 0) priceNet = (pr.rows[0] as any).price_net;
-      } else if (item.product_id) {
-        const pr = await db.run(dbSql`
-          SELECT price_net FROM ${product_prices}
-          WHERE ${product_prices.product_id} = ${item.product_id}
-          AND ${product_prices.variant_id} IS NULL
-          AND ${product_prices.currency} = 'RON' LIMIT 1
-        `);
-        if (pr.rows.length > 0) priceNet = (pr.rows[0] as any).price_net;
-      }
-      const vat = item.vat_rate ?? 0;
-      total += Math.round(priceNet * (1 + vat) * item.quantity * 100) / 100;
-    }
-    return total.toFixed(2) + ' RON';
-  } catch {
-    return '—';
-  }
+// Fetch item counts for visible carts (batched via accessor)
+const cartItemCounts = new Map<string, { item_count: number; total_quantity: number }>();
+for (const cart of cartList) {
+  const counts = await getCartItemCount(sdk.db, cart.id);
+  cartItemCounts.set(cart.id, counts);
 }
 
-// Compute values for visible carts
+// Compute total value for each cart via accessor (enriched items include price_net + vat_rate)
+const shopConfig = await getShopConfig(sdk.db);
 const cartValues = new Map<string, string>();
 for (const cart of cartList) {
-  cartValues.set(cart.id, await getCartValue(cart.id));
+  try {
+    const enriched = await getCartWithItems(sdk.db, cart.id, shopConfig.defaultCurrency);
+    if (!enriched || enriched.items.length === 0) {
+      cartValues.set(cart.id, '0.00 ' + shopConfig.defaultCurrency);
+      continue;
+    }
+    let total = 0;
+    for (const item of enriched.items) {
+      total += Math.round(item.price_net * (1 + (item.vat_rate ?? 0)) * item.quantity * 100) / 100;
+    }
+    cartValues.set(cart.id, total.toFixed(2) + ' ' + shopConfig.defaultCurrency);
+  } catch {
+    cartValues.set(cart.id, '—');
+  }
 }
 ---
 
@@ -100,7 +60,7 @@ for (const cart of cartList) {
 
     <div class="mb-4 flex gap-2 items-center">
       <label class="text-sm">Show carts inactive for:</label>
-      <select class="select select-bordered select-sm" onchange="if(this.value==='all'){location.search=''}else{location.search='?abandoned_since='+this.value}">
+      <select id="abandoned-filter" class="select select-bordered select-sm">
         <option value="all" {!abandonedSince ? 'selected' : ''}>All open carts</option>
         <option value="1" {abandonedSince === '1' ? 'selected' : ''}>1 hour</option>
         <option value="6" {abandonedSince === '6' ? 'selected' : ''}>6 hours</option>
@@ -135,11 +95,12 @@ for (const cart of cartList) {
               const ageMs = Date.now() - new Date(cart.updated_at).getTime();
               const ageHours = Math.floor(ageMs / (1000 * 60 * 60));
               const ageDisplay = ageHours < 24 ? `${ageHours}h` : `${Math.floor(ageHours / 24)}d`;
+              const counts = cartItemCounts.get(cart.id) ?? { item_count: 0, total_quantity: 0 };
               return (
                 <tr>
                   <td class="font-mono text-xs">{cart.id.slice(0, 8)}...</td>
                   <td>{cart.user_id ? <span class="badge badge-sm">User</span> : <span class="badge badge-sm badge-ghost">Guest</span>}</td>
-                  <td>{cart.item_count} item{cart.item_count !== 1 ? 's' : ''} ({cart.total_quantity} qty)</td>
+                  <td>{counts.item_count} item{counts.item_count !== 1 ? 's' : ''} ({counts.total_quantity} qty)</td>
                   <td class="font-mono text-sm">{cartValues.get(cart.id) ?? '—'}</td>
                   <td>{cart.applied_voucher_code || '—'}</td>
                   <td>{cart.applied_referral_code || '—'}</td>
@@ -180,3 +141,14 @@ for (const cart of cartList) {
     </div>
   </div>
 </AdminLayout>
+
+<script is:inline>
+  const filter = document.getElementById('abandoned-filter');
+  filter.addEventListener('change', () => {
+    const params = new URLSearchParams();
+    if (filter.value !== 'all') {
+      params.set('abandoned_since', filter.value);
+    }
+    location.search = params.toString();
+  });
+</script>

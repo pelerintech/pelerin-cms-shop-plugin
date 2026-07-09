@@ -56,7 +56,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
   </div>
 </AdminLayout>
 
-<script client:load>
+<script>
   var API_URL = '/api/plugins/shop/referral-codes';
 
   // Toggle discount value visibility
@@ -66,7 +66,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       valueField.style.display = '';
     } else {
       valueField.style.display = 'none';
-      document.getElementById('discount_value')?.value = '';
+      var dv = document.getElementById('discount_value'); if (dv) dv.value = '';
     }
   });
 
@@ -99,7 +99,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       });
       var json = await res.json();
       if (json.success) {
-        window.location.href = `/admin/plugins/shop/referral-codes/${json.data.id}`;
+        window.location.href = '/admin/plugins/shop/referral-codes';
       } else {
         errorsEl.classList.remove('hidden');
         if (json.fields) {

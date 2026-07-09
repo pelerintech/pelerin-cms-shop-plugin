@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
-import { handleWebhook } from '../../../providers/payment/euplatesc'
+import { createPluginContext } from 'pelerin:plugin-sdk';
+import { handleWebhook } from '../../../providers/payment/euplatesc';
 
 /**
  * euPlatesc IPN (Instant Payment Notification) endpoint.
@@ -8,7 +9,8 @@ import { handleWebhook } from '../../../providers/payment/euplatesc'
  */
 export const POST: APIRoute = async ({ request }) => {
   try {
-    const result = await handleWebhook(request);
+    const sdk = createPluginContext();
+    const result = await handleWebhook(sdk.db, request);
 
     if (result.status === 'paid') {
       // euPlatesc expects this exact format for successful IPN

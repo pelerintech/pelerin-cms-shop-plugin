@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
-import { handleWebhook } from '../../../providers/payment/stripe'
+import { createPluginContext } from 'pelerin:plugin-sdk';
+import { handleWebhook } from '../../../providers/payment/stripe';
 
 /**
  * Stripe webhook endpoint — receives events from Stripe.
@@ -8,7 +9,8 @@ import { handleWebhook } from '../../../providers/payment/stripe'
  */
 export const POST: APIRoute = async ({ request }) => {
   try {
-    const result = await handleWebhook(request);
+    const sdk = createPluginContext();
+    const result = await handleWebhook(sdk.db, request);
     return new Response(
       JSON.stringify({ success: true, data: result }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },

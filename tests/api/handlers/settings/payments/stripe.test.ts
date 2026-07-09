@@ -51,6 +51,81 @@ test('PUT auth-fail → 401', () =>
 
 // stripe PUT has no Zod validation (raw body) → no validation-fail cell.
 
+// r17 Task 5: Zod validation on payment settings. These tests fail until the
+// PUT handler validates with StripeSettingsSchema before writing.
+test('PUT validation-fail → 422 with fields when stripe_secret_key is null (no encrypt/upsert)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: base,
+      body: { stripe_secret_key: null },
+      method: 'PUT',
+    });
+    const res = await runPut({ db, sdk, ctx });
+    assert.equal(res.status, 422);
+    const b = await res.json();
+    assert.equal(b.success, false);
+    assert.equal(b.error, 'Validation failed');
+    assert.ok(b.fields && Object.keys(b.fields).length > 0, 'fields non-empty');
+    const { eq } = await import('drizzle-orm');
+    const [row] = await db
+      .select()
+      .from(shop_settings)
+      .where(eq(shop_settings.key, 'stripe_secret_key'));
+    assert.ok(!row, 'no upsertSetting should run on validation failure');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('PUT validation-fail → 422 when stripe_secret_key is an object (no encrypt)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: base,
+      body: { stripe_secret_key: { obj: 1 } },
+      method: 'PUT',
+    });
+    const res = await runPut({ db, sdk, ctx });
+    assert.equal(res.status, 422);
+    const b = await res.json();
+    assert.equal(b.success, false);
+    assert.ok(b.fields && 'stripe_secret_key' in b.fields);
+    const { eq } = await import('drizzle-orm');
+    const [row] = await db
+      .select()
+      .from(shop_settings)
+      .where(eq(shop_settings.key, 'stripe_secret_key'));
+    assert.ok(!row, 'no encrypt/upsertSetting should run on validation failure');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('PUT validation-fail → 422 when stripe_webhook_secret is a number', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const sdk = makeFakeSdk();
+        const ctx = makeCtx({
+          url: base,
+          body: { stripe_webhook_secret: 999 },
+          method: 'PUT',
+        });
+        const res = await runPut({ db, sdk, ctx });
+        assert.equal(res.status, 422);
+        const b = await res.json();
+        assert.equal(b.success, false);
+        assert.ok(b.fields && 'stripe_webhook_secret' in b.fields);
+  } finally {
+    await cleanup();
+  }
+});
+
 test('PUT happy-path → 200, settings written to shop_settings', async () => {
   const { db, cleanup } = await createTestDb();
   try {

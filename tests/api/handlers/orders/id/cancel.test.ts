@@ -2,9 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { ensureLoader } from '../../../../stubs/register.mjs';
 import { matrix } from '../../_matrix.ts';
-import { makeFakeSdk, makeCtx, poisonDb } from '../../../helpers.ts';
+import { makeFakeSdk, makeCtx, poisonDb, unauthorizedError } from '../../../helpers.ts';
 import { createTestDb, seedMinimal, insertFixture } from '../../../../db/harness.ts';
 import { createOrder, transitionOrderStatus } from '../../../../../src/lib/data/orders.ts';
+import { eq } from 'drizzle-orm';
+import { products, orders, carts, cart_items } from '../../../../../src/db/schema.ts';
 
 ensureLoader();
 const { runPut } = await import('../../../../../src/api/shop/orders/[id]/cancel.ts');
@@ -109,4 +111,72 @@ test('PUT error-wrap → 500', () => {
     const b = await jsonBody(res);
     assert.equal(b.success, false);
   });
+});
+
+// ── r16: restock-on-cancel wiring ──
+
+test('r16: cancel restores stock for all line items (full restock)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const order = await seedOrder(db, f, 'ORD-CR', 'cart-cancel-r16');
+    // After createOrder: simple product stock 100 → 99 (qty 1 ordered).
+    const [pBefore] = await db.select().from(products).where(eq(products.id, f.simpleProductId));
+    assert.equal(pBefore.stock, 99);
+
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({ url: base + order.id, params: { id: order.id }, method: 'PUT' });
+    const res = await runPut({ db, sdk, ctx });
+    assert.equal(res.status, 200);
+    const b = await jsonBody(res);
+    assert.equal(b.data.status, 'cancelled');
+
+    // Stock restored: 99 → 100.
+    const [pAfter] = await db.select().from(products).where(eq(products.id, f.simpleProductId));
+    assert.equal(pAfter.stock, 100, 'cancel must restock the ordered quantity');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('r16: already-cancelled order → 409 and NO restock', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const order = await seedOrder(db, f, 'ORD-CC', 'cart-cancel-cc');
+    // Cancel once.
+    await runPut({ db, sdk: makeFakeSdk(), ctx: makeCtx({ url: base + order.id, params: { id: order.id }, method: 'PUT' }) });
+    // Stock now 99 → 100 (restocked).
+    const [pAfterFirst] = await db.select().from(products).where(eq(products.id, f.simpleProductId));
+    assert.equal(pAfterFirst.stock, 100);
+
+    // Cancel again → 409, no double-restock.
+    const res = await runPut({ db, sdk: makeFakeSdk(), ctx: makeCtx({ url: base + order.id, params: { id: order.id }, method: 'PUT' }) });
+    assert.equal(res.status, 409);
+    const [pAfterSecond] = await db.select().from(products).where(eq(products.id, f.simpleProductId));
+    assert.equal(pAfterSecond.stock, 100, 'no double-restock on already-cancelled');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('r16: non-admin → 401 and NO restock / NO transition', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const order = await seedOrder(db, f, 'ORD-CA', 'cart-cancel-auth');
+    // Stock is 99 after createOrder.
+    const sdk = makeFakeSdk({ authThrows: unauthorizedError() });
+    const ctx = makeCtx({ url: base + order.id, params: { id: order.id }, method: 'PUT' });
+    const res = await runPut({ db, sdk, ctx });
+    assert.equal(res.status, 401);
+
+    // Stock unchanged (no restock), status unchanged (still pending).
+    const [p] = await db.select().from(products).where(eq(products.id, f.simpleProductId));
+    assert.equal(p.stock, 99, 'no restock when auth fails');
+    const [o] = await db.select().from(orders).where(eq(orders.id, order.id));
+    assert.equal(o.status, 'pending', 'no transition when auth fails');
+  } finally {
+    await cleanup();
+  }
 });
