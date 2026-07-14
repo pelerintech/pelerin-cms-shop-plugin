@@ -8,6 +8,10 @@ import { computeCartTotals } from '../../../../lib/cart-totals';
 import { getShopConfig } from '../../../../lib/data/settings';
 import { z } from 'zod';
 import type { HandlerDeps } from '../../../../lib/handler-types';
+import { listProviders } from '../../../../providers/payment/registry';
+// Import provider modules to ensure they are registered
+import '../../../../providers/payment/stripe';
+import '../../../../providers/payment/euplatesc';
 
 const CheckoutSchema = z
   .object({
@@ -176,9 +180,14 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (setCookie) headers['Set-Cookie'] = setCookie;
 
+    // Dynamic provider list — only include providers that are configured
+    const configuredProviders = (await Promise.all(
+      listProviders().map(async (p) => ({ name: p.name, configured: await p.isConfigured(db) })),
+    )).filter((p) => p.configured).map((p) => p.name);
+
     return new Response(JSON.stringify({
       success: true,
-      data: { order_id: order.id, order_number: order.order_number, totals, payment_providers: ['stripe', 'euplatesc'] },
+      data: { order_id: order.id, order_number: order.order_number, totals, payment_providers: configuredProviders },
     }), { status: 201, headers });
   } catch (err: any) {
     return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {

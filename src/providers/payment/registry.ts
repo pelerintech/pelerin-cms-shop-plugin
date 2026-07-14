@@ -16,3 +16,10 @@ export function registerProvider(provider: PaymentProvider): void {
 export function getProvider(name: string): PaymentProvider | null {
   return providers.get(name) ?? null;
 }
+
+/**
+ * Return all registered providers as an array.
+ */
+export function listProviders(): PaymentProvider[] {
+  return Array.from(providers.values());
+}

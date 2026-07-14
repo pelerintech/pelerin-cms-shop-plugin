@@ -45,10 +45,6 @@ test('refund_requested → refunded is allowed', () => {
   assertAllows('refund_requested', 'refunded');
 });
 
-test('delivered → refunded is rejected (must go via partially_refunded or refund_requested)', () => {
-  assertRejects('delivered', 'refunded');
-});
-
 test('cancelled → refunded is rejected', () => {
   assertRejects('cancelled', 'refunded');
 });

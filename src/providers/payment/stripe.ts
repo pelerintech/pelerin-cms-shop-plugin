@@ -12,6 +12,7 @@ import type {
   PaymentOptions,
   PaymentInitResult,
   WebhookResult,
+  RefundResult,
 } from './interface';
 
 async function getStripeClient(db: LibSQLDatabase): Promise<Stripe | null> {
@@ -48,17 +49,17 @@ async function initiatePayment(
           product_data: {
             name: `Order ${order.order_number}`,
           },
-          unit_amount: Math.round(order.total * 100), // Stripe works in cents
+          unit_amount: order.total, // Stripe works in minor units (cents/bani), same as our storage
         },
         quantity: 1,
       },
     ],
   });
 
-  // Update order payment_intent_id
+  // Update order payment fields
   await db
     .update(orders)
-    .set({ payment_intent_id: session.id })
+    .set({ payment_intent_id: session.id, payment_provider: 'stripe' })
     .where(sql`${orders.id} = ${order.id}`);
 
   // Transition order to awaiting_payment
@@ -145,11 +146,27 @@ async function handleWebhook(db: LibSQLDatabase, request: Request): Promise<Webh
   }
 }
 
+async function isConfigured(db: LibSQLDatabase): Promise<boolean> {
+  const key = await getSetting(db, 'stripe_secret_key');
+  return !!key;
+}
+
+async function refund(
+  _db: LibSQLDatabase,
+  _order: PaymentOrder & { transaction_id: string | null },
+  _amount: number,
+  _reason: string,
+): Promise<RefundResult> {
+  return { success: false, error: 'Stripe refund not yet implemented' };
+}
+
 const stripeProvider: PaymentProvider = {
   name: 'stripe',
   refundable: true,
   initiatePayment,
   handleWebhook,
+  isConfigured,
+  refund,
 };
 
 // Auto-register on import

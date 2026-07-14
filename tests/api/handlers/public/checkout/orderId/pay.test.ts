@@ -37,7 +37,8 @@ test('POST validation-fail → 422 (unknown provider)', async () => {
   try {
     const sdk = makeFakeSdk({ user: null });
     const ctx = makeCtx({
-      url: URL('ord-1'), method: 'POST', body: { provider: 'nope' },
+      url: URL('ord-1'), method: 'POST',
+      body: { provider: 'nope', success_url: 'https://example.com/success', cancel_url: 'https://example.com/cart' },
       params: { orderId: 'ord-1' },
     });
     const res = await runPost({ db, sdk, ctx });
@@ -56,7 +57,8 @@ test('POST not-found → 404 (order missing)', async () => {
     await seedMinimal(db);
     const sdk = makeFakeSdk({ user: null });
     const ctx = makeCtx({
-      url: URL('no-such-order'), method: 'POST', body: { provider: 'stripe' },
+      url: URL('no-such-order'), method: 'POST',
+      body: { provider: 'stripe', success_url: 'https://example.com/success', cancel_url: 'https://example.com/cart' },
       params: { orderId: 'no-such-order' },
     });
     const res = await runPost({ db, sdk, ctx });
@@ -76,7 +78,7 @@ test('POST error-wrap → 500 (poison db)', async () => {
     url: URL('ord-1'),
     method: 'POST',
     params: { orderId: 'ord-1' },
-    body: { provider: 'stripe' },
+    body: { provider: 'stripe', success_url: 'https://example.com/success', cancel_url: 'https://example.com/cart' },
   });
 });
 

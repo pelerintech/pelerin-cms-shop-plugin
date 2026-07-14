@@ -21,11 +21,11 @@ import { getSetting, getSettingBool, getSettingNumber, upsertSetting } from './s
 // ── Valid status transitions (state machine) ──
 const VALID_TRANSITIONS: Record<string, readonly string[]> = {
   pending: ['awaiting_payment', 'cancelled'],
-  awaiting_payment: ['paid', 'cancelled'],
+  awaiting_payment: ['paid', 'cancelled', 'pending'],
   paid: ['processing', 'cancelled', 'refund_requested'],
   processing: ['shipped', 'cancelled'],
   shipped: ['delivered'],
-  delivered: ['refund_requested', 'partially_refunded'],
+  delivered: ['refund_requested', 'partially_refunded', 'refunded'],
   partially_refunded: ['refunded', 'refund_requested'],
   refund_requested: ['refunded'],
   cancelled: [],

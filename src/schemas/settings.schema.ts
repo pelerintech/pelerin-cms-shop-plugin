@@ -40,7 +40,8 @@ export type ShopSettingOutput = z.infer<typeof ShopSettingOutputSchema>;
 export const EuplatescSettingsSchema = z.object({
   euplatesc_merchant_id: z.string(),
   euplatesc_secret_key: z.string(),
-  euplatesc_test_mode: z.boolean().optional(),
+  euplatesc_ukey: z.string(),
+  euplatesc_uapi_key: z.string(),
 }).partial();
 
 export type EuplatescSettingsInput = z.infer<typeof EuplatescSettingsSchema>;

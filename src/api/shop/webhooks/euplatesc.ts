@@ -5,36 +5,23 @@ import { handleWebhook } from '../../../providers/payment/euplatesc';
 /**
  * euPlatesc IPN (Instant Payment Notification) endpoint.
  * Public endpoint — secured by HMAC signature verification.
- * Returns the euPlatesc-expected response format: <EPAYMENT>date|OK</EPAYMENT>
+ *
+ * Always returns plain text "OK" with HTTP 200, regardless of outcome.
+ * euPlatesc retries on non-200 responses, so we must never return an error status.
+ * Errors are logged server-side.
  */
 export const POST: APIRoute = async ({ request }) => {
   try {
     const sdk = createPluginContext();
-    const result = await handleWebhook(sdk.db, request);
-
-    if (result.status === 'paid') {
-      // euPlatesc expects this exact format for successful IPN
-      const now = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
-      return new Response(`<EPAYMENT>${now}|OK</EPAYMENT>`, {
-        status: 200,
-        headers: { 'Content-Type': 'text/xml' },
-      });
-    }
-
-    return new Response(
-      JSON.stringify({ success: true, data: result }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } },
-    );
-  } catch (err: any) {
-    const message = err.message ?? 'Server Error';
-    const isInvalidSig = message.includes('Invalid') || message.includes('signature');
-
-    return new Response(
-      JSON.stringify({ success: false, error: message }),
-      {
-        status: isInvalidSig ? 400 : 500,
-        headers: { 'Content-Type': 'application/json' },
-      },
-    );
+    await handleWebhook(sdk.db, request);
+  } catch (err) {
+    // Log the error but still return OK — euPlatesc retries on non-200
+    console.error('[euPlatesc webhook] Error processing IPN:', err);
   }
+
+  // Always return plain text OK with 200
+  return new Response('OK', {
+    status: 200,
+    headers: { 'Content-Type': 'text/plain' },
+  });
 };

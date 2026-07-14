@@ -13,10 +13,17 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
   try {
     const orderId = ctx.params.orderId!;
     const body = await ctx.request.json();
-    const { provider } = body;
+    const { provider, success_url, cancel_url } = body;
 
     if (!provider) {
       return new Response(JSON.stringify({ success: false, error: 'provider is required' }), {
+        status: 422, headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Client must provide success_url and cancel_url — the plugin is domain-agnostic
+    if (!success_url || !cancel_url) {
+      return new Response(JSON.stringify({ success: false, error: 'success_url and cancel_url are required' }), {
         status: 422, headers: { 'Content-Type': 'application/json' },
       });
     }
@@ -43,12 +50,14 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       total: o.total,
       customer_email: o.customer_email,
       customer_name: o.customer_name,
+      status: o.status,
     };
 
     const origin = new URL(ctx.request.url).origin;
     const paymentOptions: PaymentOptions = {
-      success_url: `${origin}/shop/orders/${orderId}/status?status=awaiting_payment`,
-      cancel_url: `${origin}/shop/cart`,
+      success_url,
+      cancel_url,
+      webhook_url: `${origin}/api/plugins/shop/webhooks/${paymentProvider.name}`,
       currency: o.currency,
     };
 

@@ -85,7 +85,12 @@
     { "pattern": "/api/plugins/shop/orders/[id]/resend-confirmation", "entrypoint": "./src/api/shop/orders/[id]/resend.ts" },
     { "pattern": "/api/plugins/shop/orders/export", "entrypoint": "./src/api/shop/orders/export.ts" },
     { "pattern": "/api/plugins/shop/import/products", "entrypoint": "./src/api/shop/import/products.ts" },
-    { "pattern": "/api/plugins/shop/import/prices", "entrypoint": "./src/api/shop/import/prices.ts" }
+    { "pattern": "/api/plugins/shop/import/prices", "entrypoint": "./src/api/shop/import/prices.ts" },
+    { "pattern": "/api/plugins/shop/payment-providers", "entrypoint": "./src/api/shop/payment-providers/index.ts" },
+    { "pattern": "/api/plugins/shop/orders/[id]/create-payment", "entrypoint": "./src/api/shop/orders/[id]/create-payment.ts" },
+    { "pattern": "/api/plugins/shop/settings/payments/euplatesc/test-connection", "entrypoint": "./src/api/shop/settings/payments/euplatesc/test-connection.ts" },
+    { "pattern": "/api/plugins/shop/settings/payments/euplatesc/test-payment", "entrypoint": "./src/api/shop/settings/payments/euplatesc/test-payment.ts" },
+    { "pattern": "/api/plugins/shop/settings/payments/euplatesc/test-result", "entrypoint": "./src/api/shop/settings/payments/euplatesc/test-result.ts" }
   ],
   "navItems": [
     { "label": "Shop", "href": "/admin/plugins/shop", "icon": "shopping-cart" },

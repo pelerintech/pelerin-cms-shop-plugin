@@ -42,7 +42,7 @@ const orderId = Astro.params.id;
     // Derive available next statuses
     const transitions = {
       pending: ['awaiting_payment', 'cancelled'],
-      awaiting_payment: ['paid', 'cancelled'],
+      awaiting_payment: ['paid', 'cancelled', 'pending'],
       paid: ['processing', 'cancelled', 'refund_requested'],
       processing: ['shipped', 'cancelled'],
       shipped: ['delivered'],
@@ -76,6 +76,7 @@ const orderId = Astro.params.id;
       (isTerminal ? '' : '<div class="flex gap-2">' +
         (nextStatuses.length > 0 ? '<button class="btn btn-sm btn-outline" onclick="openStatusModal()">Change Status</button>' : '') +
         (isCancellable ? '<button class="btn btn-sm btn-error btn-outline" onclick="cancelOrder()">Cancel</button>' : '') +
+        (['pending', 'awaiting_payment'].includes(order.status) ? '<button class="btn btn-sm btn-primary" onclick="createPayment()">Create Payment</button>' : '') +
         (!isTerminal && order.status !== 'cancelled' ? '<button class="btn btn-sm btn-outline" onclick="showRefund()">Record Refund</button>' : '') +
       '</div>') +
       // Status change modal
@@ -95,6 +96,16 @@ const orderId = Astro.params.id;
           '<div class="flex justify-end gap-2">' +
             '<button class="btn btn-ghost" onclick="closeStatusModal()">Cancel</button>' +
             '<button class="btn btn-primary" onclick="confirmStatusChange()">Confirm</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      // Create Payment modal
+      '<div id="payment-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">' +
+        '<div class="bg-base-100 rounded-lg p-6 w-full max-w-md shadow-xl">' +
+          '<h3 class="text-lg font-bold mb-4">Create Payment</h3>' +
+          '<div id="payment-modal-body"></div>' +
+          '<div class="flex justify-end gap-2 mt-4">' +
+            '<button class="btn btn-ghost" onclick="closePaymentModal()">Cancel</button>' +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -154,6 +165,8 @@ const orderId = Astro.params.id;
       '<tbody>' + (historyRows || '<tr><td colspan="3">No history</td></tr>') + '</tbody></table></div></div>';
 
     document.getElementById('order-detail').innerHTML = html;
+    // Store order data for client functions
+    window.__currentOrderData = order;
   }
 
   window.openStatusModal = function() {
@@ -187,13 +200,74 @@ const orderId = Astro.params.id;
     else { alert(json.error || 'Failed to cancel'); }
   };
 
+  window.createPayment = async function() {
+    try {
+      var provRes = await fetch('/api/plugins/shop/payment-providers');
+      var provJson = await provRes.json();
+      var providers = provJson.success ? provJson.data.providers : [];
+      if (providers.length === 0) { alert('No payment providers configured'); return; }
+      // If only one provider, initiate directly
+      if (providers.length === 1) {
+        await initiatePayment(providers[0].name);
+        return;
+      }
+      // Multiple providers — show modal with dropdown
+      var bodyEl = document.getElementById('payment-modal-body');
+      bodyEl.innerHTML = '<div class="form-control mb-2">' +
+        '<label class="label"><span class="label-text">Payment Provider</span></label>' +
+        '<select id="payment-provider-select" class="select select-bordered">' +
+        providers.map(function(p) { return '<option value="' + p.name + '">' + p.label + '</option>'; }).join('') +
+        '</select>' +
+        '</div>' +
+        '<div class="flex justify-end gap-2">' +
+          '<button class="btn btn-ghost" onclick="closePaymentModal()">Cancel</button>' +
+          '<button class="btn btn-primary" onclick="confirmCreatePayment()">Pay</button>' +
+        '</div>';
+      document.getElementById('payment-modal').classList.remove('hidden');
+    } catch (err) { alert('Error: ' + (err.message || 'unknown')); }
+  };
+
+  window.closePaymentModal = function() {
+    document.getElementById('payment-modal').classList.add('hidden');
+  };
+
+  window.confirmCreatePayment = async function() {
+    var select = document.getElementById('payment-provider-select');
+    var provider = select.value;
+    closePaymentModal();
+    await initiatePayment(provider);
+  };
+
+  async function initiatePayment(provider) {
+    try {
+      var res = await fetch('/api/plugins/shop/orders/' + CODE_ID + '/create-payment', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: provider }),
+      });
+      var json = await res.json();
+      if (json.success && json.data.redirect_url) { window.open(json.data.redirect_url, '_blank'); }
+      else { alert(json.error || 'Failed to create payment'); }
+    } catch (err) { alert('Error: ' + (err.message || 'unknown')); }
+  }
+
   window.showRefund = async function() {
-    var amount = prompt('Refund amount:');
-    if (!amount) return;
-    var notes = prompt('Notes (optional):');
+    var orderData = window.__currentOrderData;
+    if (!orderData || !orderData.items || orderData.items.length === 0) {
+      alert('No items to refund');
+      return;
+    }
+    var notes = prompt('Refund notes (optional):');
+    // Build refunds array from order items (simplified: refund all items by 1)
+    var refunds = orderData.items.map(function(item) {
+      return {
+        order_item_id: item.id,
+        quantity: 1,
+        amount: item.price_gross,
+      };
+    });
     var res = await fetch('/api/plugins/shop/orders/' + CODE_ID + '/refund', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refund_amount: parseFloat(amount), refund_notes: notes || null }),
+      body: JSON.stringify({ refunds: refunds, notes: notes || null }),
     });
     var json = await res.json();
     if (json.success) { loadOrder(); }

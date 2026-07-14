@@ -8,6 +8,11 @@ import {
 import { LineItemRefundSchema } from '../../../../schemas/order.schema';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 
+// Import provider modules to ensure they're registered
+import '../../../../providers/payment/euplatesc';
+import '../../../../providers/payment/stripe';
+import { getProvider } from '../../../../providers/payment/registry';
+
 /** Statuses from which a line-item refund transition is allowed. */
 const REFUNDABLE_STATUSES = ['delivered', 'partially_refunded'];
 
@@ -47,12 +52,47 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       }), { status: 409, headers: { 'Content-Type': 'application/json' } });
     }
 
+    // euPlatesc-first refund: call external refund BEFORE internal DB changes
+    let euplatescRefunded = false;
+    let euplatescEpid: string | null = null;
+    if (result.order.payment_provider === 'euplatesc') {
+      const provider = getProvider('euplatesc');
+      if (provider && result.order.transaction_id) {
+        // Compute refund amount from line items (sum of amount for each refund line)
+        const refundAmount = parsed.data.refunds.reduce((sum: number, line: any) => {
+          return sum + (line.amount ?? 0);
+        }, 0);
+        // Derive reason from notes
+        const reason = (parsed.data.notes?.trim() || 'Admin refund').slice(0, 55);
+        const paddedReason = reason.length < 5 ? reason.padEnd(5, '.') : reason;
+
+        const refundResult = await provider.refund(db, result.order, refundAmount, paddedReason);
+        if (!refundResult.success) {
+          return new Response(JSON.stringify({ success: false, error: refundResult.error }), {
+            status: 422, headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        euplatescRefunded = true;
+        euplatescEpid = result.order.transaction_id;
+      }
+    }
+
     // recordLineItemRefund runs validate-before-write inside its own transaction:
     // it re-checks the status, validates each refund line's quantity invariant,
     // inserts order_refunds rows, restocks, and transitions to partially_refunded/refunded.
     try {
       await recordLineItemRefund(db, orderId, parsed.data, 'admin');
     } catch (err: any) {
+      // If euPlatesc refund already succeeded but internal DB failed, return reconciliation info
+      if (euplatescRefunded) {
+        console.error(`[euPlatesc refund] epid=${euplatescEpid} succeeded but internal update failed: ${err.message}`);
+        return new Response(JSON.stringify({
+          success: false,
+          error: `euPlatesc refund succeeded (epid: ${euplatescEpid}) but internal order update failed: ${err.message}. Please reconcile manually.`,
+        }), {
+          status: 500, headers: { 'Content-Type': 'application/json' },
+        });
+      }
       if (err instanceof RefundError) {
         return new Response(JSON.stringify({ success: false, error: err.message }), {
           status: 422, headers: { 'Content-Type': 'application/json' },
