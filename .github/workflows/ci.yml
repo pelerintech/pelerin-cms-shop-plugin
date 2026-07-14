@@ -11,11 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # Pin Node 22 explicitly. The plugin repo has no committed
-      # package-lock.json (per AGENTS.md §13), so use npm install, not npm ci.
+      # package-lock.json (per AGENTS.md §13), so skip npm cache
+      # (which relies on a lockfile for the cache key).
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
       - run: npm install
       - name: Format check
         run: npm run format:check
@@ -35,7 +35,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
       - run: npm install
       - name: Type check
         continue-on-error: true
@@ -49,7 +48,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
       - run: npm install
       - name: Run tests with coverage
         env:
