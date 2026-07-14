@@ -56,7 +56,9 @@ describe('euPlatesc initiate payment — signature verification', () => {
           super(...args);
         }
       }
-      static now() { return new origDate('2026-07-10T12:00:00.000Z').getTime(); }
+      static now() {
+        return new origDate('2026-07-10T12:00:00.000Z').getTime();
+      }
     } as any;
 
     // Store originals for cleanup (not used in tests, but good practice)
@@ -67,20 +69,24 @@ describe('euPlatesc initiate payment — signature verification', () => {
   it('fp_hash is HMAC-MD5 computed with correct field order', async () => {
     const { initiatePayment } = await import('../../src/providers/payment/euplatesc.ts');
 
-    const result = await initiatePayment(db, {
-      id: 'order-1',
-      order_number: 'ORD-001',
-      currency: 'RON',
-      total: 5000,
-      customer_email: 'ion@example.com',
-      customer_name: 'Ion Popescu',
-      status: 'pending',
-    }, {
-      success_url: 'https://example.com/success',
-      cancel_url: 'https://example.com/cancel',
-      currency: 'RON',
-      webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
-    });
+    const result = await initiatePayment(
+      db,
+      {
+        id: 'order-1',
+        order_number: 'ORD-001',
+        currency: 'RON',
+        total: 5000,
+        customer_email: 'ion@example.com',
+        customer_name: 'Ion Popescu',
+        status: 'pending',
+      },
+      {
+        success_url: 'https://example.com/success',
+        cancel_url: 'https://example.com/cancel',
+        currency: 'RON',
+        webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
+      }
+    );
 
     const url = new URL(result.redirect_url);
     const params = new URLSearchParams(url.search);
@@ -89,64 +95,77 @@ describe('euPlatesc initiate payment — signature verification', () => {
     assert.ok(receivedHash, 'fp_hash must be present in redirect URL');
 
     // Recompute the expected hash using the correct algorithm
-    const expectedHash = computeEuplatescHash(buildRequestFields({
-      amount: '50.00',
-      curr: 'RON',
-      invoice_id: 'ORD-001',
-      order_desc: 'Order ORD-001',
-      merch_id: merchantId,
-      timestamp: fixedTimestamp,
-      nonce: fixedNonce,
-    }), merchantKey).toUpperCase();
+    const expectedHash = computeEuplatescHash(
+      buildRequestFields({
+        amount: '50.00',
+        curr: 'RON',
+        invoice_id: 'ORD-001',
+        order_desc: 'Order ORD-001',
+        merch_id: merchantId,
+        timestamp: fixedTimestamp,
+        nonce: fixedNonce,
+      }),
+      merchantKey
+    ).toUpperCase();
 
-    assert.strictEqual(receivedHash, expectedHash,
-      `fp_hash must match HMAC-MD5 with correct field order. Got ${receivedHash}, expected ${expectedHash}`);
+    assert.strictEqual(
+      receivedHash,
+      expectedHash,
+      `fp_hash must match HMAC-MD5 with correct field order. Got ${receivedHash}, expected ${expectedHash}`
+    );
   });
 
   it('fp_hash is uppercase', async () => {
     const { initiatePayment } = await import('../../src/providers/payment/euplatesc.ts');
 
-    const result = await initiatePayment(db, {
-      id: 'order-1',
-      order_number: 'ORD-001',
-      currency: 'RON',
-      total: 5000,
-      customer_email: 'ion@example.com',
-      customer_name: 'Ion Popescu',
-      status: 'pending',
-    }, {
-      success_url: 'https://example.com/success',
-      cancel_url: 'https://example.com/cancel',
-      currency: 'RON',
-      webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
-    });
+    const result = await initiatePayment(
+      db,
+      {
+        id: 'order-1',
+        order_number: 'ORD-001',
+        currency: 'RON',
+        total: 5000,
+        customer_email: 'ion@example.com',
+        customer_name: 'Ion Popescu',
+        status: 'pending',
+      },
+      {
+        success_url: 'https://example.com/success',
+        cancel_url: 'https://example.com/cancel',
+        currency: 'RON',
+        webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
+      }
+    );
 
     const url = new URL(result.redirect_url);
     const params = new URLSearchParams(url.search);
     const receivedHash = params.get('fp_hash');
 
     assert.ok(receivedHash, 'fp_hash must be present');
-    assert.strictEqual(receivedHash, receivedHash.toUpperCase(),
-      'fp_hash must be uppercase');
+    assert.strictEqual(receivedHash, receivedHash.toUpperCase(), 'fp_hash must be uppercase');
   });
 
   it('MAC does not include secretKey in the data string', async () => {
     const { initiatePayment } = await import('../../src/providers/payment/euplatesc.ts');
 
-    const result = await initiatePayment(db, {
-      id: 'order-1',
-      order_number: 'ORD-001',
-      currency: 'RON',
-      total: 5000,
-      customer_email: 'ion@example.com',
-      customer_name: 'Ion Popescu',
-      status: 'pending',
-    }, {
-      success_url: 'https://example.com/success',
-      cancel_url: 'https://example.com/cancel',
-      currency: 'RON',
-      webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
-    });
+    const result = await initiatePayment(
+      db,
+      {
+        id: 'order-1',
+        order_number: 'ORD-001',
+        currency: 'RON',
+        total: 5000,
+        customer_email: 'ion@example.com',
+        customer_name: 'Ion Popescu',
+        status: 'pending',
+      },
+      {
+        success_url: 'https://example.com/success',
+        cancel_url: 'https://example.com/cancel',
+        currency: 'RON',
+        webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
+      }
+    );
 
     const url = new URL(result.redirect_url);
     const params = new URLSearchParams(url.search);
@@ -155,17 +174,23 @@ describe('euPlatesc initiate payment — signature verification', () => {
     // If the secretKey were included in the data string (old buggy behavior),
     // the hash would be different. We verify the hash matches the correct
     // computation (without secretKey in data).
-    const expectedHash = computeEuplatescHash(buildRequestFields({
-      amount: '50.00',
-      curr: 'RON',
-      invoice_id: 'ORD-001',
-      order_desc: 'Order ORD-001',
-      merch_id: merchantId,
-      timestamp: fixedTimestamp,
-      nonce: fixedNonce,
-    }), merchantKey).toUpperCase();
+    const expectedHash = computeEuplatescHash(
+      buildRequestFields({
+        amount: '50.00',
+        curr: 'RON',
+        invoice_id: 'ORD-001',
+        order_desc: 'Order ORD-001',
+        merch_id: merchantId,
+        timestamp: fixedTimestamp,
+        nonce: fixedNonce,
+      }),
+      merchantKey
+    ).toUpperCase();
 
-    assert.strictEqual(receivedHash, expectedHash,
-      'fp_hash must NOT include secretKey in the data string (it is the HMAC key, not part of the data)');
+    assert.strictEqual(
+      receivedHash,
+      expectedHash,
+      'fp_hash must NOT include secretKey in the data string (it is the HMAC key, not part of the data)'
+    );
   });
 });

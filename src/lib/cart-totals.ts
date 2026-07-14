@@ -92,9 +92,8 @@ export function computeCartTotals(
   });
 
   // Subtotal — sum of all line totals (net)
-  const subtotal_net = Math.round(
-    itemLines.reduce((sum, line) => sum + line.line_total_net, 0) * 100
-  ) / 100;
+  const subtotal_net =
+    Math.round(itemLines.reduce((sum, line) => sum + line.line_total_net, 0) * 100) / 100;
 
   // VAT breakdown grouped by rate
   const vatByRate = new Map<number, { base: number; amount: number }>();
@@ -118,13 +117,9 @@ export function computeCartTotals(
   // Sort by rate ascending for consistent output
   vat_breakdown.sort((a, b) => a.rate - b.rate);
 
-  const vat_total = Math.round(
-    vat_breakdown.reduce((sum, b) => sum + b.amount, 0) * 100
-  ) / 100;
+  const vat_total = Math.round(vat_breakdown.reduce((sum, b) => sum + b.amount, 0) * 100) / 100;
 
-  const total = Math.round(
-    (subtotal_net + vat_total + shippingCost - discountAmount) * 100
-  ) / 100;
+  const total = Math.round((subtotal_net + vat_total + shippingCost - discountAmount) * 100) / 100;
 
   return {
     currency: effectiveCurrency,

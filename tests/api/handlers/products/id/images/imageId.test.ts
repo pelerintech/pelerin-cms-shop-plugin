@@ -8,9 +8,8 @@ import { product_images } from '../../../../../db/harness.ts';
 import { eq } from 'drizzle-orm';
 
 ensureLoader();
-const { runDelete } = await import(
-  '../../../../../../src/api/shop/products/[id]/images/[imageId].ts'
-);
+const { runDelete } =
+  await import('../../../../../../src/api/shop/products/[id]/images/[imageId].ts');
 
 const URL = (id: string, imgId: string) =>
   `http://localhost/api/plugins/shop/products/${id}/images/${imgId}`;
@@ -26,7 +25,19 @@ test('DELETE happy-path → 200, sdk.storage.delete called with row key, row rem
   const { db, cleanup } = await createTestDb();
   try {
     const f = await seedMinimal(db);
-    await insertFixture(db, 'product_images', { id: 'img-x', product_id: f.simpleProductId, variant_id: null, url: 'products/p1/x.jpg', alt: null, sort_order: 0, mime: 'image/jpeg', size: 10, width: null, height: null, original_filename: 'x.jpg' });
+    await insertFixture(db, 'product_images', {
+      id: 'img-x',
+      product_id: f.simpleProductId,
+      variant_id: null,
+      url: 'products/p1/x.jpg',
+      alt: null,
+      sort_order: 0,
+      mime: 'image/jpeg',
+      size: 10,
+      width: null,
+      height: null,
+      original_filename: 'x.jpg',
+    });
     const sdk = makeFakeSdk();
     const ctx = makeCtx({
       url: URL(f.simpleProductId, 'img-x'),
@@ -37,7 +48,11 @@ test('DELETE happy-path → 200, sdk.storage.delete called with row key, row rem
     assert.equal(res.status, 200);
     const b = await res.json();
     assert.equal(b.success, true);
-    assert.deepStrictEqual(sdk.storage.deleteCalls, ['products/p1/x.jpg'], 'storage.delete must be called with the row key');
+    assert.deepStrictEqual(
+      sdk.storage.deleteCalls,
+      ['products/p1/x.jpg'],
+      'storage.delete must be called with the row key'
+    );
     const after = await db.select().from(product_images).where(eq(product_images.id, 'img-x'));
     assert.strictEqual(after.length, 0, 'row must be removed');
   } finally {
@@ -49,10 +64,24 @@ test('DELETE storage throws → 5xx AND row still present (bytes-first ordering)
   const { db, cleanup } = await createTestDb();
   try {
     const f = await seedMinimal(db);
-    await insertFixture(db, 'product_images', { id: 'img-y', product_id: f.simpleProductId, variant_id: null, url: 'products/p1/y.jpg', alt: null, sort_order: 0, mime: 'image/jpeg', size: 10, width: null, height: null, original_filename: 'y.jpg' });
+    await insertFixture(db, 'product_images', {
+      id: 'img-y',
+      product_id: f.simpleProductId,
+      variant_id: null,
+      url: 'products/p1/y.jpg',
+      alt: null,
+      sort_order: 0,
+      mime: 'image/jpeg',
+      size: 10,
+      width: null,
+      height: null,
+      original_filename: 'y.jpg',
+    });
     // Fake sdk whose storage.delete rejects
     const sdk = makeFakeSdk();
-    sdk.storage.delete = async (_key: string) => { throw new Error('storage delete boom'); };
+    sdk.storage.delete = async (_key: string) => {
+      throw new Error('storage delete boom');
+    };
     const ctx = makeCtx({
       url: URL(f.simpleProductId, 'img-y'),
       method: 'DELETE',
@@ -83,7 +112,11 @@ test('DELETE non-existent id → 200, no storage call', async () => {
     assert.equal(res.status, 200);
     const b = await res.json();
     assert.equal(b.success, true);
-    assert.strictEqual(sdk.storage.deleteCalls.length, 0, 'storage.delete must not be called for missing row');
+    assert.strictEqual(
+      sdk.storage.deleteCalls.length,
+      0,
+      'storage.delete must not be called for missing row'
+    );
   } finally {
     await cleanup();
   }

@@ -27,13 +27,25 @@ test('has Create Payment button', () => {
 test('transitions map includes pending in awaiting_payment', () => {
   const source = getPageSource();
   // Check that the transitions object includes 'pending' for awaiting_payment
-  assert.match(source, /awaiting_payment.*pending/, 'awaiting_payment transitions should include pending');
+  assert.match(
+    source,
+    /awaiting_payment.*pending/,
+    'awaiting_payment transitions should include pending'
+  );
 });
 
 test('refund modal sends { refunds: [...] } format', () => {
   const source = getPageSource();
   // The refund modal should use the new { refunds: [...] } format
-  assert.match(source, /refunds[\s\S]*order_item_id/, 'should use refunds array with order_item_id');
+  assert.match(
+    source,
+    /refunds[\s\S]*order_item_id/,
+    'should use refunds array with order_item_id'
+  );
   // Should NOT send the old { refund_amount, refund_notes } in the API body
-  assert.doesNotMatch(source, /JSON\.stringify[\s\S]*refund_amount/, 'should not use old refund_amount in API body');
+  assert.doesNotMatch(
+    source,
+    /JSON\.stringify[\s\S]*refund_amount/,
+    'should not use old refund_amount in API body'
+  );
 });

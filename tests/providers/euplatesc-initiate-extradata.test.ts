@@ -36,20 +36,24 @@ describe('euPlatesc initiate payment — ExtraData URLs', () => {
   it('uses ExtraData[silenturl] for webhook URL', async () => {
     const { initiatePayment } = await import('../../src/providers/payment/euplatesc.ts');
 
-    const result = await initiatePayment(db, {
-      id: 'order-1',
-      order_number: 'ORD-001',
-      currency: 'RON',
-      total: 5000,
-      customer_email: 'ion@example.com',
-      customer_name: 'Ion Popescu',
-      status: 'pending',
-    }, {
-      success_url: 'https://example.com/success',
-      cancel_url: 'https://example.com/cancel',
-      webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
-      currency: 'RON',
-    });
+    const result = await initiatePayment(
+      db,
+      {
+        id: 'order-1',
+        order_number: 'ORD-001',
+        currency: 'RON',
+        total: 5000,
+        customer_email: 'ion@example.com',
+        customer_name: 'Ion Popescu',
+        status: 'pending',
+      },
+      {
+        success_url: 'https://example.com/success',
+        cancel_url: 'https://example.com/cancel',
+        webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
+        currency: 'RON',
+      }
+    );
 
     const url = new URL(result.redirect_url);
     const params = new URLSearchParams(url.search);
@@ -64,20 +68,24 @@ describe('euPlatesc initiate payment — ExtraData URLs', () => {
   it('uses ExtraData[successurl] for success URL', async () => {
     const { initiatePayment } = await import('../../src/providers/payment/euplatesc.ts');
 
-    const result = await initiatePayment(db, {
-      id: 'order-1',
-      order_number: 'ORD-001',
-      currency: 'RON',
-      total: 5000,
-      customer_email: 'ion@example.com',
-      customer_name: 'Ion Popescu',
-      status: 'pending',
-    }, {
-      success_url: 'https://example.com/success',
-      cancel_url: 'https://example.com/cancel',
-      webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
-      currency: 'RON',
-    });
+    const result = await initiatePayment(
+      db,
+      {
+        id: 'order-1',
+        order_number: 'ORD-001',
+        currency: 'RON',
+        total: 5000,
+        customer_email: 'ion@example.com',
+        customer_name: 'Ion Popescu',
+        status: 'pending',
+      },
+      {
+        success_url: 'https://example.com/success',
+        cancel_url: 'https://example.com/cancel',
+        webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
+        currency: 'RON',
+      }
+    );
 
     const url = new URL(result.redirect_url);
     const params = new URLSearchParams(url.search);
@@ -92,20 +100,24 @@ describe('euPlatesc initiate payment — ExtraData URLs', () => {
   it('uses ExtraData[failedurl] for cancel URL', async () => {
     const { initiatePayment } = await import('../../src/providers/payment/euplatesc.ts');
 
-    const result = await initiatePayment(db, {
-      id: 'order-1',
-      order_number: 'ORD-001',
-      currency: 'RON',
-      total: 5000,
-      customer_email: 'ion@example.com',
-      customer_name: 'Ion Popescu',
-      status: 'pending',
-    }, {
-      success_url: 'https://example.com/success',
-      cancel_url: 'https://example.com/cancel',
-      webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
-      currency: 'RON',
-    });
+    const result = await initiatePayment(
+      db,
+      {
+        id: 'order-1',
+        order_number: 'ORD-001',
+        currency: 'RON',
+        total: 5000,
+        customer_email: 'ion@example.com',
+        customer_name: 'Ion Popescu',
+        status: 'pending',
+      },
+      {
+        success_url: 'https://example.com/success',
+        cancel_url: 'https://example.com/cancel',
+        webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
+        currency: 'RON',
+      }
+    );
 
     const url = new URL(result.redirect_url);
     const params = new URLSearchParams(url.search);
@@ -120,20 +132,24 @@ describe('euPlatesc initiate payment — ExtraData URLs', () => {
   it('uses ExtraData[backtosite] for cancel URL', async () => {
     const { initiatePayment } = await import('../../src/providers/payment/euplatesc.ts');
 
-    const result = await initiatePayment(db, {
-      id: 'order-1',
-      order_number: 'ORD-001',
-      currency: 'RON',
-      total: 5000,
-      customer_email: 'ion@example.com',
-      customer_name: 'Ion Popescu',
-      status: 'pending',
-    }, {
-      success_url: 'https://example.com/success',
-      cancel_url: 'https://example.com/cancel',
-      webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
-      currency: 'RON',
-    });
+    const result = await initiatePayment(
+      db,
+      {
+        id: 'order-1',
+        order_number: 'ORD-001',
+        currency: 'RON',
+        total: 5000,
+        customer_email: 'ion@example.com',
+        customer_name: 'Ion Popescu',
+        status: 'pending',
+      },
+      {
+        success_url: 'https://example.com/success',
+        cancel_url: 'https://example.com/cancel',
+        webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
+        currency: 'RON',
+      }
+    );
 
     const url = new URL(result.redirect_url);
     const params = new URLSearchParams(url.search);
@@ -148,27 +164,37 @@ describe('euPlatesc initiate payment — ExtraData URLs', () => {
   it('does NOT contain ExtraData[return] or ExtraData[backUrl]', async () => {
     const { initiatePayment } = await import('../../src/providers/payment/euplatesc.ts');
 
-    const result = await initiatePayment(db, {
-      id: 'order-1',
-      order_number: 'ORD-001',
-      currency: 'RON',
-      total: 5000,
-      customer_email: 'ion@example.com',
-      customer_name: 'Ion Popescu',
-      status: 'pending',
-    }, {
-      success_url: 'https://example.com/success',
-      cancel_url: 'https://example.com/cancel',
-      webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
-      currency: 'RON',
-    });
+    const result = await initiatePayment(
+      db,
+      {
+        id: 'order-1',
+        order_number: 'ORD-001',
+        currency: 'RON',
+        total: 5000,
+        customer_email: 'ion@example.com',
+        customer_name: 'Ion Popescu',
+        status: 'pending',
+      },
+      {
+        success_url: 'https://example.com/success',
+        cancel_url: 'https://example.com/cancel',
+        webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
+        currency: 'RON',
+      }
+    );
 
     const url = new URL(result.redirect_url);
     const params = new URLSearchParams(url.search);
 
-    assert.strictEqual(params.get('ExtraData[return]'), null,
-      'ExtraData[return] must NOT be present (old fictional field name)');
-    assert.strictEqual(params.get('ExtraData[backUrl]'), null,
-      'ExtraData[backUrl] must NOT be present (old fictional field name)');
+    assert.strictEqual(
+      params.get('ExtraData[return]'),
+      null,
+      'ExtraData[return] must NOT be present (old fictional field name)'
+    );
+    assert.strictEqual(
+      params.get('ExtraData[backUrl]'),
+      null,
+      'ExtraData[backUrl] must NOT be present (old fictional field name)'
+    );
   });
 });

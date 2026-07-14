@@ -27,7 +27,7 @@ async function getStripeClient(db: LibSQLDatabase): Promise<Stripe | null> {
 async function initiatePayment(
   db: LibSQLDatabase,
   order: PaymentOrder,
-  options: PaymentOptions,
+  options: PaymentOptions
 ): Promise<PaymentInitResult> {
   const stripe = await getStripeClient(db);
   if (!stripe) {
@@ -87,11 +87,7 @@ async function handleWebhook(db: LibSQLDatabase, request: Request): Promise<Webh
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      decryptIfNeeded(webhookSecret),
-    );
+    event = stripe.webhooks.constructEvent(body, signature, decryptIfNeeded(webhookSecret));
   } catch (err: any) {
     throw new Error(`Invalid Stripe webhook signature: ${err.message}`);
   }
@@ -155,7 +151,7 @@ async function refund(
   _db: LibSQLDatabase,
   _order: PaymentOrder & { transaction_id: string | null },
   _amount: number,
-  _reason: string,
+  _reason: string
 ): Promise<RefundResult> {
   return { success: false, error: 'Stripe refund not yet implemented' };
 }

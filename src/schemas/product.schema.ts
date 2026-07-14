@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ProductType, OptionValueType } from './enums.ts'
+import { ProductType, OptionValueType } from './enums.ts';
 
 /**
  * Schema for creating a global product attribute
@@ -175,7 +175,14 @@ export type UploadProductImageInput = z.infer<typeof UploadProductImageSchema>;
  * Schema for creating a translation
  */
 export const CreateTranslationSchema = z.object({
-  entity_type: z.enum(['product', 'category', 'option_type', 'option_value', 'product_attribute', 'product_attribute_option']),
+  entity_type: z.enum([
+    'product',
+    'category',
+    'option_type',
+    'option_value',
+    'product_attribute',
+    'product_attribute_option',
+  ]),
   entity_id: z.string().min(1),
   locale: z.string().min(1),
   name: z.string().nullable().default(null),

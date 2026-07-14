@@ -25,7 +25,7 @@ const result = await listVouchers(sdk.db, {
 // Apply type filter client-side (not supported by accessor)
 let voucherList = result.rows;
 if (typeFilter) {
-  voucherList = voucherList.filter(v => v.type === typeFilter);
+  voucherList = voucherList.filter((v) => v.type === typeFilter);
 }
 
 // Derive status for each voucher
@@ -36,7 +36,7 @@ function getVoucherStatus(v: any): string {
   return 'active';
 }
 
-const vouchersWithStatus = voucherList.map(v => ({ ...v, status: getVoucherStatus(v) }));
+const vouchersWithStatus = voucherList.map((v) => ({ ...v, status: getVoucherStatus(v) }));
 
 const total = vouchersWithStatus.length;
 const totalPages = Math.ceil(total / limit);
@@ -76,92 +76,136 @@ function buildFilterParams(p: number): string {
         <select name="active" class="select select-bordered">
           <option value="">All</option>
           <option value="true" selected={activeFilter === 'true'}>Active</option>
-          <option value="false" selected={activeFilter === 'false'}>Inactive / Expired / Exhausted</option>
+          <option value="false" selected={activeFilter === 'false'}
+            >Inactive / Expired / Exhausted</option
+          >
         </select>
       </div>
       <div class="form-control">
         <label class="label"><span class="label-text">Type</span></label>
         <select name="type" class="select select-bordered">
           <option value="">All types</option>
-          <option value="fixed_amount" selected={typeFilter === 'fixed_amount'}>Fixed Amount</option>
+          <option value="fixed_amount" selected={typeFilter === 'fixed_amount'}>Fixed Amount</option
+          >
           <option value="percentage" selected={typeFilter === 'percentage'}>Percentage</option>
-          <option value="free_shipping" selected={typeFilter === 'free_shipping'}>Free Shipping</option>
+          <option value="free_shipping" selected={typeFilter === 'free_shipping'}
+            >Free Shipping</option
+          >
         </select>
       </div>
       <div class="form-control">
         <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
         <button type="submit" class="btn btn-outline">Filter</button>
       </div>
-      {(activeFilter || typeFilter) && (
-        <div class="form-control">
-          <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
-          <a href="/admin/plugins/shop/vouchers" class="btn btn-ghost">Clear</a>
-        </div>
-      )}
+      {
+        (activeFilter || typeFilter) && (
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text opacity-0">&nbsp;</span>
+            </label>
+            <a href="/admin/plugins/shop/vouchers" class="btn btn-ghost">
+              Clear
+            </a>
+          </div>
+        )
+      }
     </form>
 
     <!-- Voucher Table -->
-    {vouchersPaginated.length === 0 ? (
-      <p class="text-base-content/60">No vouchers found.</p>
-    ) : (
-      <div class="overflow-x-auto">
-        <table class="table table-zebra w-full">
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Type</th>
-              <th>Value</th>
-              <th>Uses</th>
-              <th>Max Uses</th>
-              <th>Status</th>
-              <th>Valid From</th>
-              <th>Valid Until</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {vouchersPaginated.map((v: any) => (
+    {
+      vouchersPaginated.length === 0 ? (
+        <p class="text-base-content/60">No vouchers found.</p>
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="table table-zebra w-full">
+            <thead>
               <tr>
-                <td class="font-mono font-bold">{v.code}</td>
-                <td>{v.type === 'fixed_amount' ? 'Fixed Amount' : v.type === 'percentage' ? 'Percentage' : 'Free Shipping'}</td>
-                <td class="font-mono">{v.type === 'free_shipping' ? '—' : v.type === 'percentage' ? `${v.value}%` : `${v.value} RON`}</td>
-                <td>{v.uses_count}</td>
-                <td>{v.max_uses ?? '∞'}</td>
-                <td><span class={`badge badge-sm ${statusBadge(v.status)}`}>{v.status}</span></td>
-                <td class="text-sm">{v.valid_from ? new Date(v.valid_from).toLocaleDateString() : '—'}</td>
-                <td class="text-sm">{v.valid_until ? new Date(v.valid_until).toLocaleDateString() : '—'}</td>
-                <td>
-                  <div class="flex gap-2">
-                    <a href={`/admin/plugins/shop/vouchers/${v.id}?from_page=${page}`} class="btn btn-ghost btn-xs">Edit</a>
-                    <button class="btn btn-error btn-xs delete-voucher" data-id={v.id} data-code={v.code}>Delete</button>
-                  </div>
-                </td>
+                <th>Code</th>
+                <th>Type</th>
+                <th>Value</th>
+                <th>Uses</th>
+                <th>Max Uses</th>
+                <th>Status</th>
+                <th>Valid From</th>
+                <th>Valid Until</th>
+                <th />
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )}
+            </thead>
+            <tbody>
+              {vouchersPaginated.map((v: any) => (
+                <tr>
+                  <td class="font-mono font-bold">{v.code}</td>
+                  <td>
+                    {v.type === 'fixed_amount'
+                      ? 'Fixed Amount'
+                      : v.type === 'percentage'
+                        ? 'Percentage'
+                        : 'Free Shipping'}
+                  </td>
+                  <td class="font-mono">
+                    {v.type === 'free_shipping'
+                      ? '—'
+                      : v.type === 'percentage'
+                        ? `${v.value}%`
+                        : `${v.value} RON`}
+                  </td>
+                  <td>{v.uses_count}</td>
+                  <td>{v.max_uses ?? '∞'}</td>
+                  <td>
+                    <span class={`badge badge-sm ${statusBadge(v.status)}`}>{v.status}</span>
+                  </td>
+                  <td class="text-sm">
+                    {v.valid_from ? new Date(v.valid_from).toLocaleDateString() : '—'}
+                  </td>
+                  <td class="text-sm">
+                    {v.valid_until ? new Date(v.valid_until).toLocaleDateString() : '—'}
+                  </td>
+                  <td>
+                    <div class="flex gap-2">
+                      <a
+                        href={`/admin/plugins/shop/vouchers/${v.id}?from_page=${page}`}
+                        class="btn btn-ghost btn-xs"
+                      >
+                        Edit
+                      </a>
+                      <button
+                        class="btn btn-error btn-xs delete-voucher"
+                        data-id={v.id}
+                        data-code={v.code}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
 
     <!-- Pagination -->
-    {totalPages > 1 && (
-      <div class="join mt-4">
-        {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-          <a
-            href={`/admin/plugins/shop/vouchers?${buildFilterParams(p)}`}
-            class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
-          >
-            {p}
-          </a>
-        ))}
-      </div>
-    )}
+    {
+      totalPages > 1 && (
+        <div class="join mt-4">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <a
+              href={`/admin/plugins/shop/vouchers?${buildFilterParams(p)}`}
+              class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
+            >
+              {p}
+            </a>
+          ))}
+        </div>
+      )
+    }
   </div>
 </AdminLayout>
 
 <script>
   // Delete voucher
-  document.querySelectorAll('.delete-voucher').forEach(btn => {
+  document.querySelectorAll('.delete-voucher').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const voucherId = (btn as HTMLElement).dataset.id!;
       const voucherCode = (btn as HTMLElement).dataset.code!;

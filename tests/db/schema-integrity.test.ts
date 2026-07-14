@@ -19,7 +19,7 @@ describe('schema integrity', () => {
       typeof val === 'object' &&
       val !== null &&
       val.constructor?.name === 'SQLiteTable' &&
-      key !== 'dateType',
+      key !== 'dateType'
   );
   const tableNames = tableEntries.map(([name]) => name);
 
@@ -27,7 +27,7 @@ describe('schema integrity', () => {
     assert.equal(
       tableEntries.length,
       EXPECTED_TABLE_COUNT,
-      `Expected ${EXPECTED_TABLE_COUNT} tables, got ${tableEntries.length}: ${tableNames.join(', ')}`,
+      `Expected ${EXPECTED_TABLE_COUNT} tables, got ${tableEntries.length}: ${tableNames.join(', ')}`
     );
   });
 
@@ -35,7 +35,7 @@ describe('schema integrity', () => {
     const violations: string[] = [];
     for (const [name, table] of tableEntries) {
       const cols = Object.keys(table as object).filter(
-        (k) => typeof (table as any)[k]?.primary === 'boolean',
+        (k) => typeof (table as any)[k]?.primary === 'boolean'
       );
       const hasPk = cols.some((k) => (table as any)[k].primary);
       if (!hasPk) violations.push(name);
@@ -65,7 +65,7 @@ describe('schema integrity', () => {
     const violations: string[] = [];
     for (const [name, table] of tableEntries) {
       const colNames = Object.keys(table as object).filter(
-        (k) => typeof (table as any)[k]?.columnType === 'string',
+        (k) => typeof (table as any)[k]?.columnType === 'string'
       );
       const seen = new Set<string>();
       for (const cn of colNames) {

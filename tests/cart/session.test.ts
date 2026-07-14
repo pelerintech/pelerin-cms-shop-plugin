@@ -15,14 +15,20 @@ const SESSION_PATH = resolve(__dirname, '../../src/lib/cart-session.ts');
 
 test('cart-session.ts does NOT import from astro:db', () => {
   const content = readFileSync(SESSION_PATH, 'utf-8');
-  assert.doesNotMatch(content, /from\s+['"]astro:db['"]/,
-    'cart-session.ts must not import from astro:db — db is injected');
+  assert.doesNotMatch(
+    content,
+    /from\s+['"]astro:db['"]/,
+    'cart-session.ts must not import from astro:db — db is injected'
+  );
 });
 
 test('cart-session.ts does NOT call createPluginContext', () => {
   const content = readFileSync(SESSION_PATH, 'utf-8');
-  assert.doesNotMatch(content, /createPluginContext/,
-    'cart-session.ts must not call createPluginContext — sdk is injected');
+  assert.doesNotMatch(
+    content,
+    /createPluginContext/,
+    'cart-session.ts must not call createPluginContext — sdk is injected'
+  );
 });
 
 test('getOrCreateCart(db, sdk, request) creates a guest cart and returns Set-Cookie when no cookie', async () => {

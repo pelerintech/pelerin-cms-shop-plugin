@@ -25,7 +25,7 @@ describe('seed reflects the new attribute/variant flow', () => {
     assert.doesNotMatch(
       content,
       /'dimension',\s*\d+,\s*'?\$\{JSON\.stringify\(\[/,
-      'dimension assignments must NOT store a JSON.stringify([...]) subset offered_option_ids',
+      'dimension assignments must NOT store a JSON.stringify([...]) subset offered_option_ids'
     );
   });
 });

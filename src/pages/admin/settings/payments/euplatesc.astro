@@ -8,7 +8,11 @@ const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
 ---
 
-<AdminLayout title="euPlatesc Settings" currentPath="/admin/plugins/shop/settings/payments/euplatesc" user={user}>
+<AdminLayout
+  title="euPlatesc Settings"
+  currentPath="/admin/plugins/shop/settings/payments/euplatesc"
+  user={user}
+>
   <div class="col-span-12 p-6">
     <h1 class="text-2xl font-bold mb-6">euPlatesc Payment Settings</h1>
 
@@ -66,9 +70,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       </div>
 
       <div class="form-control mt-6">
-        <button type="submit" class="btn btn-primary" id="save-btn">
-          Save Settings
-        </button>
+        <button type="submit" class="btn btn-primary" id="save-btn"> Save Settings </button>
       </div>
     </form>
 
@@ -78,7 +80,9 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     <div class="mt-8 card bg-base-100 shadow-lg">
       <div class="card-body">
         <h2 class="card-title">Test / Diagnostic</h2>
-        <p class="text-sm text-base-content/60">Verify your euPlatesc integration without creating a real order.</p>
+        <p class="text-sm text-base-content/60">
+          Verify your euPlatesc integration without creating a real order.
+        </p>
 
         <div class="flex gap-2 mt-2">
           <button type="button" class="btn btn-outline btn-sm" id="test-connection-btn">
@@ -204,7 +208,8 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       if (json.success && json.data?.redirect_url) {
         window.open(json.data.redirect_url, '_blank');
         resultEl.className = 'mt-4 alert alert-success';
-        resultEl.textContent = 'Test payment created. Complete the payment in the new tab. Waiting for IPN...';
+        resultEl.textContent =
+          'Test payment created. Complete the payment in the new tab. Waiting for IPN...';
 
         // Poll for IPN result
         let attempts = 0;
@@ -222,7 +227,8 @@ const user = await sdk.auth.requireAdmin(Astro.request);
             } else if (attempts >= maxAttempts) {
               clearInterval(pollInterval);
               resultEl.className = 'mt-4 alert alert-warning';
-              resultEl.textContent = 'No IPN received after 30s. Check webhook URL reachability (ngrok/tunnel required for localhost).';
+              resultEl.textContent =
+                'No IPN received after 30s. Check webhook URL reachability (ngrok/tunnel required for localhost).';
             }
           } catch {
             if (attempts >= maxAttempts) {

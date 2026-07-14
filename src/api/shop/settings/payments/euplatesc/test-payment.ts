@@ -7,14 +7,18 @@ import type { HandlerDeps } from '../../../../../lib/handler-types';
 
 const EUPLATESC_ENDPOINT = 'https://secure.euplatesc.ro/tdsprocess/tranzactd.php';
 
-export const POST: APIRoute = (context) => { const sdk = createPluginContext(); return runPost({ db: sdk.db, sdk, ctx: context }); }
+export const POST: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runPost({ db: sdk.db, sdk, ctx: context });
+};
 
 export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
     await sdk.auth.requireAdmin(ctx.request);
   } catch {
     return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
-      status: 401, headers: { 'Content-Type': 'application/json' },
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 
@@ -22,9 +26,13 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
   const secretKeyRaw = await getSetting(db, 'euplatesc_secret_key');
 
   if (!merchantIdRaw || !secretKeyRaw) {
-    return new Response(JSON.stringify({
-      success: false, error: 'euPlatesc credentials not configured. Set Merchant ID and Merchant Key first.',
-    }), { status: 422, headers: { 'Content-Type': 'application/json' } });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'euPlatesc credentials not configured. Set Merchant ID and Merchant Key first.',
+      }),
+      { status: 422, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 
   const merchantId = decryptIfNeeded(merchantIdRaw);
@@ -36,7 +44,8 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
   const settingsPageUrl = `${origin}/admin/plugins/shop/settings/payments/euplatesc`;
 
   const now = new Date();
-  const timestamp = now.getUTCFullYear().toString() +
+  const timestamp =
+    now.getUTCFullYear().toString() +
     String(now.getUTCMonth() + 1).padStart(2, '0') +
     String(now.getUTCDate()).padStart(2, '0') +
     String(now.getUTCHours()).padStart(2, '0') +
@@ -51,7 +60,15 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
   const merchId = merchantId;
 
   // Compute MAC
-  const fields = buildRequestFields({ amount, curr, invoice_id: invoiceId, order_desc: orderDesc, merch_id: merchId, timestamp, nonce });
+  const fields = buildRequestFields({
+    amount,
+    curr,
+    invoice_id: invoiceId,
+    order_desc: orderDesc,
+    merch_id: merchId,
+    timestamp,
+    nonce,
+  });
   const fpHash = computeEuplatescHash(fields, secretKey).toUpperCase();
 
   // Build redirect URL
@@ -73,6 +90,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
   const redirectUrl = `${EUPLATESC_ENDPOINT}?${params.toString()}`;
 
   return new Response(JSON.stringify({ success: true, data: { redirect_url: redirectUrl } }), {
-    status: 200, headers: { 'Content-Type': 'application/json' },
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
   });
 }

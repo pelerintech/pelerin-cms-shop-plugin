@@ -9,9 +9,15 @@ import {
 import { getShopConfig } from '../../../../../lib/data/settings';
 import type { HandlerDeps } from '../../../../../lib/handler-types';
 
-export const GET: APIRoute = (context) => { const sdk = createPluginContext(); return runGet({ db: sdk.db, sdk, ctx: context }); }
+export const GET: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runGet({ db: sdk.db, sdk, ctx: context });
+};
 
-export const POST: APIRoute = (context) => { const sdk = createPluginContext(); return runPost({ db: sdk.db, sdk, ctx: context }); }
+export const POST: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runPost({ db: sdk.db, sdk, ctx: context });
+};
 
 export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
@@ -24,10 +30,10 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
 
     const enriched = await listAssignments(db, productId, locale);
 
-    return new Response(
-      JSON.stringify({ success: true, data: enriched }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ success: true, data: enriched }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (err: any) {
     const status = err.status ?? 500;
     return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
@@ -50,9 +56,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
         JSON.stringify({
           success: false,
           error: 'Validation failed',
-          fields: Object.fromEntries(
-            result.error.issues.map(i => [i.path.join('.'), i.message])
-          ),
+          fields: Object.fromEntries(result.error.issues.map((i) => [i.path.join('.'), i.message])),
         }),
         { status: 422, headers: { 'Content-Type': 'application/json' } }
       );
@@ -96,7 +100,8 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
         body.fields = { offered_option_ids: err.message };
       }
       return new Response(JSON.stringify(body), {
-        status, headers: { 'Content-Type': 'application/json' },
+        status,
+        headers: { 'Content-Type': 'application/json' },
       });
     }
     const status = err.status ?? 500;

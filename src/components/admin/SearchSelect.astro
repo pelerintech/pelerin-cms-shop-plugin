@@ -12,24 +12,24 @@
  */
 interface Props {
   // Standard form field
-  name: string;           // hidden input name (stores the selected ID)
-  label: string;          // field label
-  value?: string;         // currently selected ID
+  name: string; // hidden input name (stores the selected ID)
+  label: string; // field label
+  value?: string; // currently selected ID
   required?: boolean;
   placeholder?: string;
   error?: string;
 
   // API configuration
-  searchUrl: string;      // e.g. "/api/plugins/shop/categories?search={query}"
-  itemUrl: string;        // e.g. "/api/plugins/shop/categories/{id}"
+  searchUrl: string; // e.g. "/api/plugins/shop/categories?search={query}"
+  itemUrl: string; // e.g. "/api/plugins/shop/categories/{id}"
 
   // Response parsing
-  displayField?: string;  // default "name"
-  idField?: string;       // default "id"
+  displayField?: string; // default "name"
+  idField?: string; // default "id"
 
   // Behavior
-  excludeId?: string;     // exclude this ID from results (self-referential)
-  minChars?: number;      // default 2
+  excludeId?: string; // exclude this ID from results (self-referential)
+  minChars?: number; // default 2
 }
 
 const {
@@ -85,8 +85,7 @@ const {
             stroke-linecap="round"
             stroke-linejoin="round"
             stroke-width="2"
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-          />
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
         </svg>
       </div>
     </div>
@@ -106,7 +105,13 @@ const {
     </div>
   </div>
 
-  {error && <span class="text-error text-sm mt-1" data-field={name}>{error}</span>}
+  {
+    error && (
+      <span class="text-error text-sm mt-1" data-field={name}>
+        {error}
+      </span>
+    )
+  }
 </div>
 
 <script is:inline>
@@ -150,7 +155,7 @@ const {
           if (!response.ok) throw new Error('Failed to fetch items');
 
           const json = await response.json();
-          itemsCache = (json.success && Array.isArray(json.data)) ? json.data : [];
+          itemsCache = json.success && Array.isArray(json.data) ? json.data : [];
 
           // Filter out excluded ID
           if (excludeId) {
@@ -238,10 +243,12 @@ const {
         if (hintEl) hintEl.classList.add('hidden');
 
         // Dispatch custom event for page-level listeners (e.g. order product search)
-        wrapper.dispatchEvent(new CustomEvent('searchselect-select', {
-          bubbles: true,
-          detail: { id: itemId, display: displayValue, item: item },
-        }));
+        wrapper.dispatchEvent(
+          new CustomEvent('searchselect-select', {
+            bubbles: true,
+            detail: { id: itemId, display: displayValue, item: item },
+          })
+        );
       }
 
       searchInput.addEventListener('input', function (e) {

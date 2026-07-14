@@ -6,9 +6,7 @@ import { categories, translations } from '../../../db/harness.ts';
 import { eq, and } from 'drizzle-orm';
 
 ensureLoader();
-const { runGet, runPut, runDelete } = await import(
-  '../../../../src/api/shop/categories/[id].ts'
-);
+const { runGet, runPut, runDelete } = await import('../../../../src/api/shop/categories/[id].ts');
 
 const base = 'http://localhost/api/plugins/shop/categories';
 
@@ -95,8 +93,14 @@ test('PUT [id] slug collision → 422 with field-level error', async () => {
     // categoryBooksId already has en slug 'books'. Create a second category.
     const secondCatId = crypto.randomUUID();
     await db.insert(categories).values({
-      id: secondCatId, parent_id: null, name: 'Second', description: null,
-      slug: 'second-' + secondCatId.slice(0, 8), sort_order: 99, created_at: null, updated_at: null,
+      id: secondCatId,
+      parent_id: null,
+      name: 'Second',
+      description: null,
+      slug: 'second-' + secondCatId.slice(0, 8),
+      sort_order: 99,
+      created_at: null,
+      updated_at: null,
     });
     const sdk = makeFakeSdk();
     const ctx = makeCtx({
@@ -134,13 +138,13 @@ test('PUT [id] with translation fields → 200, translation row created', async 
     assert.equal(b.success, true);
 
     // Verify EN translation row was upserted
-    const transRows = await db.select().from(translations).where(
-      and(
-        eq(translations.entity_id, f.categoryBooksId),
-        eq(translations.entity_type, 'category'),
-      ),
-    );
-    const enTrans = transRows.find(t => t.locale === 'en');
+    const transRows = await db
+      .select()
+      .from(translations)
+      .where(
+        and(eq(translations.entity_id, f.categoryBooksId), eq(translations.entity_type, 'category'))
+      );
+    const enTrans = transRows.find((t) => t.locale === 'en');
     assert.ok(enTrans, 'EN translation should exist');
     assert.equal(enTrans.name, 'Updated Cat EN');
     assert.equal(enTrans.slug, 'updated-cat-en');
@@ -167,13 +171,13 @@ test('PUT [id] ignores unknown locale suffix → no translation row', async () =
     assert.equal(b.success, true);
 
     // Verify NO translation row for 'bg' locale
-    const transRows = await db.select().from(translations).where(
-      and(
-        eq(translations.entity_id, f.categoryBooksId),
-        eq(translations.entity_type, 'category'),
-      ),
-    );
-    const bgTrans = transRows.find(t => t.locale === 'bg');
+    const transRows = await db
+      .select()
+      .from(translations)
+      .where(
+        and(eq(translations.entity_id, f.categoryBooksId), eq(translations.entity_type, 'category'))
+      );
+    const bgTrans = transRows.find((t) => t.locale === 'bg');
     assert.equal(bgTrans, undefined, 'BG translation should NOT exist for unknown locale');
   } finally {
     await cleanup();
@@ -192,8 +196,14 @@ test('DELETE [id] happy-path seeded → 200', async () => {
     // create a fresh leaf category with no children/products to delete.
     const leafId = crypto.randomUUID();
     await db.insert(categories).values({
-      id: leafId, parent_id: null, name: 'Leaf', description: null,
-      slug: 'leaf-' + leafId.slice(0, 8), sort_order: 99, created_at: null, updated_at: null,
+      id: leafId,
+      parent_id: null,
+      name: 'Leaf',
+      description: null,
+      slug: 'leaf-' + leafId.slice(0, 8),
+      sort_order: 99,
+      created_at: null,
+      updated_at: null,
     });
     const ctx = makeCtx({ url: `${base}/${leafId}`, method: 'DELETE', params: { id: leafId } });
     const res = await runDelete({ db, sdk, ctx });

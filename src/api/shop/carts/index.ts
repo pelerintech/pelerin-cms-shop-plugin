@@ -4,7 +4,10 @@ import { listCarts, getCartWithItems, getCartItemCount } from '../../../lib/data
 import { getShopConfig } from '../../../lib/data/settings';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
-export const GET: APIRoute = (context) => { const sdk = createPluginContext(); return runGet({ db: sdk.db, sdk, ctx: context }); }
+export const GET: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runGet({ db: sdk.db, sdk, ctx: context });
+};
 
 export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
@@ -34,21 +37,29 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       const ageMs = Date.now() - new Date(cart.created_at).getTime();
       const ageHours = Math.floor(ageMs / (1000 * 60 * 60 * 1000));
       enriched.push({
-        id: cart.id, session_id: cart.session_id, user_id: cart.user_id,
-        item_count: counts.item_count, total_quantity: counts.total_quantity,
-        total_value: totalValue, applied_voucher_code: cart.applied_voucher_code,
-        applied_referral_code: cart.applied_referral_code, created_at: cart.created_at,
-        updated_at: cart.updated_at, age_hours: ageHours,
+        id: cart.id,
+        session_id: cart.session_id,
+        user_id: cart.user_id,
+        item_count: counts.item_count,
+        total_quantity: counts.total_quantity,
+        total_value: totalValue,
+        applied_voucher_code: cart.applied_voucher_code,
+        applied_referral_code: cart.applied_referral_code,
+        created_at: cart.created_at,
+        updated_at: cart.updated_at,
+        age_hours: ageHours,
       });
     }
 
     return new Response(JSON.stringify({ success: true, data: enriched }), {
-      status: 200, headers: { 'Content-Type': 'application/json' },
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
     });
   } catch (err: any) {
     const status = err.status ?? 500;
     return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status, headers: { 'Content-Type': 'application/json' },
+      status,
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 }

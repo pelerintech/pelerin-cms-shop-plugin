@@ -33,7 +33,11 @@ test('GET categories ?slug=books&locale=en → 200, single object with localized
     assert.equal(b.data.id, f.categoryBooksId);
     assert.equal(b.data.slug, 'books');
     assert.equal(b.data.name, 'Books', 'name should be localized from translation');
-    assert.equal(b.data.description, 'Specialty books', 'description should be localized from translation');
+    assert.equal(
+      b.data.description,
+      'Specialty books',
+      'description should be localized from translation'
+    );
   } finally {
     await cleanup();
   }
@@ -77,12 +81,24 @@ test('GET categories ?slug=books&locale=en → 409 on collision', async () => {
     // Insert a second category with the same en slug 'books'.
     const secondCatId = crypto.randomUUID();
     await db.insert(categories).values({
-      id: secondCatId, parent_id: null, name: 'Second', description: null,
-      slug: 'second-' + secondCatId.slice(0, 8), sort_order: 99, created_at: null, updated_at: null,
+      id: secondCatId,
+      parent_id: null,
+      name: 'Second',
+      description: null,
+      slug: 'second-' + secondCatId.slice(0, 8),
+      sort_order: 99,
+      created_at: null,
+      updated_at: null,
     });
     await db.insert(harnessTranslations).values({
-      id: crypto.randomUUID(), entity_type: 'category', entity_id: secondCatId,
-      locale: 'en', name: 'Second', description: null, slug: 'books', label: null,
+      id: crypto.randomUUID(),
+      entity_type: 'category',
+      entity_id: secondCatId,
+      locale: 'en',
+      name: 'Second',
+      description: null,
+      slug: 'books',
+      label: null,
     });
     const sdk = makeFakeSdk();
     const ctx = makeCtx({ url: `${BASE}?slug=books&locale=en` });

@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createTestDb, seedMinimal, resetDb, insertFixture, buildOrderRow } from '../../db/harness.ts';
+import {
+  createTestDb,
+  seedMinimal,
+  resetDb,
+  insertFixture,
+  buildOrderRow,
+} from '../../db/harness.ts';
 import { getVoucherByCode, incrementVoucherUsage } from '../../../src/lib/data/vouchers.ts';
 import { getReferralByCode, countOrdersByReferralCodes } from '../../../src/lib/data/referrals.ts';
 import { getSettings, getShopConfig, upsertSetting } from '../../../src/lib/data/settings.ts';
@@ -110,9 +116,15 @@ test('upsertSetting inserts then updates a setting', async () => {
   try {
     await seedMinimal(db);
     await upsertSetting(db, 'test_key', 'value1');
-    assert.strictEqual(await (await import('../../../src/lib/data/settings.ts')).getSetting(db, 'test_key'), 'value1');
+    assert.strictEqual(
+      await (await import('../../../src/lib/data/settings.ts')).getSetting(db, 'test_key'),
+      'value1'
+    );
     await upsertSetting(db, 'test_key', 'value2');
-    assert.strictEqual(await (await import('../../../src/lib/data/settings.ts')).getSetting(db, 'test_key'), 'value2');
+    assert.strictEqual(
+      await (await import('../../../src/lib/data/settings.ts')).getSetting(db, 'test_key'),
+      'value2'
+    );
   } finally {
     await cleanup();
   }
@@ -133,11 +145,23 @@ test('countOrdersByReferralCodes returns correct counts excluding cancelled/refu
   try {
     await seedMinimal(db);
     // Insert 3 orders: 1 paid + referral, 1 cancelled + referral, 1 paid no referral
-    await insertFixture(db, 'orders', buildOrderRow({ referral_code: 'PARTNER10', status: 'paid' }));
-    await insertFixture(db, 'orders', buildOrderRow({ referral_code: 'PARTNER10', status: 'cancelled' }));
+    await insertFixture(
+      db,
+      'orders',
+      buildOrderRow({ referral_code: 'PARTNER10', status: 'paid' })
+    );
+    await insertFixture(
+      db,
+      'orders',
+      buildOrderRow({ referral_code: 'PARTNER10', status: 'cancelled' })
+    );
     await insertFixture(db, 'orders', buildOrderRow({ referral_code: null, status: 'paid' }));
     const counts = await countOrdersByReferralCodes(db, ['PARTNER10']);
-    assert.strictEqual(counts.get('PARTNER10'), 1, 'PARTNER10 should have 1 count (cancelled excluded)');
+    assert.strictEqual(
+      counts.get('PARTNER10'),
+      1,
+      'PARTNER10 should have 1 count (cancelled excluded)'
+    );
   } finally {
     await cleanup();
   }

@@ -16,14 +16,22 @@ describe('Admin nav manifest entries', () => {
       (p: any) => p.pattern === '/admin/plugins/shop'
     );
     assert.ok(dashboardEntry, 'Manifest should have dashboard adminPages entry');
-    assert.strictEqual(dashboardEntry.entrypoint, './src/pages/admin/index.astro', 'Dashboard should point to index.astro');
+    assert.strictEqual(
+      dashboardEntry.entrypoint,
+      './src/pages/admin/index.astro',
+      'Dashboard should point to index.astro'
+    );
   });
 
   it('navItems has Products entry', () => {
     const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf-8'));
     const entry = manifest.navItems.find((n: any) => n.label === 'Products');
     assert.ok(entry, 'navItems should have Products entry');
-    assert.strictEqual(entry.href, '/admin/plugins/shop/products', 'Products should link to correct path');
+    assert.strictEqual(
+      entry.href,
+      '/admin/plugins/shop/products',
+      'Products should link to correct path'
+    );
     assert.ok(entry.icon, 'Products should have an icon');
   });
 
@@ -31,7 +39,11 @@ describe('Admin nav manifest entries', () => {
     const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf-8'));
     const entry = manifest.navItems.find((n: any) => n.label === 'Categories');
     assert.ok(entry, 'navItems should have Categories entry');
-    assert.strictEqual(entry.href, '/admin/plugins/shop/categories', 'Categories should link to correct path');
+    assert.strictEqual(
+      entry.href,
+      '/admin/plugins/shop/categories',
+      'Categories should link to correct path'
+    );
     assert.ok(entry.icon, 'Categories should have an icon');
   });
 

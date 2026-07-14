@@ -4,12 +4,10 @@ import { ensureLoader } from '../../../../stubs/register.mjs';
 import { matrix, createTestDb, seedMinimal, makeFakeSdk, makeCtx } from '../../_matrix.ts';
 
 ensureLoader();
-const { runGet, runPut } = await import(
-  '../../../../../src/api/shop/variants/[variantId]/attribute-values.ts'
-);
+const { runGet, runPut } =
+  await import('../../../../../src/api/shop/variants/[variantId]/attribute-values.ts');
 
-const base = (vid: string) =>
-  `http://localhost/api/plugins/shop/variants/${vid}/attribute-values`;
+const base = (vid: string) => `http://localhost/api/plugins/shop/variants/${vid}/attribute-values`;
 
 test('GET auth-fail → 401', () =>
   matrix.adminAuthFail({ run: runGet, url: base('x'), params: { variantId: 'x' } }));
@@ -19,7 +17,10 @@ test('GET happy-path seeded → 200, data is array', async () => {
   try {
     const f = await seedMinimal(db);
     const sdk = makeFakeSdk();
-    const ctx = makeCtx({ url: base(f.variantBlack128Id), params: { variantId: f.variantBlack128Id } });
+    const ctx = makeCtx({
+      url: base(f.variantBlack128Id),
+      params: { variantId: f.variantBlack128Id },
+    });
     const res = await runGet({ db, sdk, ctx });
     assert.equal(res.status, 200);
     const b = await res.json();

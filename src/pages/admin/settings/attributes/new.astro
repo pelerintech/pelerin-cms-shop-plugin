@@ -14,7 +14,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
 // Fetch locales from settings via accessor
 const shopConfig = await getShopConfig(sdk.db);
 const defaultLocale = shopConfig.defaultLocale;
-const otherLocales = shopConfig.locales.filter(l => !l.isDefault);
+const otherLocales = shopConfig.locales.filter((l) => !l.isDefault);
 
 const typeOptions = [
   { value: 'select', label: 'Select (dropdown)' },
@@ -25,13 +25,19 @@ const typeOptions = [
 ];
 ---
 
-<AdminLayout title="New Attribute" currentPath="/admin/plugins/shop/settings/attributes" user={user}>
-  <Breadcrumbs items={[
-    { label: 'Shop', href: '/admin/plugins/shop' },
-    { label: 'Settings', href: '/admin/plugins/shop/settings' },
-    { label: 'Attributes', href: '/admin/plugins/shop/settings/attributes' },
-    { label: 'New Attribute' },
-  ]} />
+<AdminLayout
+  title="New Attribute"
+  currentPath="/admin/plugins/shop/settings/attributes"
+  user={user}
+>
+  <Breadcrumbs
+    items={[
+      { label: 'Shop', href: '/admin/plugins/shop' },
+      { label: 'Settings', href: '/admin/plugins/shop/settings' },
+      { label: 'Attributes', href: '/admin/plugins/shop/settings/attributes' },
+      { label: 'New Attribute' },
+    ]}
+  />
 
   <div class="flex items-center justify-between col-span-12 mb-4">
     <div>
@@ -43,14 +49,13 @@ const typeOptions = [
 
   <div class="card bg-base-100 shadow-lg col-span-12">
     <div class="card-body">
-      <form id="attribute-form" class="space-y-6" data-default-locale={defaultLocale} data-locale-codes={JSON.stringify(otherLocales.map(l => l.code))}>
-
-        <SelectField
-          name="type"
-          label="Type"
-          options={typeOptions}
-          required
-        />
+      <form
+        id="attribute-form"
+        class="space-y-6"
+        data-default-locale={defaultLocale}
+        data-locale-codes={JSON.stringify(otherLocales.map((l) => l.code))}
+      >
+        <SelectField name="type" label="Type" options={typeOptions} required />
 
         <div class="divider">Name</div>
 
@@ -61,20 +66,17 @@ const typeOptions = [
           required
         />
 
-        {otherLocales.map(locale => (
-          <TextField
-            name={`name_${locale.code}`}
-            label={`Name (${locale.code.toUpperCase()})`}
-            placeholder={`e.g. ${locale.name} name`}
-          />
-        ))}
+        {
+          otherLocales.map((locale) => (
+            <TextField
+              name={`name_${locale.code}`}
+              label={`Name (${locale.code.toUpperCase()})`}
+              placeholder={`e.g. ${locale.name} name`}
+            />
+          ))
+        }
 
-        <TextField
-          name="sort_order"
-          label="Sort Order"
-          type="number"
-          value="0"
-        />
+        <TextField name="sort_order" label="Sort Order" type="number" value="0" />
 
         <div class="flex justify-end gap-2 pt-4 border-t border-base-200">
           <a href="/admin/plugins/shop/settings/attributes" class="btn btn-ghost">Cancel</a>

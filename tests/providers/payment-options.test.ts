@@ -20,15 +20,21 @@ describe('PaymentOptions interface', () => {
       webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
     };
 
-    assert.strictEqual(options.webhook_url, 'https://example.com/api/plugins/shop/webhooks/euplatesc',
-      'PaymentOptions must have webhook_url field');
+    assert.strictEqual(
+      options.webhook_url,
+      'https://example.com/api/plugins/shop/webhooks/euplatesc',
+      'PaymentOptions must have webhook_url field'
+    );
   });
 
   it('webhook_url is required (not optional)', () => {
     const content = readFileSync(interfacePath, 'utf-8');
 
     // Check that webhook_url is defined in PaymentOptions without ? (required)
-    assert.match(content, /webhook_url\s*:\s*string[^?]/,
-      'PaymentOptions must have webhook_url as a required string field');
+    assert.match(
+      content,
+      /webhook_url\s*:\s*string[^?]/,
+      'PaymentOptions must have webhook_url as a required string field'
+    );
   });
 });

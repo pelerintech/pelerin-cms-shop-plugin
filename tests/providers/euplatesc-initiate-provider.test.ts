@@ -38,25 +38,36 @@ describe('euPlatesc initiate payment — payment_provider and re-initiation', ()
     });
     await db.insert(orders).values(orderRow);
 
-    await initiatePayment(db, {
-      id: 'order-1',
-      order_number: 'ORD-001',
-      currency: 'RON',
-      total: 5000,
-      customer_email: 'ion@example.com',
-      customer_name: 'Ion Popescu',
-      status: 'pending',
-    }, {
-      success_url: 'https://example.com/success',
-      cancel_url: 'https://example.com/cancel',
-      webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
-      currency: 'RON',
-    });
+    await initiatePayment(
+      db,
+      {
+        id: 'order-1',
+        order_number: 'ORD-001',
+        currency: 'RON',
+        total: 5000,
+        customer_email: 'ion@example.com',
+        customer_name: 'Ion Popescu',
+        status: 'pending',
+      },
+      {
+        success_url: 'https://example.com/success',
+        cancel_url: 'https://example.com/cancel',
+        webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
+        currency: 'RON',
+      }
+    );
 
     // Check payment_provider is set
-    const result = await db.select({ payment_provider: orders.payment_provider }).from(orders).where(eq(orders.id, 'order-1')).limit(1);
-    assert.strictEqual(result[0].payment_provider, 'euplatesc',
-      'payment_provider must be set to "euplatesc" after initiatePayment');
+    const result = await db
+      .select({ payment_provider: orders.payment_provider })
+      .from(orders)
+      .where(eq(orders.id, 'order-1'))
+      .limit(1);
+    assert.strictEqual(
+      result[0].payment_provider,
+      'euplatesc',
+      'payment_provider must be set to "euplatesc" after initiatePayment'
+    );
   });
 
   it('handles re-initiation on already awaiting_payment order', async () => {
@@ -77,28 +88,42 @@ describe('euPlatesc initiate payment — payment_provider and re-initiation', ()
     await db.insert(orders).values(orderRow);
 
     // Re-initiate payment — should not throw
-    const result = await initiatePayment(db, {
-      id: 'order-2',
-      order_number: 'ORD-002',
-      currency: 'RON',
-      total: 5000,
-      customer_email: 'ion@example.com',
-      customer_name: 'Ion Popescu',
-      status: 'awaiting_payment',
-    }, {
-      success_url: 'https://example.com/success',
-      cancel_url: 'https://example.com/cancel',
-      webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
-      currency: 'RON',
-    });
+    const result = await initiatePayment(
+      db,
+      {
+        id: 'order-2',
+        order_number: 'ORD-002',
+        currency: 'RON',
+        total: 5000,
+        customer_email: 'ion@example.com',
+        customer_name: 'Ion Popescu',
+        status: 'awaiting_payment',
+      },
+      {
+        success_url: 'https://example.com/success',
+        cancel_url: 'https://example.com/cancel',
+        webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
+        currency: 'RON',
+      }
+    );
 
     assert.ok(result.redirect_url, 'Should return redirect_url on re-initiation');
 
     // Check order stays awaiting_payment (no redundant transition)
-    const orderResult = await db.select({ status: orders.status, payment_provider: orders.payment_provider }).from(orders).where(eq(orders.id, 'order-2')).limit(1);
-    assert.strictEqual(orderResult[0].status, 'awaiting_payment',
-      'Order must stay awaiting_payment on re-initiation');
-    assert.strictEqual(orderResult[0].payment_provider, 'euplatesc',
-      'payment_provider must still be euplatesc');
+    const orderResult = await db
+      .select({ status: orders.status, payment_provider: orders.payment_provider })
+      .from(orders)
+      .where(eq(orders.id, 'order-2'))
+      .limit(1);
+    assert.strictEqual(
+      orderResult[0].status,
+      'awaiting_payment',
+      'Order must stay awaiting_payment on re-initiation'
+    );
+    assert.strictEqual(
+      orderResult[0].payment_provider,
+      'euplatesc',
+      'payment_provider must still be euplatesc'
+    );
   });
 });

@@ -33,7 +33,10 @@ describe('admin import hub page — client <script> syntax', () => {
 
     // Extract the LAST <script>...</script> block (the client logic script).
     const scriptMatches = [...source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)];
-    assert.ok(scriptMatches.length > 0, 'expected at least one <script> block in import/index.astro');
+    assert.ok(
+      scriptMatches.length > 0,
+      'expected at least one <script> block in import/index.astro'
+    );
 
     const clientScript = scriptMatches[scriptMatches.length - 1][1];
     assert.ok(clientScript.trim().length > 0, 'extracted client script is empty');
@@ -60,7 +63,7 @@ describe('admin import hub page — client <script> syntax', () => {
     assert.equal(
       exitCode,
       0,
-      `client <script> in import/index.astro has a syntax error — the entire client script is disabled at parse time.\nesbuild output:\n${combined}`,
+      `client <script> in import/index.astro has a syntax error — the entire client script is disabled at parse time.\nesbuild output:\n${combined}`
     );
   });
 });

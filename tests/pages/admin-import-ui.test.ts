@@ -31,7 +31,7 @@ describe('admin import hub page — static structure', () => {
     assert.match(
       source,
       /currentPath="\/admin\/plugins\/shop\/import"/,
-      'currentPath matches the manifest pattern for sidebar highlight',
+      'currentPath matches the manifest pattern for sidebar highlight'
     );
   });
 
@@ -43,23 +43,15 @@ describe('admin import hub page — static structure', () => {
   });
 
   it('each form has a Download Template anchor with the right filename', () => {
-    assert.match(
-      source,
-      /download="products-template\.csv"/,
-      'products template download anchor',
-    );
-    assert.match(
-      source,
-      /download="prices-template\.csv"/,
-      'prices template download anchor',
-    );
+    assert.match(source, /download="products-template\.csv"/, 'products template download anchor');
+    assert.match(source, /download="prices-template\.csv"/, 'prices template download anchor');
   });
 
   it('product template CSV has the correct headers', () => {
     assert.match(
       source,
       /sku,name_ro,name_en,description_ro,description_en,type,category_slug,vat_rate,stock/,
-      'product template headers match the brief CSV format',
+      'product template headers match the brief CSV format'
     );
   });
 
@@ -67,7 +59,7 @@ describe('admin import hub page — static structure', () => {
     assert.match(
       source,
       /sku,currency,price_net/,
-      'price template headers match the brief CSV format',
+      'price template headers match the brief CSV format'
     );
   });
 
@@ -80,12 +72,12 @@ describe('admin import hub page — static structure', () => {
     assert.match(
       source,
       /wireForm\(\s*['"]products-form['"]\s*,\s*['"]\/api\/plugins\/shop\/import\/products['"]/,
-      'products form wired to product import endpoint',
+      'products form wired to product import endpoint'
     );
     assert.match(
       source,
       /wireForm\(\s*['"]prices-form['"]\s*,\s*['"]\/api\/plugins\/shop\/import\/prices['"]/,
-      'prices form wired to price import endpoint',
+      'prices form wired to price import endpoint'
     );
   });
 });

@@ -9,13 +9,7 @@
  */
 import { test } from 'node:test';
 import { ensureLoader } from '../../../../../stubs/register.mjs';
-import {
-  createTestDb,
-  seedMinimal,
-  makeFakeSdk,
-  makeCtx,
-  assert,
-} from '../../../_matrix.ts';
+import { createTestDb, seedMinimal, makeFakeSdk, makeCtx, assert } from '../../../_matrix.ts';
 import { insertFixture, shop_settings } from '../../../../../db/harness.ts';
 
 ensureLoader();
@@ -31,7 +25,11 @@ test('accepts success_url and cancel_url, sets payment_provider', async () => {
     // Seed euPlatesc credentials
     await db.insert(shop_settings).values([
       { id: 's-eu-mid', key: 'euplatesc_merchant_id', value: '44841007584' },
-      { id: 's-eu-key', key: 'euplatesc_secret_key', value: 'AA4A81EE58A1D74DE6E02DF2C1CE9982780F95DC' },
+      {
+        id: 's-eu-key',
+        key: 'euplatesc_secret_key',
+        value: 'AA4A81EE58A1D74DE6E02DF2C1CE9982780F95DC',
+      },
     ]);
 
     // Seed order
@@ -86,7 +84,8 @@ test('accepts success_url and cancel_url, sets payment_provider', async () => {
 
     const sdk = makeFakeSdk({ user: null });
     const ctx = makeCtx({
-      url: URL, method: 'POST',
+      url: URL,
+      method: 'POST',
       body: {
         provider: 'euplatesc',
         success_url: 'https://shop.example.com/success',
@@ -108,7 +107,10 @@ test('accepts success_url and cancel_url, sets payment_provider', async () => {
 
     // Verify redirect URL contains the correct ExtraData URLs (URL-encoded)
     const redirectUrlStr = b.data.redirect_url;
-    assert.ok(redirectUrlStr.includes('shop.example.com'), 'redirect_url should contain shop domain');
+    assert.ok(
+      redirectUrlStr.includes('shop.example.com'),
+      'redirect_url should contain shop domain'
+    );
     assert.ok(redirectUrlStr.includes('success'), 'redirect_url should contain success path');
     assert.ok(redirectUrlStr.includes('cart'), 'redirect_url should contain cart path');
   } finally {
@@ -122,7 +124,8 @@ test('missing success_url/cancel_url → 422', async () => {
     const f = await seedMinimal(db);
     const sdk = makeFakeSdk({ user: null });
     const ctx = makeCtx({
-      url: URL, method: 'POST',
+      url: URL,
+      method: 'POST',
       body: { provider: 'euplatesc' },
       params: { orderId: 'order-1' },
     });
@@ -130,7 +133,10 @@ test('missing success_url/cancel_url → 422', async () => {
     assert.equal(res.status, 422);
     const b = await res.json();
     assert.equal(b.success, false);
-    assert.ok(b.error?.includes('success_url') || b.error?.includes('cancel_url'), 'error should mention missing URLs');
+    assert.ok(
+      b.error?.includes('success_url') || b.error?.includes('cancel_url'),
+      'error should mention missing URLs'
+    );
   } finally {
     await cleanup();
   }

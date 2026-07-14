@@ -15,10 +15,7 @@ import crypto from 'node:crypto';
  * @param key - Hex-encoded merchant key (e.g. "AA4A81EE...")
  * @returns Lowercase hex HMAC-MD5 digest
  */
-export function computeEuplatescHash(
-  fields: (string | null | undefined)[],
-  key: string,
-): string {
+export function computeEuplatescHash(fields: (string | null | undefined)[], key: string): string {
   // Build MAC string: length-prefixed per field, dash for empty
   let macString = '';
   for (const value of fields) {
@@ -141,9 +138,33 @@ export function buildResponseFields(params: ResponseMacParams): string[] {
   ];
 
   // Optional fields in documented order — only if present in the params
-  const optionalKeys: (keyof Pick<ResponseMacParams, 'sec_status' | 'rrn' | 'mcard' | 'card_exp' | 'discount_amount' | 'card_type' | 'bin' | 'rate' | 'card_holder' | 'email' | 'rtype' | 'cce'>)[] = [
-    'sec_status', 'rrn', 'mcard', 'card_exp', 'discount_amount', 'card_type',
-    'bin', 'rate', 'card_holder', 'email', 'rtype', 'cce',
+  const optionalKeys: (keyof Pick<
+    ResponseMacParams,
+    | 'sec_status'
+    | 'rrn'
+    | 'mcard'
+    | 'card_exp'
+    | 'discount_amount'
+    | 'card_type'
+    | 'bin'
+    | 'rate'
+    | 'card_holder'
+    | 'email'
+    | 'rtype'
+    | 'cce'
+  >)[] = [
+    'sec_status',
+    'rrn',
+    'mcard',
+    'card_exp',
+    'discount_amount',
+    'card_type',
+    'bin',
+    'rate',
+    'card_holder',
+    'email',
+    'rtype',
+    'cce',
   ];
 
   for (const key of optionalKeys) {
@@ -176,10 +197,5 @@ export function buildRefundFields(params: RefundMacParams): string[] {
  * Fields: method, mid, timestamp, nonce
  */
 export function buildCheckMidFields(params: CheckMidMacParams): string[] {
-  return [
-    params.method,
-    params.mid,
-    params.timestamp,
-    params.nonce,
-  ];
+  return [params.method, params.mid, params.timestamp, params.nonce];
 }

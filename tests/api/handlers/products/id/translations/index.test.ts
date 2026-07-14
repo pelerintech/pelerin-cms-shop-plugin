@@ -6,12 +6,10 @@ import { createTestDb, seedMinimal } from '../../../../../db/harness.ts';
 import { makeFakeSdk, makeCtx } from '../../../../helpers.ts';
 
 ensureLoader();
-const { runGet, runPut } = await import(
-  '../../../../../../src/api/shop/products/[id]/translations/index.ts'
-);
+const { runGet, runPut } =
+  await import('../../../../../../src/api/shop/products/[id]/translations/index.ts');
 
-const URL = (id: string) =>
-  `http://localhost/api/plugins/shop/products/${id}/translations`;
+const URL = (id: string) => `http://localhost/api/plugins/shop/products/${id}/translations`;
 
 test('GET auth-fail → 401', () =>
   matrix.adminAuthFail({ run: runGet, url: URL('x'), params: { id: 'x' } }));
@@ -69,7 +67,17 @@ test('PUT happy-path → 200', async () => {
     const sdk = makeFakeSdk();
     const ctx = makeCtx({
       url: URL(f.simpleProductId),
-      body: { translations: [{ locale: 'de', name: 'Programmierbuch', description: null, slug: 'programmierbuch', label: null }] },
+      body: {
+        translations: [
+          {
+            locale: 'de',
+            name: 'Programmierbuch',
+            description: null,
+            slug: 'programmierbuch',
+            label: null,
+          },
+        ],
+      },
       method: 'PUT',
       params: { id: f.simpleProductId },
     });
@@ -86,6 +94,8 @@ test('PUT error-wrap → 500', () =>
   matrix.errorWrap({
     run: runPut,
     url: URL('x'),
-    body: { translations: [{ locale: 'de', name: 'X', description: null, slug: 'x', label: null }] },
+    body: {
+      translations: [{ locale: 'de', name: 'X', description: null, slug: 'x', label: null }],
+    },
     params: { id: 'x' },
   }));

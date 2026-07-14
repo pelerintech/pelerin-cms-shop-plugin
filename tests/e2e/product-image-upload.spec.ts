@@ -28,7 +28,9 @@ async function adminLogin(page: Page) {
 /** A real product edit-page link from the products list (excludes /new). */
 const EDIT_LINK = 'a[href*="/admin/plugins/shop/products/"][href*="?from_page="]';
 
-test('admin uploads a product image and sees a resolved preview URL (no raw key)', async ({ page }) => {
+test('admin uploads a product image and sees a resolved preview URL (no raw key)', async ({
+  page,
+}) => {
   test.setTimeout(120_000);
   await adminLogin(page);
 

@@ -11,7 +11,11 @@ const PAGE_PATH = resolve(__dirname, '../../src/pages/admin/products/new.astro')
 describe('Products new page - card layout', () => {
   it('does NOT render a has_variants checkbox (derived at read, not user input)', () => {
     const content = readFileSync(PAGE_PATH, 'utf-8');
-    assert.doesNotMatch(content, /name="has_variants"/, 'has_variants checkbox must be removed (derived, not input)');
+    assert.doesNotMatch(
+      content,
+      /name="has_variants"/,
+      'has_variants checkbox must be removed (derived, not input)'
+    );
     assert.doesNotMatch(content, /Has variants/, 'has_variants label must be removed');
   });
 
@@ -56,7 +60,11 @@ describe('Products new page - card layout', () => {
 
   it('submit button is right-justified with border-t', () => {
     const content = readFileSync(PAGE_PATH, 'utf-8');
-    assert.match(content, /flex justify-end gap-2 pt-4 border-t border-base-200/, 'Submit button area should be right-justified with border');
+    assert.match(
+      content,
+      /flex justify-end gap-2 pt-4 border-t border-base-200/,
+      'Submit button area should be right-justified with border'
+    );
   });
 
   it('still has data-field error spans for client JS', () => {
@@ -72,6 +80,10 @@ describe('Products new page - card layout', () => {
   it('uses SearchSelect for category_id field', () => {
     const content = readFileSync(PAGE_PATH, 'utf-8');
     assert.match(content, /<SearchSelect/, 'Should use SearchSelect component for category field');
-    assert.doesNotMatch(content, /<SelectField name="category_id"/, 'Should NOT use SelectField for category_id (replaced by SearchSelect)');
+    assert.doesNotMatch(
+      content,
+      /<SelectField name="category_id"/,
+      'Should NOT use SelectField for category_id (replaced by SearchSelect)'
+    );
   });
 });

@@ -52,8 +52,17 @@ export interface RefundResult {
 export interface PaymentProvider {
   readonly name: string;
   readonly refundable: boolean;
-  initiatePayment(db: LibSQLDatabase, order: PaymentOrder, options: PaymentOptions): Promise<PaymentInitResult>;
+  initiatePayment(
+    db: LibSQLDatabase,
+    order: PaymentOrder,
+    options: PaymentOptions
+  ): Promise<PaymentInitResult>;
   handleWebhook(db: LibSQLDatabase, request: Request): Promise<WebhookResult>;
   isConfigured(db: LibSQLDatabase): Promise<boolean>;
-  refund(db: LibSQLDatabase, order: PaymentOrder & { transaction_id: string | null }, amount: number, reason: string): Promise<RefundResult>;
+  refund(
+    db: LibSQLDatabase,
+    order: PaymentOrder & { transaction_id: string | null },
+    amount: number,
+    reason: string
+  ): Promise<RefundResult>;
 }

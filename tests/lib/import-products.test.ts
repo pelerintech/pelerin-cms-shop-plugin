@@ -21,7 +21,17 @@ test('importProducts creates new products for unknown SKUs and upserts ro transl
   try {
     const f = await seedMinimal(db);
     const rows = [
-      { sku: 'NEW-001', name_ro: 'Produs Nou', name_en: 'New Product', description_ro: 'Desc RO', description_en: 'Desc EN', type: 'physical', category_slug: 'carti', vat_rate: '0.09', stock: '20' },
+      {
+        sku: 'NEW-001',
+        name_ro: 'Produs Nou',
+        name_en: 'New Product',
+        description_ro: 'Desc RO',
+        description_en: 'Desc EN',
+        type: 'physical',
+        category_slug: 'carti',
+        vat_rate: '0.09',
+        stock: '20',
+      },
     ];
     const result = await importProducts(db, rows);
     assert.strictEqual(result.total, 1);
@@ -40,11 +50,11 @@ test('importProducts creates new products for unknown SKUs and upserts ro transl
 
     // ro translation row created
     const roTrans = await db.select().from(translations).where(eq(translations.entity_id, prod.id));
-    const ro = roTrans.find(t => t.entity_type === 'product' && t.locale === 'ro');
+    const ro = roTrans.find((t) => t.entity_type === 'product' && t.locale === 'ro');
     assert.ok(ro, 'ro translation created');
     assert.strictEqual(ro.name, 'Produs Nou');
     // en translation row created
-    const en = roTrans.find(t => t.entity_type === 'product' && t.locale === 'en');
+    const en = roTrans.find((t) => t.entity_type === 'product' && t.locale === 'en');
     assert.ok(en, 'en translation created');
     assert.strictEqual(en.name, 'New Product');
   } finally {
@@ -58,7 +68,14 @@ test('importProducts updates existing products for known SKUs (no duplicate)', a
     const f = await seedMinimal(db);
     // BOOK-001 exists in seed
     const rows = [
-      { sku: 'BOOK-001', name_ro: 'Carte Editata', type: 'physical', category_slug: 'carti', vat_rate: '0.19', stock: '7' },
+      {
+        sku: 'BOOK-001',
+        name_ro: 'Carte Editata',
+        type: 'physical',
+        category_slug: 'carti',
+        vat_rate: '0.19',
+        stock: '7',
+      },
     ];
     const result = await importProducts(db, rows);
     assert.strictEqual(result.created, 0);
@@ -67,7 +84,7 @@ test('importProducts updates existing products for known SKUs (no duplicate)', a
 
     // Still only the original + seeded product count (no duplicate)
     const all = await db.select().from(products);
-    const bookRows = all.filter(p => p.sku === 'BOOK-001');
+    const bookRows = all.filter((p) => p.sku === 'BOOK-001');
     assert.strictEqual(bookRows.length, 1, 'no duplicate product created');
     assert.strictEqual(bookRows[0].name, 'Carte Editata', 'name updated');
     assert.strictEqual(bookRows[0].stock, 7, 'stock updated');
@@ -98,8 +115,16 @@ test('importProducts update does NOT overwrite unset columns (vat_rate/stock/cat
     assert.strictEqual(row.vat_rate, 0.05, 'unset vat_rate preserved, NOT nulled');
     assert.strictEqual(row.stock, 100, 'unset stock preserved, NOT nulled');
     assert.strictEqual(row.category_id, f.categoryBooksId, 'unset category preserved, NOT cleared');
-    assert.strictEqual(row.description, 'O carte excelentă', 'unset description preserved, NOT nulled');
-    assert.strictEqual(row.active, false, 'active preserved — import has no active column so it must not flip');
+    assert.strictEqual(
+      row.description,
+      'O carte excelentă',
+      'unset description preserved, NOT nulled'
+    );
+    assert.strictEqual(
+      row.active,
+      false,
+      'active preserved — import has no active column so it must not flip'
+    );
   } finally {
     await cleanup();
   }
@@ -114,14 +139,21 @@ test('importProducts update preserves unset translation fields (en description k
     const rows = [{ sku: 'BOOK-001', name_ro: 'Carte Noua', type: 'physical' }];
     await importProducts(db, rows);
 
-    const enRows = await db.select().from(translations).where(eq(translations.entity_id, f.simpleProductId));
-    const en = enRows.find(t => t.entity_type === 'product' && t.locale === 'en');
+    const enRows = await db
+      .select()
+      .from(translations)
+      .where(eq(translations.entity_id, f.simpleProductId));
+    const en = enRows.find((t) => t.entity_type === 'product' && t.locale === 'en');
     assert.ok(en, 'en translation still present');
     assert.strictEqual(en.name, 'Programming Book', 'en name not overwritten when name_en absent');
-    assert.strictEqual(en.description, 'An excellent book', 'en description not overwritten when description_en absent');
+    assert.strictEqual(
+      en.description,
+      'An excellent book',
+      'en description not overwritten when description_en absent'
+    );
 
     // ro translation name updated to the new value (name_ro is required → always updates)
-    const ro = enRows.find(t => t.entity_type === 'product' && t.locale === 'ro');
+    const ro = enRows.find((t) => t.entity_type === 'product' && t.locale === 'ro');
     assert.ok(ro);
     assert.strictEqual(ro.name, 'Carte Noua');
   } finally {
@@ -138,7 +170,11 @@ test('importProducts update treats empty category_slug as "omit" (existing categ
     const rows = [{ sku: 'BOOK-001', name_ro: 'X', type: 'physical', category_slug: '' }];
     await importProducts(db, rows);
     const [row] = await db.select().from(products).where(eq(products.id, f.simpleProductId));
-    assert.strictEqual(row.category_id, f.categoryBooksId, 'empty category_slug preserves existing category');
+    assert.strictEqual(
+      row.category_id,
+      f.categoryBooksId,
+      'empty category_slug preserves existing category'
+    );
   } finally {
     await cleanup();
   }
@@ -149,10 +185,10 @@ test('importProducts processes a mix of create + update + error rows without abo
   try {
     await seedMinimal(db);
     const rows = [
-      { sku: 'MIX-NEW', name_ro: 'Nou', type: 'physical' },                 // create
-      { sku: 'BOOK-001', name_ro: 'Editat', type: 'physical' },             // update
-      { sku: '', name_ro: 'No SKU', type: 'physical' },                     // error: missing sku
-      { sku: 'BAD-TYPE', name_ro: 'X', type: 'widget' },                    // error: invalid type
+      { sku: 'MIX-NEW', name_ro: 'Nou', type: 'physical' }, // create
+      { sku: 'BOOK-001', name_ro: 'Editat', type: 'physical' }, // update
+      { sku: '', name_ro: 'No SKU', type: 'physical' }, // error: missing sku
+      { sku: 'BAD-TYPE', name_ro: 'X', type: 'widget' }, // error: invalid type
       { sku: 'BAD-CAT', name_ro: 'Y', type: 'physical', category_slug: 'nonexistent-slug' }, // error: category not found
     ];
     const result = await importProducts(db, rows);
@@ -162,13 +198,13 @@ test('importProducts processes a mix of create + update + error rows without abo
     assert.strictEqual(result.skipped, 3, 'three error rows skipped');
     assert.strictEqual(result.errors.length, 3);
     // errors carry row number (1-based + header offset → +2) and a message
-    const rowNums = result.errors.map(e => e.row).sort((a, b) => a - b);
+    const rowNums = result.errors.map((e) => e.row).sort((a, b) => a - b);
     assert.deepStrictEqual(rowNums, [4, 5, 6]);
-    const noSkuErr = result.errors.find(e => e.row === 4);
+    const noSkuErr = result.errors.find((e) => e.row === 4);
     assert.ok(noSkuErr.error.toLowerCase().includes('sku'), 'missing-sku error mentions sku');
-    const typeErr = result.errors.find(e => e.row === 5);
+    const typeErr = result.errors.find((e) => e.row === 5);
     assert.ok(typeErr.error.toLowerCase().includes('type'), 'invalid-type error mentions type');
-    const catErr = result.errors.find(e => e.row === 6);
+    const catErr = result.errors.find((e) => e.row === 6);
     assert.ok(catErr.error.toLowerCase().includes('category'), 'category error mentions category');
   } finally {
     await cleanup();

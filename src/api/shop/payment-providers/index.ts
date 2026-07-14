@@ -12,7 +12,10 @@ import { listProviders } from '../../../providers/payment/registry';
  * Returns a list of configured payment providers.
  * Public endpoint — no auth required.
  */
-export const GET: APIRoute = (context) => { const sdk = createPluginContext(); return runGet({ db: sdk.db, sdk, ctx: context }); }
+export const GET: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runGet({ db: sdk.db, sdk, ctx: context });
+};
 
 export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
@@ -20,7 +23,8 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
 
     for (const provider of listProviders()) {
       if (await provider.isConfigured(db)) {
-        const label = provider.name.charAt(0).toUpperCase() + provider.name.slice(1).replace(/_/g, ' ');
+        const label =
+          provider.name.charAt(0).toUpperCase() + provider.name.slice(1).replace(/_/g, ' ');
         providers.push({
           name: provider.name,
           label,
@@ -29,20 +33,26 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       }
     }
 
-    return new Response(JSON.stringify({
-      success: true,
-      data: { providers },
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data: { providers },
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   } catch (err: any) {
-    return new Response(JSON.stringify({
-      success: false,
-      error: err.message || 'Server Error',
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: err.message || 'Server Error',
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

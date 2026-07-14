@@ -66,9 +66,15 @@ function formatZodError(issues: { path: (string | number)[]; message: string }[]
  */
 export async function importProducts(
   db: LibSQLDatabase,
-  rows: Record<string, string>[],
+  rows: Record<string, string>[]
 ): Promise<ImportResult> {
-  const result: ImportResult = { total: rows.length, created: 0, updated: 0, skipped: 0, errors: [] };
+  const result: ImportResult = {
+    total: rows.length,
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    errors: [],
+  };
 
   for (let i = 0; i < rows.length; i++) {
     const raw = rows[i];
@@ -79,7 +85,11 @@ export async function importProducts(
     // 1. Validate the row.
     const parsed = ProductImportRowSchema.safeParse(raw);
     if (!parsed.success) {
-      result.errors.push({ row: rowNum, sku: skuForError, error: formatZodError(parsed.error.issues as any) });
+      result.errors.push({
+        row: rowNum,
+        sku: skuForError,
+        error: formatZodError(parsed.error.issues as any),
+      });
       result.skipped++;
       continue;
     }
@@ -90,7 +100,11 @@ export async function importProducts(
     if (data.category_slug) {
       const cat = await findCategoryBySlug(db, data.category_slug);
       if (!cat) {
-        result.errors.push({ row: rowNum, sku: data.sku, error: `Category not found: '${data.category_slug}'` });
+        result.errors.push({
+          row: rowNum,
+          sku: data.sku,
+          error: `Category not found: '${data.category_slug}'`,
+        });
         result.skipped++;
         continue;
       }
@@ -122,20 +136,32 @@ export async function importProducts(
       // when provided, else preserve the existing ro description.
       const existingRo = await getTranslation(db, 'product', existing.id, 'ro');
       await upsertTranslation(db, {
-        entity_type: 'product', entity_id: existing.id, locale: 'ro',
+        entity_type: 'product',
+        entity_id: existing.id,
+        locale: 'ro',
         name: data.name_ro,
-        description: data.description_ro !== undefined ? data.description_ro : (existingRo?.description ?? null),
-        slug, label: null,
+        description:
+          data.description_ro !== undefined
+            ? data.description_ro
+            : (existingRo?.description ?? null),
+        slug,
+        label: null,
       });
       // en translation: only written when name_en is provided (the en block is
       // driven by name_en). description_en preserved from existing when absent.
       if (data.name_en) {
         const existingEn = await getTranslation(db, 'product', existing.id, 'en');
         await upsertTranslation(db, {
-          entity_type: 'product', entity_id: existing.id, locale: 'en',
+          entity_type: 'product',
+          entity_id: existing.id,
+          locale: 'en',
           name: data.name_en,
-          description: data.description_en !== undefined ? data.description_en : (existingEn?.description ?? null),
-          slug: slugify(data.name_en), label: null,
+          description:
+            data.description_en !== undefined
+              ? data.description_en
+              : (existingEn?.description ?? null),
+          slug: slugify(data.name_en),
+          label: null,
         });
       }
       result.updated++;
@@ -153,13 +179,23 @@ export async function importProducts(
         slug,
       });
       await upsertTranslation(db, {
-        entity_type: 'product', entity_id: id, locale: 'ro',
-        name: data.name_ro, description: data.description_ro ?? null, slug, label: null,
+        entity_type: 'product',
+        entity_id: id,
+        locale: 'ro',
+        name: data.name_ro,
+        description: data.description_ro ?? null,
+        slug,
+        label: null,
       });
       if (data.name_en) {
         await upsertTranslation(db, {
-          entity_type: 'product', entity_id: id, locale: 'en',
-          name: data.name_en, description: data.description_en ?? null, slug: slugify(data.name_en), label: null,
+          entity_type: 'product',
+          entity_id: id,
+          locale: 'en',
+          name: data.name_en,
+          description: data.description_en ?? null,
+          slug: slugify(data.name_en),
+          label: null,
         });
       }
       result.created++;

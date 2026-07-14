@@ -33,7 +33,11 @@ test('escapeCsvCell prepends a single quote to formula-injection-leading cells',
 });
 
 test('escapeCsvCell RFC 4180 quoting for cells with double-quotes (no formula prefix)', () => {
-  assert.strictEqual(escapeCsvCell('John "Doc" Smith'), `"John ""Doc"" Smith"`, 'quotes doubled + wrapped');
+  assert.strictEqual(
+    escapeCsvCell('John "Doc" Smith'),
+    `"John ""Doc"" Smith"`,
+    'quotes doubled + wrapped'
+  );
   // A cell with a comma is wrapped in quotes
   assert.strictEqual(escapeCsvCell('a,b'), `"a,b"`);
 });
@@ -57,11 +61,23 @@ test('escapeCsvCell handles a formula payload that also contains quotes', () => 
 async function makeCart(db: any, cartId: string, productId: string) {
   const now = new Date();
   await insertFixture(db, 'carts', {
-    id: cartId, session_id: 'sess-' + cartId, user_id: null, applied_voucher_code: null,
-    applied_referral_code: null, converted_at: null, expires_at: new Date(now.getTime() + 30 * 86400000),
-    created_at: now, updated_at: now,
+    id: cartId,
+    session_id: 'sess-' + cartId,
+    user_id: null,
+    applied_voucher_code: null,
+    applied_referral_code: null,
+    converted_at: null,
+    expires_at: new Date(now.getTime() + 30 * 86400000),
+    created_at: now,
+    updated_at: now,
   });
-  await insertFixture(db, 'cart_items', { id: 'ci-' + cartId, cart_id: cartId, product_id: productId, variant_id: null, quantity: 1 });
+  await insertFixture(db, 'cart_items', {
+    id: 'ci-' + cartId,
+    cart_id: cartId,
+    product_id: productId,
+    variant_id: null,
+    quantity: 1,
+  });
 }
 
 test('export success → Content-Type: text/csv', async () => {
@@ -70,14 +86,33 @@ test('export success → Content-Type: text/csv', async () => {
     const f = await seedMinimal(db);
     await makeCart(db, 'cart-ok', f.simpleProductId);
     await createOrder(db, {
-      order_number: 'ORD-OK', user_id: null, customer_type: 'individual', customer_email: 't@e.com',
-      customer_name: 'T', customer_phone: null, currency: 'RON', subtotal_net: 5000, vat_total: 250,
-      shipping_cost: 0, discount_amount: 0, total: 5250, shipping_type: 'physical',
-      billing_first_name: 'T', billing_last_name: 'U', billing_address: 'A', billing_city: 'C',
-      billing_postal_code: '1', billing_country: 'RO',
-      shipping_first_name: 'T', shipping_last_name: 'U', shipping_address: 'A',
-      shipping_city: 'C', shipping_postal_code: '1', shipping_country: 'RO',
-      shipping_same_as_billing: true, cart_id: 'cart-ok',
+      order_number: 'ORD-OK',
+      user_id: null,
+      customer_type: 'individual',
+      customer_email: 't@e.com',
+      customer_name: 'T',
+      customer_phone: null,
+      currency: 'RON',
+      subtotal_net: 5000,
+      vat_total: 250,
+      shipping_cost: 0,
+      discount_amount: 0,
+      total: 5250,
+      shipping_type: 'physical',
+      billing_first_name: 'T',
+      billing_last_name: 'U',
+      billing_address: 'A',
+      billing_city: 'C',
+      billing_postal_code: '1',
+      billing_country: 'RO',
+      shipping_first_name: 'T',
+      shipping_last_name: 'U',
+      shipping_address: 'A',
+      shipping_city: 'C',
+      shipping_postal_code: '1',
+      shipping_country: 'RO',
+      shipping_same_as_billing: true,
+      cart_id: 'cart-ok',
       items: [],
     } as any);
     const sdk = makeFakeSdk();

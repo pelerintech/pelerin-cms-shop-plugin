@@ -46,7 +46,7 @@ export class AttributeValueError extends Error {
 export async function listProductAttributeValues(
   db: LibSQLDatabase,
   productId: string,
-  locale: string,
+  locale: string
 ): Promise<AttributeValueRow[]> {
   const [product] = await db.select().from(products).where(eq(products.id, productId));
   if (!product) return [];
@@ -58,14 +58,14 @@ export async function listProductAttributeValues(
     .where(
       and(
         eq(product_attribute_assignments.product_id, productId),
-        eq(product_attribute_assignments.role, 'field'),
-      ),
+        eq(product_attribute_assignments.role, 'field')
+      )
     )
     .orderBy(product_attribute_assignments.sort_order);
 
   if (assignments.length === 0) return [];
 
-  const assignmentIds = assignments.map(a => a.id);
+  const assignmentIds = assignments.map((a) => a.id);
 
   // Fetch existing product-level values
   const allVals = await db
@@ -74,26 +74,37 @@ export async function listProductAttributeValues(
     .where(
       and(
         eq(product_attribute_values.entity_type, 'product'),
-        eq(product_attribute_values.entity_id, productId),
-      ),
+        eq(product_attribute_values.entity_id, productId)
+      )
     );
-  const values = allVals.filter(v => assignmentIds.includes(v.assignment_id));
+  const values = allVals.filter((v) => assignmentIds.includes(v.assignment_id));
 
   // Attribute details
-  const attributeIds = Array.from(new Set(assignments.map(a => a.attribute_id)));
-  const attrs = await db.select().from(product_attributes).where(inArray(product_attributes.id, attributeIds));
-  const attributesMap = new Map(attrs.map(a => [a.id, a]));
+  const attributeIds = Array.from(new Set(assignments.map((a) => a.attribute_id)));
+  const attrs = await db
+    .select()
+    .from(product_attributes)
+    .where(inArray(product_attributes.id, attributeIds));
+  const attributesMap = new Map(attrs.map((a) => [a.id, a]));
 
-  const transRows = await db.select().from(translations).where(inArray(translations.entity_id, attributeIds));
+  const transRows = await db
+    .select()
+    .from(translations)
+    .where(inArray(translations.entity_id, attributeIds));
   const attrTransMap = new Map(
-    transRows.filter(t => t.entity_type === 'product_attribute' && t.locale === locale).map(t => [t.entity_id, t.name]),
+    transRows
+      .filter((t) => t.entity_type === 'product_attribute' && t.locale === locale)
+      .map((t) => [t.entity_id, t.name])
   );
 
   // Option labels for select-type values
-  const optionIds = Array.from(new Set(values.map(v => v.option_id).filter(Boolean) as string[]));
+  const optionIds = Array.from(new Set(values.map((v) => v.option_id).filter(Boolean) as string[]));
   const optionLabelsMap = new Map<string, string>();
   if (optionIds.length > 0) {
-    const optTransRows = await db.select().from(translations).where(inArray(translations.entity_id, optionIds));
+    const optTransRows = await db
+      .select()
+      .from(translations)
+      .where(inArray(translations.entity_id, optionIds));
     for (const t of optTransRows) {
       if (t.entity_type === 'product_attribute_option' && t.locale === locale && t.label) {
         optionLabelsMap.set(t.entity_id, t.label);
@@ -101,9 +112,9 @@ export async function listProductAttributeValues(
     }
   }
 
-  return assignments.map(a => {
+  return assignments.map((a) => {
     const attr = attributesMap.get(a.attribute_id);
-    const val = values.find(v => v.assignment_id === a.id);
+    const val = values.find((v) => v.assignment_id === a.id);
     let value: string | number | boolean | null = null;
     if (val) {
       if (val.option_id) {
@@ -130,7 +141,7 @@ export async function listProductAttributeValues(
 /** Upsert a single attribute value (insert if none exists, update otherwise). */
 export async function upsertProductAttributeValue(
   db: LibSQLDatabase,
-  input: UpsertValueInput,
+  input: UpsertValueInput
 ): Promise<void> {
   // Validate assignment belongs to the entity and is field role
   const [assignment] = await db
@@ -140,11 +151,17 @@ export async function upsertProductAttributeValue(
 
   if (!assignment) throw new AttributeValueError('Assignment not found', 'not_found');
   if (assignment.role !== 'field') {
-    throw new AttributeValueError(`Assignment ${input.assignment_id} is not a field role`, 'invalid_assignment');
+    throw new AttributeValueError(
+      `Assignment ${input.assignment_id} is not a field role`,
+      'invalid_assignment'
+    );
   }
   // For product-level, assignment.product_id must match entity_id
   if (input.entity_type === 'product' && assignment.product_id !== input.entity_id) {
-    throw new AttributeValueError(`Assignment does not belong to entity ${input.entity_id}`, 'invalid_assignment');
+    throw new AttributeValueError(
+      `Assignment does not belong to entity ${input.entity_id}`,
+      'invalid_assignment'
+    );
   }
 
   const [existing] = await db
@@ -154,8 +171,8 @@ export async function upsertProductAttributeValue(
       and(
         eq(product_attribute_values.entity_type, input.entity_type),
         eq(product_attribute_values.entity_id, input.entity_id),
-        eq(product_attribute_values.assignment_id, input.assignment_id),
-      ),
+        eq(product_attribute_values.assignment_id, input.assignment_id)
+      )
     );
 
   if (existing) {
@@ -186,9 +203,18 @@ export async function upsertProductAttributeValue(
 export async function upsertVariantAttributeValue(
   db: LibSQLDatabase,
   variantId: string,
-  input: { assignment_id: string; option_id?: string | null; value_text?: string | null; value_number?: number | null; value_boolean?: boolean | null },
+  input: {
+    assignment_id: string;
+    option_id?: string | null;
+    value_text?: string | null;
+    value_number?: number | null;
+    value_boolean?: boolean | null;
+  }
 ): Promise<void> {
-  const [variant] = await db.select().from(product_variants).where(eq(product_variants.id, variantId));
+  const [variant] = await db
+    .select()
+    .from(product_variants)
+    .where(eq(product_variants.id, variantId));
   if (!variant) throw new AttributeValueError('Variant not found', 'not_found');
 
   const [assignment] = await db
@@ -198,11 +224,14 @@ export async function upsertVariantAttributeValue(
       and(
         eq(product_attribute_assignments.id, input.assignment_id),
         eq(product_attribute_assignments.product_id, variant.product_id),
-        eq(product_attribute_assignments.role, 'field'),
-      ),
+        eq(product_attribute_assignments.role, 'field')
+      )
     );
   if (!assignment) {
-    throw new AttributeValueError(`Assignment ${input.assignment_id} does not belong to this variant's product or is not a field role`, 'invalid_assignment');
+    throw new AttributeValueError(
+      `Assignment ${input.assignment_id} does not belong to this variant's product or is not a field role`,
+      'invalid_assignment'
+    );
   }
 
   await upsertProductAttributeValue(db, {
@@ -220,9 +249,12 @@ export async function upsertVariantAttributeValue(
 export async function listVariantAttributeValues(
   db: LibSQLDatabase,
   variantId: string,
-  locale: string,
+  locale: string
 ): Promise<AttributeValueRow[]> {
-  const [variant] = await db.select().from(product_variants).where(eq(product_variants.id, variantId));
+  const [variant] = await db
+    .select()
+    .from(product_variants)
+    .where(eq(product_variants.id, variantId));
   if (!variant) return [];
 
   const assignments = await db
@@ -231,38 +263,49 @@ export async function listVariantAttributeValues(
     .where(
       and(
         eq(product_attribute_assignments.product_id, variant.product_id),
-        eq(product_attribute_assignments.role, 'field'),
-      ),
+        eq(product_attribute_assignments.role, 'field')
+      )
     )
     .orderBy(product_attribute_assignments.sort_order);
 
   if (assignments.length === 0) return [];
 
-  const assignmentIds = assignments.map(a => a.id);
+  const assignmentIds = assignments.map((a) => a.id);
   const allVals = await db
     .select()
     .from(product_attribute_values)
     .where(
       and(
         eq(product_attribute_values.entity_type, 'variant'),
-        eq(product_attribute_values.entity_id, variantId),
-      ),
+        eq(product_attribute_values.entity_id, variantId)
+      )
     );
-  const values = allVals.filter(v => assignmentIds.includes(v.assignment_id));
+  const values = allVals.filter((v) => assignmentIds.includes(v.assignment_id));
 
-  const attributeIds = Array.from(new Set(assignments.map(a => a.attribute_id)));
-  const attrs = await db.select().from(product_attributes).where(inArray(product_attributes.id, attributeIds));
-  const attributesMap = new Map(attrs.map(a => [a.id, a]));
+  const attributeIds = Array.from(new Set(assignments.map((a) => a.attribute_id)));
+  const attrs = await db
+    .select()
+    .from(product_attributes)
+    .where(inArray(product_attributes.id, attributeIds));
+  const attributesMap = new Map(attrs.map((a) => [a.id, a]));
 
-  const transRows = await db.select().from(translations).where(inArray(translations.entity_id, attributeIds));
+  const transRows = await db
+    .select()
+    .from(translations)
+    .where(inArray(translations.entity_id, attributeIds));
   const attrTransMap = new Map(
-    transRows.filter(t => t.entity_type === 'product_attribute' && t.locale === locale).map(t => [t.entity_id, t.name]),
+    transRows
+      .filter((t) => t.entity_type === 'product_attribute' && t.locale === locale)
+      .map((t) => [t.entity_id, t.name])
   );
 
-  const optionIds = Array.from(new Set(values.map(v => v.option_id).filter(Boolean) as string[]));
+  const optionIds = Array.from(new Set(values.map((v) => v.option_id).filter(Boolean) as string[]));
   const optionLabelsMap = new Map<string, string>();
   if (optionIds.length > 0) {
-    const optTransRows = await db.select().from(translations).where(inArray(translations.entity_id, optionIds));
+    const optTransRows = await db
+      .select()
+      .from(translations)
+      .where(inArray(translations.entity_id, optionIds));
     for (const t of optTransRows) {
       if (t.entity_type === 'product_attribute_option' && t.locale === locale && t.label) {
         optionLabelsMap.set(t.entity_id, t.label);
@@ -270,9 +313,9 @@ export async function listVariantAttributeValues(
     }
   }
 
-  return assignments.map(a => {
+  return assignments.map((a) => {
     const attr = attributesMap.get(a.attribute_id);
-    const val = values.find(v => v.assignment_id === a.id);
+    const val = values.find((v) => v.assignment_id === a.id);
     let value: string | number | boolean | null = null;
     if (val) {
       if (val.option_id) {

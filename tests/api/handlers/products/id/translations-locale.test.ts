@@ -19,9 +19,8 @@ import { translations } from '../../../../db/harness.ts';
 import { eq } from 'drizzle-orm';
 
 ensureLoader();
-const { runPut } = await import(
-  '../../../../../src/api/shop/products/[id]/translations/[locale].ts'
-);
+const { runPut } =
+  await import('../../../../../src/api/shop/products/[id]/translations/[locale].ts');
 
 const URL = (id: string, locale: string) =>
   `http://localhost/api/plugins/shop/products/${id}/translations/${locale}`;
@@ -41,8 +40,11 @@ test('PUT happy-path → 200, writes translation for the path-param product', as
     assert.equal(res.status, 200);
     const b = await res.json();
     assert.equal(b.success, true);
-    const rows = await db.select().from(translations).where(eq(translations.entity_id, f.simpleProductId));
-    const de = rows.find(t => t.entity_type === 'product' && t.locale === 'de');
+    const rows = await db
+      .select()
+      .from(translations)
+      .where(eq(translations.entity_id, f.simpleProductId));
+    const de = rows.find((t) => t.entity_type === 'product' && t.locale === 'de');
     assert.ok(de, 'de translation written for the path-param product');
     assert.equal(de.name, 'Buch');
   } finally {
@@ -58,7 +60,12 @@ test('PUT path-param wins: body entity_id/entity_type/locale ignored (no hijack)
     // Body tries to hijack to a different product id / entity_type / locale.
     const ctx = makeCtx({
       url: URL(f.simpleProductId, 'de'),
-      body: { name: 'Hijack', entity_id: 'different-product-id', entity_type: 'variant', locale: 'fr' },
+      body: {
+        name: 'Hijack',
+        entity_id: 'different-product-id',
+        entity_type: 'variant',
+        locale: 'fr',
+      },
       method: 'PUT',
       params: { id: f.simpleProductId, locale: 'de' },
     });
@@ -66,11 +73,17 @@ test('PUT path-param wins: body entity_id/entity_type/locale ignored (no hijack)
     assert.equal(res.status, 200);
     // The translation must be written for the PATH product (de), NOT the body's
     // different-product-id (fr) — no hijack.
-    const deRows = await db.select().from(translations).where(eq(translations.entity_id, f.simpleProductId));
-    const de = deRows.find(t => t.entity_type === 'product' && t.locale === 'de');
+    const deRows = await db
+      .select()
+      .from(translations)
+      .where(eq(translations.entity_id, f.simpleProductId));
+    const de = deRows.find((t) => t.entity_type === 'product' && t.locale === 'de');
     assert.ok(de, 'translation written for the PATH-param product+locale');
     assert.equal(de.name, 'Hijack');
-    const hijackRows = await db.select().from(translations).where(eq(translations.entity_id, 'different-product-id'));
+    const hijackRows = await db
+      .select()
+      .from(translations)
+      .where(eq(translations.entity_id, 'different-product-id'));
     assert.equal(hijackRows.length, 0, 'body entity_id must NOT hijack the write target');
   } finally {
     await cleanup();
@@ -113,8 +126,11 @@ test('PUT: body cannot inject entity_id to write a different entity', async () =
     const res = await runPut({ db, sdk, ctx });
     assert.equal(res.status, 200);
     // Written for PATH product, NOT the variant product the body tried to set.
-    const variantRows = await db.select().from(translations).where(eq(translations.entity_id, f.variantProductId));
-    const esOnVariant = variantRows.find(t => t.locale === 'es');
+    const variantRows = await db
+      .select()
+      .from(translations)
+      .where(eq(translations.entity_id, f.variantProductId));
+    const esOnVariant = variantRows.find((t) => t.locale === 'es');
     assert.ok(!esOnVariant, 'body entity_id must not redirect the write to the variant');
   } finally {
     await cleanup();

@@ -7,90 +7,315 @@
   "publicPages": [],
   "adminPages": [
     { "pattern": "/admin/plugins/shop", "entrypoint": "./src/pages/admin/index.astro" },
-    { "pattern": "/admin/plugins/shop/products", "entrypoint": "./src/pages/admin/products/index.astro" },
-    { "pattern": "/admin/plugins/shop/products/new", "entrypoint": "./src/pages/admin/products/new.astro" },
-    { "pattern": "/admin/plugins/shop/products/[id]", "entrypoint": "./src/pages/admin/products/[id].astro" },
-    { "pattern": "/admin/plugins/shop/categories", "entrypoint": "./src/pages/admin/categories/index.astro" },
-    { "pattern": "/admin/plugins/shop/categories/new", "entrypoint": "./src/pages/admin/categories/new.astro" },
-    { "pattern": "/admin/plugins/shop/categories/[id]", "entrypoint": "./src/pages/admin/categories/[id].astro" },
+    {
+      "pattern": "/admin/plugins/shop/products",
+      "entrypoint": "./src/pages/admin/products/index.astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/products/new",
+      "entrypoint": "./src/pages/admin/products/new.astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/products/[id]",
+      "entrypoint": "./src/pages/admin/products/[id].astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/categories",
+      "entrypoint": "./src/pages/admin/categories/index.astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/categories/new",
+      "entrypoint": "./src/pages/admin/categories/new.astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/categories/[id]",
+      "entrypoint": "./src/pages/admin/categories/[id].astro"
+    },
     { "pattern": "/admin/plugins/shop/carts", "entrypoint": "./src/pages/admin/carts/index.astro" },
-    { "pattern": "/admin/plugins/shop/orders", "entrypoint": "./src/pages/admin/orders/index.astro" },
-    { "pattern": "/admin/plugins/shop/orders/new", "entrypoint": "./src/pages/admin/orders/new.astro" },
-    { "pattern": "/admin/plugins/shop/orders/[id]", "entrypoint": "./src/pages/admin/orders/[id].astro" },
-    { "pattern": "/admin/plugins/shop/settings/payments/stripe", "entrypoint": "./src/pages/admin/settings/payments/stripe.astro" },
-    { "pattern": "/admin/plugins/shop/settings/payments/euplatesc", "entrypoint": "./src/pages/admin/settings/payments/euplatesc.astro" },
-    { "pattern": "/admin/plugins/shop/settings/payments", "entrypoint": "./src/pages/admin/settings/payments/index.astro" },
-    { "pattern": "/admin/plugins/shop/settings/general", "entrypoint": "./src/pages/admin/settings/general.astro" },
-    { "pattern": "/admin/plugins/shop/vouchers", "entrypoint": "./src/pages/admin/vouchers/index.astro" },
-    { "pattern": "/admin/plugins/shop/vouchers/new", "entrypoint": "./src/pages/admin/vouchers/new.astro" },
-    { "pattern": "/admin/plugins/shop/vouchers/[id]", "entrypoint": "./src/pages/admin/vouchers/[id].astro" },
-    { "pattern": "/admin/plugins/shop/referral-codes", "entrypoint": "./src/pages/admin/referral-codes/index.astro" },
-    { "pattern": "/admin/plugins/shop/referral-codes/new", "entrypoint": "./src/pages/admin/referral-codes/new.astro" },
-    { "pattern": "/admin/plugins/shop/referral-codes/[id]", "entrypoint": "./src/pages/admin/referral-codes/[id].astro" },
-    { "pattern": "/admin/plugins/shop/settings/attributes", "entrypoint": "./src/pages/admin/settings/attributes/index.astro" },
-    { "pattern": "/admin/plugins/shop/settings/attributes/new", "entrypoint": "./src/pages/admin/settings/attributes/new.astro" },
-    { "pattern": "/admin/plugins/shop/settings/attributes/[id]", "entrypoint": "./src/pages/admin/settings/attributes/[id].astro" },
-    { "pattern": "/admin/plugins/shop/import", "entrypoint": "./src/pages/admin/import/index.astro" }
+    {
+      "pattern": "/admin/plugins/shop/orders",
+      "entrypoint": "./src/pages/admin/orders/index.astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/orders/new",
+      "entrypoint": "./src/pages/admin/orders/new.astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/orders/[id]",
+      "entrypoint": "./src/pages/admin/orders/[id].astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/settings/payments/stripe",
+      "entrypoint": "./src/pages/admin/settings/payments/stripe.astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/settings/payments/euplatesc",
+      "entrypoint": "./src/pages/admin/settings/payments/euplatesc.astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/settings/payments",
+      "entrypoint": "./src/pages/admin/settings/payments/index.astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/settings/general",
+      "entrypoint": "./src/pages/admin/settings/general.astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/vouchers",
+      "entrypoint": "./src/pages/admin/vouchers/index.astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/vouchers/new",
+      "entrypoint": "./src/pages/admin/vouchers/new.astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/vouchers/[id]",
+      "entrypoint": "./src/pages/admin/vouchers/[id].astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/referral-codes",
+      "entrypoint": "./src/pages/admin/referral-codes/index.astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/referral-codes/new",
+      "entrypoint": "./src/pages/admin/referral-codes/new.astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/referral-codes/[id]",
+      "entrypoint": "./src/pages/admin/referral-codes/[id].astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/settings/attributes",
+      "entrypoint": "./src/pages/admin/settings/attributes/index.astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/settings/attributes/new",
+      "entrypoint": "./src/pages/admin/settings/attributes/new.astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/settings/attributes/[id]",
+      "entrypoint": "./src/pages/admin/settings/attributes/[id].astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/import",
+      "entrypoint": "./src/pages/admin/import/index.astro"
+    }
   ],
   "apiEndpoints": [
-    { "pattern": "/api/plugins/shop/categories", "entrypoint": "./src/api/shop/categories/index.ts" },
-    { "pattern": "/api/plugins/shop/categories/[id]", "entrypoint": "./src/api/shop/categories/[id].ts" },
-    { "pattern": "/api/plugins/shop/attributes", "entrypoint": "./src/api/shop/attributes/index.ts" },
-    { "pattern": "/api/plugins/shop/attributes/[id]", "entrypoint": "./src/api/shop/attributes/[id].ts" },
-    { "pattern": "/api/plugins/shop/attributes/[id]/options", "entrypoint": "./src/api/shop/attributes/[id]/options/index.ts" },
-    { "pattern": "/api/plugins/shop/attributes/[id]/options/[optionId]", "entrypoint": "./src/api/shop/attributes/[id]/options/[optionId].ts" },
-    { "pattern": "/api/plugins/shop/products/[id]/attributes", "entrypoint": "./src/api/shop/products/[id]/attributes/index.ts" },
-    { "pattern": "/api/plugins/shop/products/[id]/attributes/[assignmentId]", "entrypoint": "./src/api/shop/products/[id]/attributes/[assignmentId].ts" },
-    { "pattern": "/api/plugins/shop/products/[id]/attribute-values", "entrypoint": "./src/api/shop/products/[id]/attribute-values.ts" },
-    { "pattern": "/api/plugins/shop/variants/[variantId]/attribute-values", "entrypoint": "./src/api/shop/variants/[variantId]/attribute-values.ts" },
+    {
+      "pattern": "/api/plugins/shop/categories",
+      "entrypoint": "./src/api/shop/categories/index.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/categories/[id]",
+      "entrypoint": "./src/api/shop/categories/[id].ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/attributes",
+      "entrypoint": "./src/api/shop/attributes/index.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/attributes/[id]",
+      "entrypoint": "./src/api/shop/attributes/[id].ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/attributes/[id]/options",
+      "entrypoint": "./src/api/shop/attributes/[id]/options/index.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/attributes/[id]/options/[optionId]",
+      "entrypoint": "./src/api/shop/attributes/[id]/options/[optionId].ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/products/[id]/attributes",
+      "entrypoint": "./src/api/shop/products/[id]/attributes/index.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/products/[id]/attributes/[assignmentId]",
+      "entrypoint": "./src/api/shop/products/[id]/attributes/[assignmentId].ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/products/[id]/attribute-values",
+      "entrypoint": "./src/api/shop/products/[id]/attribute-values.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/variants/[variantId]/attribute-values",
+      "entrypoint": "./src/api/shop/variants/[variantId]/attribute-values.ts"
+    },
     { "pattern": "/api/plugins/shop/vouchers", "entrypoint": "./src/api/shop/vouchers/index.ts" },
-    { "pattern": "/api/plugins/shop/vouchers/[id]", "entrypoint": "./src/api/shop/vouchers/[id].ts" },
-    { "pattern": "/api/plugins/shop/referral-codes", "entrypoint": "./src/api/shop/referral-codes/index.ts" },
-    { "pattern": "/api/plugins/shop/referral-codes/[id]", "entrypoint": "./src/api/shop/referral-codes/[id].ts" },
-    { "pattern": "/api/plugins/shop/public/categories", "entrypoint": "./src/api/shop/public/categories/index.ts" },
+    {
+      "pattern": "/api/plugins/shop/vouchers/[id]",
+      "entrypoint": "./src/api/shop/vouchers/[id].ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/referral-codes",
+      "entrypoint": "./src/api/shop/referral-codes/index.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/referral-codes/[id]",
+      "entrypoint": "./src/api/shop/referral-codes/[id].ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/public/categories",
+      "entrypoint": "./src/api/shop/public/categories/index.ts"
+    },
     { "pattern": "/api/plugins/shop/products", "entrypoint": "./src/api/shop/products/index.ts" },
-    { "pattern": "/api/plugins/shop/products/[id]", "entrypoint": "./src/api/shop/products/[id].ts" },
-    { "pattern": "/api/plugins/shop/products/[id]/translations", "entrypoint": "./src/api/shop/products/[id]/translations/index.ts" },
-    { "pattern": "/api/plugins/shop/products/[id]/translations/[locale]", "entrypoint": "./src/api/shop/products/[id]/translations/[locale].ts" },
-    { "pattern": "/api/plugins/shop/products/[id]/prices", "entrypoint": "./src/api/shop/products/[id]/prices.ts" },
-    { "pattern": "/api/plugins/shop/products/[id]/images", "entrypoint": "./src/api/shop/products/[id]/images/index.ts" },
-    { "pattern": "/api/plugins/shop/products/[id]/images/[imageId]", "entrypoint": "./src/api/shop/products/[id]/images/[imageId].ts" },
-    { "pattern": "/api/plugins/shop/products/[id]/images/reorder", "entrypoint": "./src/api/shop/products/[id]/images/reorder.ts" },
-    { "pattern": "/api/plugins/shop/products/[id]/variants", "entrypoint": "./src/api/shop/products/[id]/variants/index.ts" },
-    { "pattern": "/api/plugins/shop/products/[id]/variants/[variantId]", "entrypoint": "./src/api/shop/products/[id]/variants/[variantId].ts" },
-    { "pattern": "/api/plugins/shop/public/products", "entrypoint": "./src/api/shop/public/products/index.ts" },
-    { "pattern": "/api/plugins/shop/public/products/[id]", "entrypoint": "./src/api/shop/public/products/[id].ts" },
-    { "pattern": "/api/plugins/shop/public/cart", "entrypoint": "./src/api/shop/public/cart/index.ts" },
-    { "pattern": "/api/plugins/shop/public/cart/items", "entrypoint": "./src/api/shop/public/cart/items/index.ts" },
-    { "pattern": "/api/plugins/shop/public/cart/items/[itemId]", "entrypoint": "./src/api/shop/public/cart/items/[itemId].ts" },
-    { "pattern": "/api/plugins/shop/public/cart/clear", "entrypoint": "./src/api/shop/public/cart/clear.ts" },
-    { "pattern": "/api/plugins/shop/public/cart/voucher", "entrypoint": "./src/api/shop/public/cart/voucher/index.ts" },
-    { "pattern": "/api/plugins/shop/public/cart/referral", "entrypoint": "./src/api/shop/public/cart/referral/index.ts" },
-    { "pattern": "/api/plugins/shop/public/checkout", "entrypoint": "./src/api/shop/public/checkout/index.ts" },
-    { "pattern": "/api/plugins/shop/public/checkout/[orderId]/pay", "entrypoint": "./src/api/shop/public/checkout/[orderId]/pay.ts" },
+    {
+      "pattern": "/api/plugins/shop/products/[id]",
+      "entrypoint": "./src/api/shop/products/[id].ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/products/[id]/translations",
+      "entrypoint": "./src/api/shop/products/[id]/translations/index.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/products/[id]/translations/[locale]",
+      "entrypoint": "./src/api/shop/products/[id]/translations/[locale].ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/products/[id]/prices",
+      "entrypoint": "./src/api/shop/products/[id]/prices.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/products/[id]/images",
+      "entrypoint": "./src/api/shop/products/[id]/images/index.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/products/[id]/images/[imageId]",
+      "entrypoint": "./src/api/shop/products/[id]/images/[imageId].ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/products/[id]/images/reorder",
+      "entrypoint": "./src/api/shop/products/[id]/images/reorder.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/products/[id]/variants",
+      "entrypoint": "./src/api/shop/products/[id]/variants/index.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/products/[id]/variants/[variantId]",
+      "entrypoint": "./src/api/shop/products/[id]/variants/[variantId].ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/public/products",
+      "entrypoint": "./src/api/shop/public/products/index.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/public/products/[id]",
+      "entrypoint": "./src/api/shop/public/products/[id].ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/public/cart",
+      "entrypoint": "./src/api/shop/public/cart/index.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/public/cart/items",
+      "entrypoint": "./src/api/shop/public/cart/items/index.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/public/cart/items/[itemId]",
+      "entrypoint": "./src/api/shop/public/cart/items/[itemId].ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/public/cart/clear",
+      "entrypoint": "./src/api/shop/public/cart/clear.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/public/cart/voucher",
+      "entrypoint": "./src/api/shop/public/cart/voucher/index.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/public/cart/referral",
+      "entrypoint": "./src/api/shop/public/cart/referral/index.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/public/checkout",
+      "entrypoint": "./src/api/shop/public/checkout/index.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/public/checkout/[orderId]/pay",
+      "entrypoint": "./src/api/shop/public/checkout/[orderId]/pay.ts"
+    },
     { "pattern": "/api/plugins/shop/carts", "entrypoint": "./src/api/shop/carts/index.ts" },
     { "pattern": "/api/plugins/shop/carts/[id]", "entrypoint": "./src/api/shop/carts/[id].ts" },
-    { "pattern": "/api/plugins/shop/webhooks/stripe", "entrypoint": "./src/api/shop/webhooks/stripe.ts" },
-    { "pattern": "/api/plugins/shop/webhooks/euplatesc", "entrypoint": "./src/api/shop/webhooks/euplatesc.ts" },
-    { "pattern": "/api/plugins/shop/settings/payments/stripe", "entrypoint": "./src/api/shop/settings/payments/stripe.ts" },
-    { "pattern": "/api/plugins/shop/settings/payments/euplatesc", "entrypoint": "./src/api/shop/settings/payments/euplatesc.ts" },
-    { "pattern": "/api/plugins/shop/settings/general", "entrypoint": "./src/api/shop/settings/general.ts" },
-    { "pattern": "/api/plugins/shop/settings/locales", "entrypoint": "./src/api/shop/settings/locales.ts" },
-    { "pattern": "/api/plugins/shop/settings/currencies", "entrypoint": "./src/api/shop/settings/currencies.ts" },
+    {
+      "pattern": "/api/plugins/shop/webhooks/stripe",
+      "entrypoint": "./src/api/shop/webhooks/stripe.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/webhooks/euplatesc",
+      "entrypoint": "./src/api/shop/webhooks/euplatesc.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/settings/payments/stripe",
+      "entrypoint": "./src/api/shop/settings/payments/stripe.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/settings/payments/euplatesc",
+      "entrypoint": "./src/api/shop/settings/payments/euplatesc.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/settings/general",
+      "entrypoint": "./src/api/shop/settings/general.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/settings/locales",
+      "entrypoint": "./src/api/shop/settings/locales.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/settings/currencies",
+      "entrypoint": "./src/api/shop/settings/currencies.ts"
+    },
     { "pattern": "/api/plugins/shop/orders", "entrypoint": "./src/api/shop/orders/index.ts" },
     { "pattern": "/api/plugins/shop/orders/[id]", "entrypoint": "./src/api/shop/orders/[id].ts" },
-    { "pattern": "/api/plugins/shop/orders/[id]/status", "entrypoint": "./src/api/shop/orders/[id]/status.ts" },
-    { "pattern": "/api/plugins/shop/orders/[id]/cancel", "entrypoint": "./src/api/shop/orders/[id]/cancel.ts" },
-    { "pattern": "/api/plugins/shop/orders/[id]/refund", "entrypoint": "./src/api/shop/orders/[id]/refund.ts" },
-    { "pattern": "/api/plugins/shop/orders/[id]/resend-confirmation", "entrypoint": "./src/api/shop/orders/[id]/resend.ts" },
-    { "pattern": "/api/plugins/shop/orders/export", "entrypoint": "./src/api/shop/orders/export.ts" },
-    { "pattern": "/api/plugins/shop/import/products", "entrypoint": "./src/api/shop/import/products.ts" },
-    { "pattern": "/api/plugins/shop/import/prices", "entrypoint": "./src/api/shop/import/prices.ts" },
-    { "pattern": "/api/plugins/shop/payment-providers", "entrypoint": "./src/api/shop/payment-providers/index.ts" },
-    { "pattern": "/api/plugins/shop/orders/[id]/create-payment", "entrypoint": "./src/api/shop/orders/[id]/create-payment.ts" },
-    { "pattern": "/api/plugins/shop/settings/payments/euplatesc/test-connection", "entrypoint": "./src/api/shop/settings/payments/euplatesc/test-connection.ts" },
-    { "pattern": "/api/plugins/shop/settings/payments/euplatesc/test-payment", "entrypoint": "./src/api/shop/settings/payments/euplatesc/test-payment.ts" },
-    { "pattern": "/api/plugins/shop/settings/payments/euplatesc/test-result", "entrypoint": "./src/api/shop/settings/payments/euplatesc/test-result.ts" }
+    {
+      "pattern": "/api/plugins/shop/orders/[id]/status",
+      "entrypoint": "./src/api/shop/orders/[id]/status.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/orders/[id]/cancel",
+      "entrypoint": "./src/api/shop/orders/[id]/cancel.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/orders/[id]/refund",
+      "entrypoint": "./src/api/shop/orders/[id]/refund.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/orders/[id]/resend-confirmation",
+      "entrypoint": "./src/api/shop/orders/[id]/resend.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/orders/export",
+      "entrypoint": "./src/api/shop/orders/export.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/import/products",
+      "entrypoint": "./src/api/shop/import/products.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/import/prices",
+      "entrypoint": "./src/api/shop/import/prices.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/payment-providers",
+      "entrypoint": "./src/api/shop/payment-providers/index.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/orders/[id]/create-payment",
+      "entrypoint": "./src/api/shop/orders/[id]/create-payment.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/settings/payments/euplatesc/test-connection",
+      "entrypoint": "./src/api/shop/settings/payments/euplatesc/test-connection.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/settings/payments/euplatesc/test-payment",
+      "entrypoint": "./src/api/shop/settings/payments/euplatesc/test-payment.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/settings/payments/euplatesc/test-result",
+      "entrypoint": "./src/api/shop/settings/payments/euplatesc/test-result.ts"
+    }
   ],
   "navItems": [
     { "label": "Shop", "href": "/admin/plugins/shop", "icon": "shopping-cart" },
@@ -101,7 +326,11 @@
     { "label": "Referral Codes", "href": "/admin/plugins/shop/referral-codes", "icon": "link" },
     { "label": "Carts", "href": "/admin/plugins/shop/carts", "icon": "shopping-cart" },
     { "label": "Payments", "href": "/admin/plugins/shop/settings/payments", "icon": "credit-card" },
-    { "label": "Attributes", "href": "/admin/plugins/shop/settings/attributes", "icon": "sliders-h" },
+    {
+      "label": "Attributes",
+      "href": "/admin/plugins/shop/settings/attributes",
+      "icon": "sliders-h"
+    },
     { "label": "Import", "href": "/admin/plugins/shop/import", "icon": "upload" },
     { "label": "Settings", "href": "/admin/plugins/shop/settings/general", "icon": "cog" }
   ]

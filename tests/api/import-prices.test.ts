@@ -8,21 +8,29 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { ensureLoader } from '../stubs/register.mjs';
-import {
-  makeFakeSdk,
-  poisonDb,
-  unauthorizedError,
-} from './helpers.ts';
+import { makeFakeSdk, poisonDb, unauthorizedError } from './helpers.ts';
 import { createTestDb, seedMinimal } from '../db/harness.ts';
 
 ensureLoader();
 const { runPost } = await import('../../src/api/shop/import/prices.ts');
 
-function makeCtxWithFile(filename: string, content: string, url = 'http://localhost/api/plugins/shop/import/prices'): any {
+function makeCtxWithFile(
+  filename: string,
+  content: string,
+  url = 'http://localhost/api/plugins/shop/import/prices'
+): any {
   const form = new FormData();
   form.append('file', new File([content], filename, { type: 'text/csv' }));
   const request = new Request(url, { method: 'POST', body: form });
-  return { request, params: {}, url: new URL(url), site: new URL('http://localhost'), cookies: { get: () => undefined, set: () => {}, delete: () => {} }, redirect: () => new Response(null, { status: 302 }), locals: {} };
+  return {
+    request,
+    params: {},
+    url: new URL(url),
+    site: new URL('http://localhost'),
+    cookies: { get: () => undefined, set: () => {}, delete: () => {} },
+    redirect: () => new Response(null, { status: 302 }),
+    locals: {},
+  };
 }
 
 function jsonBody(res: Response) {

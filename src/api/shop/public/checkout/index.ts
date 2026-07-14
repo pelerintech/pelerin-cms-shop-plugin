@@ -1,7 +1,11 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getOrCreateCart } from '../../../../lib/cart-session';
-import { getCartWithItems, validateCartStock, StockValidationError } from '../../../../lib/data/cart';
+import {
+  getCartWithItems,
+  validateCartStock,
+  StockValidationError,
+} from '../../../../lib/data/cart';
 import { createOrder } from '../../../../lib/data/orders';
 import { getVoucherByCode, incrementVoucherUsage } from '../../../../lib/data/vouchers';
 import { computeCartTotals } from '../../../../lib/cart-totals';
@@ -39,18 +43,51 @@ const CheckoutSchema = z
   })
   .superRefine((data, ctx) => {
     if (data.customer_type === 'company') {
-      if (!data.billing_company) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'billing_company is required for company customers', path: ['billing_company'] });
-      if (!data.billing_vat_number) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'billing_vat_number is required for company customers', path: ['billing_vat_number'] });
+      if (!data.billing_company)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'billing_company is required for company customers',
+          path: ['billing_company'],
+        });
+      if (!data.billing_vat_number)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'billing_vat_number is required for company customers',
+          path: ['billing_vat_number'],
+        });
     }
     if (!data.shipping_same_as_billing && data.shipping_type === 'physical') {
-      if (!data.shipping_address_line_1) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'shipping_address_line_1 is required when shipping differs from billing', path: ['shipping_address_line_1'] });
-      if (!data.shipping_city) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'shipping_city is required when shipping differs from billing', path: ['shipping_city'] });
-      if (!data.shipping_postal_code) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'shipping_postal_code is required when shipping differs from billing', path: ['shipping_postal_code'] });
-      if (!data.shipping_country) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'shipping_country is required when shipping differs from billing', path: ['shipping_country'] });
+      if (!data.shipping_address_line_1)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'shipping_address_line_1 is required when shipping differs from billing',
+          path: ['shipping_address_line_1'],
+        });
+      if (!data.shipping_city)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'shipping_city is required when shipping differs from billing',
+          path: ['shipping_city'],
+        });
+      if (!data.shipping_postal_code)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'shipping_postal_code is required when shipping differs from billing',
+          path: ['shipping_postal_code'],
+        });
+      if (!data.shipping_country)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'shipping_country is required when shipping differs from billing',
+          path: ['shipping_country'],
+        });
     }
   });
 
-export const POST: APIRoute = (context) => { const sdk = createPluginContext(); return runPost({ db: sdk.db, sdk, ctx: context }); }
+export const POST: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runPost({ db: sdk.db, sdk, ctx: context });
+};
 
 export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
@@ -61,17 +98,22 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     const items = result?.items ?? [];
     if (items.length === 0) {
       return new Response(JSON.stringify({ success: false, error: 'Cart is empty' }), {
-        status: 422, headers: { 'Content-Type': 'application/json' },
+        status: 422,
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
     const body = await ctx.request.json();
     const parsed = CheckoutSchema.safeParse(body);
     if (!parsed.success) {
-      return new Response(JSON.stringify({
-        success: false, error: 'Validation failed',
-        fields: Object.fromEntries(parsed.error.issues.map(i => [i.path.join('.'), i.message])),
-      }), { status: 422, headers: { 'Content-Type': 'application/json' } });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Validation failed',
+          fields: Object.fromEntries(parsed.error.issues.map((i) => [i.path.join('.'), i.message])),
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
     const data = parsed.data;
@@ -82,9 +124,18 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       await validateCartStock(db, items);
     } catch (e: any) {
       if (e instanceof StockValidationError) {
-        return new Response(JSON.stringify({ success: false, error: e.message, product_id: e.product_id, variant_id: e.variant_id }), {
-          status: 409, headers: { 'Content-Type': 'application/json' },
-        });
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: e.message,
+            product_id: e.product_id,
+            variant_id: e.variant_id,
+          }),
+          {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
       }
       throw e;
     }
@@ -99,8 +150,11 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       const voucher = await getVoucherByCode(db, cart.applied_voucher_code);
       if (voucher && voucher.active) {
         const baseTotals = computeCartTotals(cartItemInputs as any, currency);
-        if (voucher.type === 'fixed_amount') discountAmount = Math.min(voucher.value ?? 0, baseTotals.subtotal_net);
-        else if (voucher.type === 'percentage') discountAmount = Math.round(baseTotals.subtotal_net * ((voucher.value ?? 0) / 100) * 100) / 100;
+        if (voucher.type === 'fixed_amount')
+          discountAmount = Math.min(voucher.value ?? 0, baseTotals.subtotal_net);
+        else if (voucher.type === 'percentage')
+          discountAmount =
+            Math.round(baseTotals.subtotal_net * ((voucher.value ?? 0) / 100) * 100) / 100;
       }
     }
 
@@ -112,11 +166,21 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     const billingLastName = nameParts.slice(1).join(' ') || billingFirstName;
     const shippingFirstName = billingFirstName;
     const shippingLastName = billingLastName;
-    const shippingAddressLine1 = data.shipping_same_as_billing ? data.billing_address_line_1 : (data.shipping_address_line_1 ?? data.billing_address_line_1);
-    const shippingCity = data.shipping_same_as_billing ? data.billing_city : (data.shipping_city ?? data.billing_city);
-    const shippingState = data.shipping_same_as_billing ? data.billing_state : (data.shipping_state ?? data.billing_state);
-    const shippingPostalCode = data.shipping_same_as_billing ? data.billing_postal_code : (data.shipping_postal_code ?? data.billing_postal_code);
-    const shippingCountry = data.shipping_same_as_billing ? data.billing_country : (data.shipping_country ?? data.billing_country);
+    const shippingAddressLine1 = data.shipping_same_as_billing
+      ? data.billing_address_line_1
+      : (data.shipping_address_line_1 ?? data.billing_address_line_1);
+    const shippingCity = data.shipping_same_as_billing
+      ? data.billing_city
+      : (data.shipping_city ?? data.billing_city);
+    const shippingState = data.shipping_same_as_billing
+      ? data.billing_state
+      : (data.shipping_state ?? data.billing_state);
+    const shippingPostalCode = data.shipping_same_as_billing
+      ? data.billing_postal_code
+      : (data.shipping_postal_code ?? data.billing_postal_code);
+    const shippingCountry = data.shipping_same_as_billing
+      ? data.billing_country
+      : (data.shipping_country ?? data.billing_country);
 
     // Create the order via accessor (handles items, stock decrement, cart clear).
     // createOrder generates its own order_number (transactional, with UNIQUE retry).
@@ -181,17 +245,30 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     if (setCookie) headers['Set-Cookie'] = setCookie;
 
     // Dynamic provider list — only include providers that are configured
-    const configuredProviders = (await Promise.all(
-      listProviders().map(async (p) => ({ name: p.name, configured: await p.isConfigured(db) })),
-    )).filter((p) => p.configured).map((p) => p.name);
+    const configuredProviders = (
+      await Promise.all(
+        listProviders().map(async (p) => ({ name: p.name, configured: await p.isConfigured(db) }))
+      )
+    )
+      .filter((p) => p.configured)
+      .map((p) => p.name);
 
-    return new Response(JSON.stringify({
-      success: true,
-      data: { order_id: order.id, order_number: order.order_number, totals, payment_providers: configuredProviders },
-    }), { status: 201, headers });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data: {
+          order_id: order.id,
+          order_number: order.order_number,
+          totals,
+          payment_providers: configuredProviders,
+        },
+      }),
+      { status: 201, headers }
+    );
   } catch (err: any) {
     return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: 500, headers: { 'Content-Type': 'application/json' },
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 }

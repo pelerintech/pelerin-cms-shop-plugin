@@ -9,53 +9,70 @@ import type { PaymentOrder, PaymentOptions } from '../../../../providers/payment
 import '../../../../providers/payment/euplatesc';
 import '../../../../providers/payment/stripe';
 
-export const POST: APIRoute = (context) => { const sdk = createPluginContext(); return runPost({ db: sdk.db, sdk, ctx: context }); }
+export const POST: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runPost({ db: sdk.db, sdk, ctx: context });
+};
 
 export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
     await sdk.auth.requireAdmin(ctx.request);
   } catch {
     return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
-      status: 401, headers: { 'Content-Type': 'application/json' },
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 
   const orderId = ctx.params.id!;
 
   let body: any;
-  try { body = await ctx.request.json(); } catch {
+  try {
+    body = await ctx.request.json();
+  } catch {
     return new Response(JSON.stringify({ success: false, error: 'Invalid JSON body' }), {
-      status: 400, headers: { 'Content-Type': 'application/json' },
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 
   const providerName = body?.provider;
   if (!providerName || typeof providerName !== 'string') {
     return new Response(JSON.stringify({ success: false, error: 'provider is required' }), {
-      status: 422, headers: { 'Content-Type': 'application/json' },
+      status: 422,
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 
   // Check provider is registered and configured
   const provider = getProvider(providerName);
   if (!provider) {
-    return new Response(JSON.stringify({ success: false, error: `Unknown provider: ${providerName}` }), {
-      status: 422, headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ success: false, error: `Unknown provider: ${providerName}` }),
+      {
+        status: 422,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 
   const isConfig = await provider.isConfigured(db);
   if (!isConfig) {
-    return new Response(JSON.stringify({ success: false, error: `Provider ${providerName} is not configured` }), {
-      status: 422, headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ success: false, error: `Provider ${providerName} is not configured` }),
+      {
+        status: 422,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 
   // Load the order
   const result = await getOrderWithItems(db, orderId);
   if (!result) {
     return new Response(JSON.stringify({ success: false, error: 'Order not found' }), {
-      status: 404, headers: { 'Content-Type': 'application/json' },
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 
@@ -74,8 +91,10 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
 
   // Derive URLs from request origin
   const origin = new URL(ctx.request.url).origin;
-  const successUrl = body.success_url || `${origin}/admin/plugins/shop/orders/${orderId}?payment=success`;
-  const cancelUrl = body.cancel_url || `${origin}/admin/plugins/shop/orders/${orderId}?payment=failed`;
+  const successUrl =
+    body.success_url || `${origin}/admin/plugins/shop/orders/${orderId}?payment=success`;
+  const cancelUrl =
+    body.cancel_url || `${origin}/admin/plugins/shop/orders/${orderId}?payment=failed`;
   const webhookUrl = `${origin}/api/plugins/shop/webhooks/${providerName}`;
 
   const paymentOptions: PaymentOptions = {
@@ -89,16 +108,23 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
   try {
     const paymentResult = await provider.initiatePayment(db, paymentOrder, paymentOptions);
 
-    return new Response(JSON.stringify({
-      success: true,
-      data: {
-        redirect_url: paymentResult.redirect_url,
-        provider_session_id: paymentResult.provider_session_id,
-      },
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data: {
+          redirect_url: paymentResult.redirect_url,
+          provider_session_id: paymentResult.provider_session_id,
+        },
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
   } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Payment initiation failed' }), {
-      status: 500, headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ success: false, error: err.message || 'Payment initiation failed' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

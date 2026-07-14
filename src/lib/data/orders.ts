@@ -4,7 +4,21 @@
  * Uses inArray/eq — never the sql IN-join idiom.
  */
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import { inArray, eq, and, isNull, ne, asc, desc, like, or, gte, lte, count, sql } from 'drizzle-orm';
+import {
+  inArray,
+  eq,
+  and,
+  isNull,
+  ne,
+  asc,
+  desc,
+  like,
+  or,
+  gte,
+  lte,
+  count,
+  sql,
+} from 'drizzle-orm';
 import {
   orders,
   order_items,
@@ -33,22 +47,30 @@ const VALID_TRANSITIONS: Record<string, readonly string[]> = {
 };
 
 export class OrderTransitionError extends Error {
-  constructor(message: string) { super(message); }
+  constructor(message: string) {
+    super(message);
+  }
 }
 
 /** Thrown when an order item's requested quantity exceeds available stock (in-tx re-check). */
 export class StockValidationError extends Error {
-  constructor(message: string) { super(message); }
+  constructor(message: string) {
+    super(message);
+  }
 }
 
 /** Thrown when a line-item refund violates the quantity invariant or status guard. */
 export class RefundError extends Error {
-  constructor(message: string) { super(message); }
+  constructor(message: string) {
+    super(message);
+  }
 }
 
 /** Thrown when a restock line-item id does not belong to the order. */
 export class RestockError extends Error {
-  constructor(message: string) { super(message); }
+  constructor(message: string) {
+    super(message);
+  }
 }
 
 export function validateTransition(fromStatus: string, toStatus: string): void {
@@ -138,7 +160,7 @@ export interface CreateOrderInput {
  */
 export async function createOrder(
   db: LibSQLDatabase,
-  input: CreateOrderInput,
+  input: CreateOrderInput
 ): Promise<{ id: string; order_number: string; status: string }> {
   let lastErr: unknown;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -262,7 +284,7 @@ export interface OrderWithItems {
 /** Get an order with its items and status history. */
 export async function getOrderWithItems(
   db: LibSQLDatabase,
-  orderId: string,
+  orderId: string
 ): Promise<OrderWithItems | null> {
   const [order] = await db.select().from(orders).where(eq(orders.id, orderId));
   if (!order) return null;
@@ -283,7 +305,7 @@ export async function transitionOrderStatus(
   orderId: string,
   toStatus: string,
   note?: string | null,
-  changedBy?: string | null,
+  changedBy?: string | null
 ): Promise<void> {
   const [order] = await db.select().from(orders).where(eq(orders.id, orderId));
   if (!order) throw new OrderTransitionError(`Order not found: ${orderId}`);
@@ -293,8 +315,13 @@ export async function transitionOrderStatus(
 
   if (fromStatus === toStatus) {
     await db.insert(order_status_history).values({
-      id: crypto.randomUUID(), order_id: orderId, from_status: fromStatus, to_status: toStatus,
-      note: note ?? null, changed_by: changedBy ?? null, created_at: now,
+      id: crypto.randomUUID(),
+      order_id: orderId,
+      from_status: fromStatus,
+      to_status: toStatus,
+      note: note ?? null,
+      changed_by: changedBy ?? null,
+      created_at: now,
     });
     return;
   }
@@ -303,8 +330,13 @@ export async function transitionOrderStatus(
 
   await db.update(orders).set({ status: toStatus, updated_at: now }).where(eq(orders.id, orderId));
   await db.insert(order_status_history).values({
-    id: crypto.randomUUID(), order_id: orderId, from_status: fromStatus, to_status: toStatus,
-    note: note ?? null, changed_by: changedBy ?? null, created_at: now,
+    id: crypto.randomUUID(),
+    order_id: orderId,
+    from_status: fromStatus,
+    to_status: toStatus,
+    note: note ?? null,
+    changed_by: changedBy ?? null,
+    created_at: now,
   });
 }
 
@@ -316,39 +348,47 @@ export async function transitionOrderStatus(
  * stock exists and throws `StockValidationError` if not (the MAX(0,...) floor is
  * a backstop only, never the enforcement).
  */
-export async function decrementStock(
-  db: LibSQLDatabase,
-  orderId: string,
-): Promise<void> {
+export async function decrementStock(db: LibSQLDatabase, orderId: string): Promise<void> {
   const items = await db.select().from(order_items).where(eq(order_items.order_id, orderId));
 
   for (const item of items) {
     if (item.variant_id) {
       // Atomic conditional UPDATE: only decrements when stock IS NOT NULL AND >= qty.
       // No preceding SELECT. Uses raw SQL with literal table/column names.
-      const result = await db.run(sql.raw(
-        `UPDATE "product_variants" SET "stock" = MAX(0, "stock" - ${item.quantity}) ` +
-        `WHERE "id" = '${item.variant_id.replace(/'/g, "''")}' ` +
-        `AND "stock" IS NOT NULL AND "stock" >= ${item.quantity}`
-      ));
+      const result = await db.run(
+        sql.raw(
+          `UPDATE "product_variants" SET "stock" = MAX(0, "stock" - ${item.quantity}) ` +
+            `WHERE "id" = '${item.variant_id.replace(/'/g, "''")}' ` +
+            `AND "stock" IS NOT NULL AND "stock" >= ${item.quantity}`
+        )
+      );
       if (result.rowsAffected === 0) {
         // Determine why: null stock (skip, ok) vs insufficient (throw) vs missing (skip).
-        const [v] = await db.select().from(product_variants).where(eq(product_variants.id, item.variant_id));
+        const [v] = await db
+          .select()
+          .from(product_variants)
+          .where(eq(product_variants.id, item.variant_id));
         if (v && v.stock !== null && v.stock < item.quantity) {
-          throw new StockValidationError(`Insufficient stock for variant ${item.variant_id}: have ${v.stock}, need ${item.quantity}`);
+          throw new StockValidationError(
+            `Insufficient stock for variant ${item.variant_id}: have ${v.stock}, need ${item.quantity}`
+          );
         }
         // null stock or missing row → skip (best-effort, as today)
       }
     } else if (item.product_id) {
-      const result = await db.run(sql.raw(
-        `UPDATE "products" SET "stock" = MAX(0, "stock" - ${item.quantity}) ` +
-        `WHERE "id" = '${item.product_id.replace(/'/g, "''")}' ` +
-        `AND "stock" IS NOT NULL AND "stock" >= ${item.quantity}`
-      ));
+      const result = await db.run(
+        sql.raw(
+          `UPDATE "products" SET "stock" = MAX(0, "stock" - ${item.quantity}) ` +
+            `WHERE "id" = '${item.product_id.replace(/'/g, "''")}' ` +
+            `AND "stock" IS NOT NULL AND "stock" >= ${item.quantity}`
+        )
+      );
       if (result.rowsAffected === 0) {
         const [p] = await db.select().from(products).where(eq(products.id, item.product_id));
         if (p && p.stock !== null && p.stock < item.quantity) {
-          throw new StockValidationError(`Insufficient stock for product ${item.product_id}: have ${p.stock}, need ${item.quantity}`);
+          throw new StockValidationError(
+            `Insufficient stock for product ${item.product_id}: have ${p.stock}, need ${item.quantity}`
+          );
         }
       }
     }
@@ -375,10 +415,10 @@ export interface RestockLineItem {
 export async function restockOrderItems(
   db: LibSQLDatabase,
   orderId: string,
-  items?: RestockLineItem[],
+  items?: RestockLineItem[]
 ): Promise<void> {
   const orderItems = await db.select().from(order_items).where(eq(order_items.order_id, orderId));
-  const byId = new Map(orderItems.map(oi => [oi.id, oi]));
+  const byId = new Map(orderItems.map((oi) => [oi.id, oi]));
 
   // Determine which (order_item_id, quantity) pairs to restock.
   let lines: RestockLineItem[];
@@ -386,28 +426,34 @@ export async function restockOrderItems(
     // Line-item mode: validate each belongs to the order.
     for (const line of items) {
       if (!byId.has(line.order_item_id)) {
-        throw new RestockError(`order_item ${line.order_item_id} does not belong to order ${orderId}`);
+        throw new RestockError(
+          `order_item ${line.order_item_id} does not belong to order ${orderId}`
+        );
       }
     }
     lines = items;
   } else {
     // Full mode: restock every line item by its ordered quantity.
-    lines = orderItems.map(oi => ({ order_item_id: oi.id, quantity: oi.quantity }));
+    lines = orderItems.map((oi) => ({ order_item_id: oi.id, quantity: oi.quantity }));
   }
 
   for (const line of lines) {
     const oi = byId.get(line.order_item_id)!;
     if (oi.variant_id) {
       // Atomic additive UPDATE; no preceding read. Skips null-stock/missing rows silently.
-      await db.run(sql.raw(
-        `UPDATE "product_variants" SET "stock" = "stock" + ${line.quantity} ` +
-        `WHERE "id" = '${oi.variant_id.replace(/'/g, "''")}' AND "stock" IS NOT NULL`
-      ));
+      await db.run(
+        sql.raw(
+          `UPDATE "product_variants" SET "stock" = "stock" + ${line.quantity} ` +
+            `WHERE "id" = '${oi.variant_id.replace(/'/g, "''")}' AND "stock" IS NOT NULL`
+        )
+      );
     } else if (oi.product_id) {
-      await db.run(sql.raw(
-        `UPDATE "products" SET "stock" = "stock" + ${line.quantity} ` +
-        `WHERE "id" = '${oi.product_id.replace(/'/g, "''")}' AND "stock" IS NOT NULL`
-      ));
+      await db.run(
+        sql.raw(
+          `UPDATE "products" SET "stock" = "stock" + ${line.quantity} ` +
+            `WHERE "id" = '${oi.product_id.replace(/'/g, "''")}' AND "stock" IS NOT NULL`
+        )
+      );
     }
     // else: both null → skip (digital/unknown), no error.
   }
@@ -444,7 +490,7 @@ const SORT_COL_MAP: Record<string, any> = {
 /** List orders with filters, search, and pagination. Ordered by created_at DESC by default. */
 export async function listOrders(
   db: LibSQLDatabase,
-  opts: ListOrdersOptions = {},
+  opts: ListOrdersOptions = {}
 ): Promise<ListOrdersResult> {
   const page = Math.max(1, opts.page ?? 1);
   const limit = Math.min(100, Math.max(1, opts.limit ?? 50));
@@ -468,11 +514,13 @@ export async function listOrders(
   }
   if (opts.search) {
     const s = `%${opts.search.toLowerCase()}%`;
-    conditions.push(or(
-      like(orders.order_number, s),
-      like(orders.customer_name, s),
-      like(orders.customer_email, s),
-    ));
+    conditions.push(
+      or(
+        like(orders.order_number, s),
+        like(orders.customer_name, s),
+        like(orders.customer_email, s)
+      )
+    );
   }
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -481,7 +529,9 @@ export async function listOrders(
   const total = countRow?.value ?? 0;
 
   // Page via SQL ORDER BY + LIMIT + OFFSET.
-  const paged = await db.select().from(orders)
+  const paged = await db
+    .select()
+    .from(orders)
     .where(where)
     .orderBy(orderDir(sortCol))
     .limit(limit)
@@ -495,13 +545,16 @@ export async function recordOrderRefund(
   db: LibSQLDatabase,
   orderId: string,
   refundAmount: number,
-  refundNotes: string | null,
+  refundNotes: string | null
 ): Promise<void> {
-  await db.update(orders).set({
-    refund_amount: refundAmount,
-    refund_notes: refundNotes,
-    refunded_at: new Date(),
-  }).where(eq(orders.id, orderId));
+  await db
+    .update(orders)
+    .set({
+      refund_amount: refundAmount,
+      refund_notes: refundNotes,
+      refunded_at: new Date(),
+    })
+    .where(eq(orders.id, orderId));
 }
 
 export interface LineItemRefundLine {
@@ -532,7 +585,7 @@ export async function recordLineItemRefund(
   db: LibSQLDatabase,
   orderId: string,
   input: LineItemRefundInput,
-  changedBy?: string | null,
+  changedBy?: string | null
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const now = new Date();
@@ -546,9 +599,12 @@ export async function recordLineItemRefund(
     }
 
     const orderItems = await tx.select().from(order_items).where(eq(order_items.order_id, orderId));
-    const itemById = new Map(orderItems.map(oi => [oi.id, oi]));
+    const itemById = new Map(orderItems.map((oi) => [oi.id, oi]));
 
-    const existingRefunds = await tx.select().from(order_refunds).where(eq(order_refunds.order_id, orderId));
+    const existingRefunds = await tx
+      .select()
+      .from(order_refunds)
+      .where(eq(order_refunds.order_id, orderId));
     const refundedByItem = new Map<string, number>();
     for (const r of existingRefunds) {
       refundedByItem.set(r.order_item_id, (refundedByItem.get(r.order_item_id) ?? 0) + r.quantity);
@@ -558,12 +614,16 @@ export async function recordLineItemRefund(
     for (const line of input.refunds) {
       const item = itemById.get(line.order_item_id);
       if (!item) {
-        throw new RefundError(`order_item ${line.order_item_id} does not belong to order ${orderId}`);
+        throw new RefundError(
+          `order_item ${line.order_item_id} does not belong to order ${orderId}`
+        );
       }
       const already = refundedByItem.get(line.order_item_id) ?? 0;
       const remaining = item.quantity - already;
       if (line.quantity > item.quantity) {
-        throw new RefundError(`refund quantity ${line.quantity} exceeds item quantity ${item.quantity}`);
+        throw new RefundError(
+          `refund quantity ${line.quantity} exceeds item quantity ${item.quantity}`
+        );
       }
       if (line.quantity > remaining) {
         throw new RefundError(`refund quantity ${line.quantity} exceeds remaining ${remaining}`);
@@ -586,30 +646,45 @@ export async function recordLineItemRefund(
       });
       newRefundedByItem.set(
         line.order_item_id,
-        (newRefundedByItem.get(line.order_item_id) ?? 0) + line.quantity,
+        (newRefundedByItem.get(line.order_item_id) ?? 0) + line.quantity
       );
       if (line.amount != null) amountDelta += line.amount;
     }
 
     // Restock the refunded quantities (line-item mode).
-    await restockOrderItems(tx, orderId, input.refunds.map(l => ({ order_item_id: l.order_item_id, quantity: l.quantity })));
+    await restockOrderItems(
+      tx,
+      orderId,
+      input.refunds.map((l) => ({ order_item_id: l.order_item_id, quantity: l.quantity }))
+    );
 
     // Update order-level summary (running total).
     const newRefundAmount = (order.refund_amount ?? 0) + amountDelta;
     const notes = input.notes ?? order.refund_notes ?? null;
 
     // Determine terminal status: refunded iff every item is now fully refunded.
-    const allFullyRefunded = orderItems.every(oi => (newRefundedByItem.get(oi.id) ?? 0) >= oi.quantity);
+    const allFullyRefunded = orderItems.every(
+      (oi) => (newRefundedByItem.get(oi.id) ?? 0) >= oi.quantity
+    );
     const newStatus = allFullyRefunded ? 'refunded' : 'partially_refunded';
 
-    await tx.update(orders).set({
-      refund_amount: newRefundAmount,
-      refund_notes: notes,
-      refunded_at: now,
-      updated_at: now,
-    }).where(eq(orders.id, orderId));
+    await tx
+      .update(orders)
+      .set({
+        refund_amount: newRefundAmount,
+        refund_notes: notes,
+        refunded_at: now,
+        updated_at: now,
+      })
+      .where(eq(orders.id, orderId));
 
-    await transitionOrderStatus(tx, orderId, newStatus, input.notes ?? 'Line-item refund recorded', changedBy ?? null);
+    await transitionOrderStatus(
+      tx,
+      orderId,
+      newStatus,
+      input.notes ?? 'Line-item refund recorded',
+      changedBy ?? null
+    );
   });
 }
 

@@ -40,7 +40,11 @@ export interface FakeSdkOptions {
   };
 }
 
-interface RecordedUpload { buf: Buffer; key: string; mime: string }
+interface RecordedUpload {
+  buf: Buffer;
+  key: string;
+  mime: string;
+}
 
 /**
  * Build a fake PluginContext. Only the `auth` namespace is exercised by the
@@ -119,10 +123,16 @@ export function makeCtx(opts: FakeCtxOptions = {}): any {
     // Build a real FormData; let the platform set the multipart boundary. Do NOT
     // set Content-Type manually — the Request/FormData integration sets it.
     const fd = new FormData();
-    const buf = typeof opts.formData!.file === 'string' ? Buffer.from(opts.formData!.file) : opts.formData!.file;
+    const buf =
+      typeof opts.formData!.file === 'string'
+        ? Buffer.from(opts.formData!.file)
+        : opts.formData!.file;
     const blob = new Blob([buf], { type: opts.formData!.fileType });
     // Blob has no .name; use File when available so file.name is populated.
-    const file = typeof File !== 'undefined' ? new File([buf], opts.formData!.fileName, { type: opts.formData!.fileType }) : blob;
+    const file =
+      typeof File !== 'undefined'
+        ? new File([buf], opts.formData!.fileName, { type: opts.formData!.fileType })
+        : blob;
     fd.append('file', file as any, opts.formData!.fileName);
     if (opts.formData!.fields) {
       for (const [k, v] of Object.entries(opts.formData!.fields)) fd.append(k, v);

@@ -1,7 +1,16 @@
 import { describe, it, before, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import { ensureLoader } from '../../../../stubs/register.mjs';
-import { createTestDb, resetDb, orders, order_items, shop_settings, products, product_prices, buildOrderRow } from '../../../../db/harness.ts';
+import {
+  createTestDb,
+  resetDb,
+  orders,
+  order_items,
+  shop_settings,
+  products,
+  product_prices,
+  buildOrderRow,
+} from '../../../../db/harness.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { eq } from 'drizzle-orm';
 
@@ -150,7 +159,11 @@ describe('refund endpoint — euPlatesc-first ordering', () => {
     const response = await runPut({ db, sdk: fakeSdk, ctx: fakeCtx });
     const data = await response.json();
 
-    assert.strictEqual(response.status, 200, `Expected 200, got ${response.status}: ${JSON.stringify(data)}`);
+    assert.strictEqual(
+      response.status,
+      200,
+      `Expected 200, got ${response.status}: ${JSON.stringify(data)}`
+    );
     assert.ok(fetchCalls.length > 0, 'fetch must be called (euPlatesc refund)');
     assert.ok(fetchCalls[0].url.includes('euplatesc'), 'fetch must call euPlatesc WebService');
   });

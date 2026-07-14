@@ -28,8 +28,15 @@ describe('order transitions — awaiting_payment → pending', () => {
 
     // Verify status changed
     const { eq } = await import('drizzle-orm');
-    const result = await db.select({ status: orders.status }).from(orders).where(eq(orders.id, 'order-1')).limit(1);
-    assert.strictEqual(result[0].status, 'pending',
-      'Order must transition from awaiting_payment to pending');
+    const result = await db
+      .select({ status: orders.status })
+      .from(orders)
+      .where(eq(orders.id, 'order-1'))
+      .limit(1);
+    assert.strictEqual(
+      result[0].status,
+      'pending',
+      'Order must transition from awaiting_payment to pending'
+    );
   });
 });

@@ -1,7 +1,13 @@
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert';
 import { ensureLoader } from '../../../stubs/register.mjs';
-import { createTestDb, resetDb, orders, shop_settings, buildOrderRow } from '../../../db/harness.ts';
+import {
+  createTestDb,
+  resetDb,
+  orders,
+  shop_settings,
+  buildOrderRow,
+} from '../../../db/harness.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { eq } from 'drizzle-orm';
 import { computeEuplatescHash, buildResponseFields } from '../../../../src/lib/euplatesc-mac.ts';
@@ -85,16 +91,17 @@ describe('euPlatesc webhook endpoint — response format', () => {
     const content = readFileSync(endpointPath, 'utf-8');
 
     // Must NOT contain XML response format
-    assert.ok(!content.includes('<EPAYMENT>'),
-      'Endpoint must NOT return <EPAYMENT> XML format');
+    assert.ok(!content.includes('<EPAYMENT>'), 'Endpoint must NOT return <EPAYMENT> XML format');
 
     // Must contain plain text OK response
-    assert.match(content, /Response\s*\(\s*['"]OK['"]/,
-      'Endpoint must return plain text OK response');
+    assert.match(
+      content,
+      /Response\s*\(\s*['"]OK['"]/,
+      'Endpoint must return plain text OK response'
+    );
 
     // Must NOT return JSON on success
-    assert.ok(!content.includes('JSON.stringify'),
-      'Endpoint must NOT return JSON response');
+    assert.ok(!content.includes('JSON.stringify'), 'Endpoint must NOT return JSON response');
   });
 
   it('returns OK with 200 on invalid MAC (does not cause retries)', async () => {
@@ -136,8 +143,11 @@ describe('euPlatesc webhook endpoint — response format', () => {
 
     // Must NOT throw
     const result = await handleWebhook(db, request);
-    assert.strictEqual(result.status, 'pending',
-      'handleWebhook must return pending for invalid MAC (not throw)');
+    assert.strictEqual(
+      result.status,
+      'pending',
+      'handleWebhook must return pending for invalid MAC (not throw)'
+    );
 
     // Verify the endpoint doesn't return non-200 on errors
     const { readFileSync } = await import('node:fs');
@@ -150,7 +160,12 @@ describe('euPlatesc webhook endpoint — response format', () => {
     const content = readFileSync(endpointPath, 'utf-8');
 
     // Must NOT return 400 or 500 status codes
-    assert.ok(!content.includes('status: 400') && !content.includes('status: 500') && !content.includes('status:400') && !content.includes('status:500'),
-      'Endpoint must NOT return 400/500 status codes (causes euPlatesc retries)');
+    assert.ok(
+      !content.includes('status: 400') &&
+        !content.includes('status: 500') &&
+        !content.includes('status:400') &&
+        !content.includes('status:500'),
+      'Endpoint must NOT return 400/500 status codes (causes euPlatesc retries)'
+    );
   });
 });

@@ -68,7 +68,12 @@ test('upsertPrice inserts a new product-level price for a new currency', async (
   const { db, cleanup } = await createTestDb();
   try {
     const f = await seedMinimal(db);
-    await upsertPrice(db, { product_id: f.simpleProductId, variant_id: null, currency: 'USD', price_net: 1200 });
+    await upsertPrice(db, {
+      product_id: f.simpleProductId,
+      variant_id: null,
+      currency: 'USD',
+      price_net: 1200,
+    });
     const prices = await listPricesForProduct(db, f.simpleProductId);
     assert.strictEqual(prices.length, 3, 'RON + EUR + new USD');
     const usd = prices.find((p) => p.currency === 'USD');
@@ -85,7 +90,12 @@ test('upsertPrice updates an existing product-level price (same currency) withou
   try {
     const f = await seedMinimal(db);
     // seeded RON price is 5000
-    await upsertPrice(db, { product_id: f.simpleProductId, variant_id: null, currency: 'RON', price_net: 5500 });
+    await upsertPrice(db, {
+      product_id: f.simpleProductId,
+      variant_id: null,
+      currency: 'RON',
+      price_net: 5500,
+    });
     const prices = await listPricesForProduct(db, f.simpleProductId);
     assert.strictEqual(prices.length, 2, 'no duplicate created — still RON + EUR');
     const ron = prices.find((p) => p.currency === 'RON');
@@ -99,8 +109,18 @@ test('upsertPrice is idempotent on repeat calls', async () => {
   const { db, cleanup } = await createTestDb();
   try {
     const f = await seedMinimal(db);
-    await upsertPrice(db, { product_id: f.simpleProductId, variant_id: null, currency: 'RON', price_net: 9999 });
-    await upsertPrice(db, { product_id: f.simpleProductId, variant_id: null, currency: 'RON', price_net: 9999 });
+    await upsertPrice(db, {
+      product_id: f.simpleProductId,
+      variant_id: null,
+      currency: 'RON',
+      price_net: 9999,
+    });
+    await upsertPrice(db, {
+      product_id: f.simpleProductId,
+      variant_id: null,
+      currency: 'RON',
+      price_net: 9999,
+    });
     const prices = await listPricesForProduct(db, f.simpleProductId);
     const ronRows = prices.filter((p) => p.currency === 'RON');
     assert.strictEqual(ronRows.length, 1, 'still a single RON row after two identical upserts');
@@ -115,14 +135,24 @@ test('upsertPrice for a variant inserts and updates scoped by variant_id', async
   try {
     const f = await seedMinimal(db);
     // seeded variantBlack128 RON = 25000
-    await upsertPrice(db, { product_id: null, variant_id: f.variantBlack128Id, currency: 'RON', price_net: 26000 });
+    await upsertPrice(db, {
+      product_id: null,
+      variant_id: f.variantBlack128Id,
+      currency: 'RON',
+      price_net: 26000,
+    });
     const prices = await listPricesForVariant(db, f.variantBlack128Id);
     assert.strictEqual(prices.length, 2, 'no duplicate — RON updated + EUR untouched');
     const ron = prices.find((p) => p.currency === 'RON');
     assert.strictEqual(ron.price_net, 26000, 'variant RON updated in place');
 
     // New currency for the variant
-    await upsertPrice(db, { product_id: null, variant_id: f.variantBlack128Id, currency: 'GBP', price_net: 4500 });
+    await upsertPrice(db, {
+      product_id: null,
+      variant_id: f.variantBlack128Id,
+      currency: 'GBP',
+      price_net: 4500,
+    });
     const after = await listPricesForVariant(db, f.variantBlack128Id);
     assert.strictEqual(after.length, 3, 'GBP added as a new row');
   } finally {
@@ -137,7 +167,12 @@ test('upsertPrice does NOT collide between product-level and variant-level price
     // Upsert a product-level RON price for the variant product (which currently
     // only has variant-level prices). This must create a NEW product-level row,
     // not touch the variant-level RON price.
-    await upsertPrice(db, { product_id: f.variantProductId, variant_id: null, currency: 'RON', price_net: 27000 });
+    await upsertPrice(db, {
+      product_id: f.variantProductId,
+      variant_id: null,
+      currency: 'RON',
+      price_net: 27000,
+    });
 
     const productPrices = await listPricesForProduct(db, f.variantProductId);
     assert.strictEqual(productPrices.length, 1, 'one product-level price created');
@@ -182,7 +217,10 @@ test('deletePrice removes exactly the targeted row', async () => {
     const after = await listPricesForProduct(db, f.simpleProductId);
     assert.strictEqual(after.length, 1, 'one price removed');
     assert.ok(!after.find((p) => p.currency === 'RON'), 'RON price gone');
-    assert.ok(after.find((p) => p.currency === 'EUR'), 'EUR price untouched');
+    assert.ok(
+      after.find((p) => p.currency === 'EUR'),
+      'EUR price untouched'
+    );
   } finally {
     await cleanup();
   }

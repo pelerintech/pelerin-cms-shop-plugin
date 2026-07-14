@@ -6,12 +6,12 @@ import { makeFakeSdk, makeCtx } from '../../../../helpers.ts';
 import { createTestDb, seedMinimal } from '../../../../../db/harness.ts';
 
 ensureLoader();
-const { runGet, runPost } = await import('../../../../../../src/api/shop/products/[id]/variants/index.ts');
+const { runGet, runPost } =
+  await import('../../../../../../src/api/shop/products/[id]/variants/index.ts');
 
 const base = 'http://localhost/api/plugins/shop/products/x/variants';
 
-test('GET auth-fail → 401', () =>
-  matrix.adminAuthFail({ run: runGet, url: base }));
+test('GET auth-fail → 401', () => matrix.adminAuthFail({ run: runGet, url: base }));
 
 test('GET happy-path → 200, data is array', async () => {
   const { db, cleanup } = await createTestDb();
@@ -33,8 +33,7 @@ test('GET happy-path → 200, data is array', async () => {
 test('GET error-wrap → 500', () =>
   matrix.errorWrap({ run: runGet, url: base, params: { id: 'x' } }));
 
-test('POST auth-fail → 401', () =>
-  matrix.adminAuthFail({ run: runPost, url: base, body: {} }));
+test('POST auth-fail → 401', () => matrix.adminAuthFail({ run: runPost, url: base, body: {} }));
 
 test('POST validation-fail: missing combinations → 422', () =>
   matrix.validationFail({
@@ -56,7 +55,11 @@ test('POST happy-path → 201, data is array', async () => {
     const f = await seedMinimal(db);
     const sdk = makeFakeSdk();
     // black+128 already exists; create white+128 (a new combo)
-    const body = { combinations: [{ option_ids: [f.optColorWhiteId, f.optStorage128Id], sku: 'SMX-WHT-128', stock: 10 }] };
+    const body = {
+      combinations: [
+        { option_ids: [f.optColorWhiteId, f.optStorage128Id], sku: 'SMX-WHT-128', stock: 10 },
+      ],
+    };
     const ctx = makeCtx({ url: base, body, params: { id: f.variantProductId } });
     const res = await runPost({ db, sdk, ctx });
     assert.equal(res.status, 201);

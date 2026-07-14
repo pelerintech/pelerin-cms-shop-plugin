@@ -25,7 +25,8 @@ describe('test-payment endpoint', () => {
     const harness = await createTestDb();
     db = harness.db;
     await resetDb(db);
-    const mod = await import('../../../../../../src/api/shop/settings/payments/euplatesc/test-payment.ts');
+    const mod =
+      await import('../../../../../../src/api/shop/settings/payments/euplatesc/test-payment.ts');
     runPost = mod.runPost;
   });
 
@@ -34,7 +35,9 @@ describe('test-payment endpoint', () => {
   });
 
   it('auth required → 401 for non-admin', async () => {
-    const sdk = makeFakeSdk({ authThrows: Object.assign(new Error('Unauthorized'), { status: 401 }) });
+    const sdk = makeFakeSdk({
+      authThrows: Object.assign(new Error('Unauthorized'), { status: 401 }),
+    });
     const ctx = makeCtx({ url: 'http://localhost/api/test', method: 'POST' });
     const res = await runPost({ db, sdk, ctx });
     assert.strictEqual(res.status, 401);
@@ -62,9 +65,18 @@ describe('test-payment endpoint', () => {
     const url = new URL(b.data.redirect_url);
     assert.ok(url.searchParams.get('amount') === '1.00', 'amount should be 1.00 RON');
     const invoiceId = url.searchParams.get('invoice_id');
-    assert.ok(invoiceId?.startsWith('TEST-'), `invoice_id should start with TEST-, got: ${invoiceId}`);
-    assert.ok(url.searchParams.get('order_desc')?.includes('Test'), 'order_desc should mention Test');
-    assert.ok(url.searchParams.get('ExtraData[silenturl]')?.includes('webhooks/euplatesc'), 'silenturl should point to webhook');
+    assert.ok(
+      invoiceId?.startsWith('TEST-'),
+      `invoice_id should start with TEST-, got: ${invoiceId}`
+    );
+    assert.ok(
+      url.searchParams.get('order_desc')?.includes('Test'),
+      'order_desc should mention Test'
+    );
+    assert.ok(
+      url.searchParams.get('ExtraData[silenturl]')?.includes('webhooks/euplatesc'),
+      'silenturl should point to webhook'
+    );
     assert.ok(url.searchParams.get('fp_hash'), 'should contain fp_hash');
   });
 
@@ -89,7 +101,10 @@ describe('test-payment endpoint', () => {
   it('missing credentials → 422 error', async () => {
     // No settings seeded
     const sdk = makeFakeSdk();
-    const ctx = makeCtx({ url: 'http://localhost/api/plugins/shop/settings/payments/euplatesc/test-payment', method: 'POST' });
+    const ctx = makeCtx({
+      url: 'http://localhost/api/plugins/shop/settings/payments/euplatesc/test-payment',
+      method: 'POST',
+    });
     const res = await runPost({ db, sdk, ctx });
     assert.strictEqual(res.status, 422);
     const b = await res.json();

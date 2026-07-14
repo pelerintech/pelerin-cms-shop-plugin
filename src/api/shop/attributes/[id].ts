@@ -10,11 +10,20 @@ import {
 import { getShopConfig } from '../../../lib/data/settings';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
-export const GET: APIRoute = (context) => { const sdk = createPluginContext(); return runGet({ db: sdk.db, sdk, ctx: context }); }
+export const GET: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runGet({ db: sdk.db, sdk, ctx: context });
+};
 
-export const PUT: APIRoute = (context) => { const sdk = createPluginContext(); return runPut({ db: sdk.db, sdk, ctx: context }); }
+export const PUT: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runPut({ db: sdk.db, sdk, ctx: context });
+};
 
-export const DELETE: APIRoute = (context) => { const sdk = createPluginContext(); return runDelete({ db: sdk.db, sdk, ctx: context }); }
+export const DELETE: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runDelete({ db: sdk.db, sdk, ctx: context });
+};
 
 export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
@@ -27,16 +36,16 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
 
     const data = await getAttribute(db, id, locale);
     if (!data) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Attribute not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: 'Attribute not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    return new Response(
-      JSON.stringify({ success: true, data }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ success: true, data }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (err: any) {
     const status = err.status ?? 500;
     return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
@@ -59,19 +68,17 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
         JSON.stringify({
           success: false,
           error: 'Validation failed',
-          fields: Object.fromEntries(
-            result.error.issues.map(i => [i.path.join('.'), i.message])
-          ),
+          fields: Object.fromEntries(result.error.issues.map((i) => [i.path.join('.'), i.message])),
         }),
         { status: 422, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
     const data = await updateAttribute(db, id, result.data);
-    return new Response(
-      JSON.stringify({ success: true, data }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ success: true, data }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (err: any) {
     if (err instanceof AttributeUpdateConflictError) {
       const status = err.code === 'not_found' ? 404 : 409;
@@ -95,10 +102,10 @@ export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response
     const id = ctx.params.id!;
     await deleteAttribute(db, id);
 
-    return new Response(
-      JSON.stringify({ success: true }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (err: any) {
     if (err instanceof AttributeUpdateConflictError) {
       const status = err.code === 'not_found' ? 404 : 409;

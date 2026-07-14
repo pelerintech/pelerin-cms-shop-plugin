@@ -86,58 +86,75 @@ for (const cart of cartList) {
           </tr>
         </thead>
         <tbody>
-          {cartList.length === 0 ? (
-            <tr>
-              <td colspan="9" class="text-center text-gray-500 py-4">No carts found</td>
-            </tr>
-          ) : (
-            cartList.map((cart: any) => {
-              const ageMs = Date.now() - new Date(cart.updated_at).getTime();
-              const ageHours = Math.floor(ageMs / (1000 * 60 * 60));
-              const ageDisplay = ageHours < 24 ? `${ageHours}h` : `${Math.floor(ageHours / 24)}d`;
-              const counts = cartItemCounts.get(cart.id) ?? { item_count: 0, total_quantity: 0 };
-              return (
-                <tr>
-                  <td class="font-mono text-xs">{cart.id.slice(0, 8)}...</td>
-                  <td>{cart.user_id ? <span class="badge badge-sm">User</span> : <span class="badge badge-sm badge-ghost">Guest</span>}</td>
-                  <td>{counts.item_count} item{counts.item_count !== 1 ? 's' : ''} ({counts.total_quantity} qty)</td>
-                  <td class="font-mono text-sm">{cartValues.get(cart.id) ?? '—'}</td>
-                  <td>{cart.applied_voucher_code || '—'}</td>
-                  <td>{cart.applied_referral_code || '—'}</td>
-                  <td class="text-sm">{new Date(cart.created_at).toLocaleString()}</td>
-                  <td class="text-sm">{new Date(cart.updated_at).toLocaleString()}</td>
-                  <td>{ageDisplay}</td>
-                </tr>
-              );
-            })
-          )}
+          {
+            cartList.length === 0 ? (
+              <tr>
+                <td colspan="9" class="text-center text-gray-500 py-4">
+                  No carts found
+                </td>
+              </tr>
+            ) : (
+              cartList.map((cart: any) => {
+                const ageMs = Date.now() - new Date(cart.updated_at).getTime();
+                const ageHours = Math.floor(ageMs / (1000 * 60 * 60));
+                const ageDisplay = ageHours < 24 ? `${ageHours}h` : `${Math.floor(ageHours / 24)}d`;
+                const counts = cartItemCounts.get(cart.id) ?? { item_count: 0, total_quantity: 0 };
+                return (
+                  <tr>
+                    <td class="font-mono text-xs">{cart.id.slice(0, 8)}...</td>
+                    <td>
+                      {cart.user_id ? (
+                        <span class="badge badge-sm">User</span>
+                      ) : (
+                        <span class="badge badge-sm badge-ghost">Guest</span>
+                      )}
+                    </td>
+                    <td>
+                      {counts.item_count} item{counts.item_count !== 1 ? 's' : ''} (
+                      {counts.total_quantity} qty)
+                    </td>
+                    <td class="font-mono text-sm">{cartValues.get(cart.id) ?? '—'}</td>
+                    <td>{cart.applied_voucher_code || '—'}</td>
+                    <td>{cart.applied_referral_code || '—'}</td>
+                    <td class="text-sm">{new Date(cart.created_at).toLocaleString()}</td>
+                    <td class="text-sm">{new Date(cart.updated_at).toLocaleString()}</td>
+                    <td>{ageDisplay}</td>
+                  </tr>
+                );
+              })
+            )
+          }
         </tbody>
       </table>
     </div>
 
     <!-- Pagination -->
-    {totalPages > 1 && (
-      <div class="join mt-4">
-        {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => {
-          const params = new URLSearchParams();
-          if (abandonedSince) params.set('abandoned_since', abandonedSince);
-          params.set('page', String(p));
-          return (
-            <a
-              href={`/admin/plugins/shop/carts?${params.toString()}`}
-              class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
-            >
-              {p}
-            </a>
-          );
-        })}
-      </div>
-    )}
+    {
+      totalPages > 1 && (
+        <div class="join mt-4">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
+            const params = new URLSearchParams();
+            if (abandonedSince) params.set('abandoned_since', abandonedSince);
+            params.set('page', String(p));
+            return (
+              <a
+                href={`/admin/plugins/shop/carts?${params.toString()}`}
+                class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
+              >
+                {p}
+              </a>
+            );
+          })}
+        </div>
+      )
+    }
 
     <div class="mt-2 text-sm text-gray-500">
-      {abandonedSince
-        ? `Showing carts last updated more than ${abandonedSince} hour${abandonedSince !== '1' ? 's' : ''} ago.`
-        : 'Showing all open carts.'}
+      {
+        abandonedSince
+          ? `Showing carts last updated more than ${abandonedSince} hour${abandonedSince !== '1' ? 's' : ''} ago.`
+          : 'Showing all open carts.'
+      }
     </div>
   </div>
 </AdminLayout>

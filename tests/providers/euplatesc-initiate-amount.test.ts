@@ -36,20 +36,24 @@ describe('euPlatesc initiate payment — amount conversion', () => {
   it('converts bani to RON (divides by 100) in redirect URL', async () => {
     const { initiatePayment } = await import('../../src/providers/payment/euplatesc.ts');
 
-    const result = await initiatePayment(db, {
-      id: 'order-1',
-      order_number: 'ORD-001',
-      currency: 'RON',
-      total: 5000, // 50.00 RON in bani
-      customer_email: 'ion@example.com',
-      customer_name: 'Ion Popescu',
-      status: 'pending',
-    }, {
-      success_url: 'https://example.com/success',
-      cancel_url: 'https://example.com/cancel',
-      currency: 'RON',
-      webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
-    });
+    const result = await initiatePayment(
+      db,
+      {
+        id: 'order-1',
+        order_number: 'ORD-001',
+        currency: 'RON',
+        total: 5000, // 50.00 RON in bani
+        customer_email: 'ion@example.com',
+        customer_name: 'Ion Popescu',
+        status: 'pending',
+      },
+      {
+        success_url: 'https://example.com/success',
+        cancel_url: 'https://example.com/cancel',
+        currency: 'RON',
+        webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
+      }
+    );
 
     assert.ok(result.redirect_url, 'Should return redirect_url');
 
@@ -58,8 +62,12 @@ describe('euPlatesc initiate payment — amount conversion', () => {
     const params = new URLSearchParams(url.search);
 
     // Amount should be "50.00" (RON), NOT "5000.00" (bani)
-    assert.strictEqual(params.get('amount'), '50.00',
-      'Amount must be in major units (RON), not minor units (bani). Expected 50.00, got ' + params.get('amount'));
+    assert.strictEqual(
+      params.get('amount'),
+      '50.00',
+      'Amount must be in major units (RON), not minor units (bani). Expected 50.00, got ' +
+        params.get('amount')
+    );
   });
 
   it('handles 1 RON (100 bani) correctly', async () => {
@@ -77,25 +85,28 @@ describe('euPlatesc initiate payment — amount conversion', () => {
     });
     await db.insert(orders).values(orderRow);
 
-    const result = await initiatePayment(db, {
-      id: 'order-2',
-      order_number: 'ORD-002',
-      currency: 'RON',
-      total: 100,
-      customer_email: 'test@example.com',
-      customer_name: 'Test User',
-      status: 'pending',
-    }, {
-      success_url: 'https://example.com/success',
-      cancel_url: 'https://example.com/cancel',
-      currency: 'RON',
-      webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
-    });
+    const result = await initiatePayment(
+      db,
+      {
+        id: 'order-2',
+        order_number: 'ORD-002',
+        currency: 'RON',
+        total: 100,
+        customer_email: 'test@example.com',
+        customer_name: 'Test User',
+        status: 'pending',
+      },
+      {
+        success_url: 'https://example.com/success',
+        cancel_url: 'https://example.com/cancel',
+        currency: 'RON',
+        webhook_url: 'https://example.com/api/plugins/shop/webhooks/euplatesc',
+      }
+    );
 
     const url = new URL(result.redirect_url);
     const params = new URLSearchParams(url.search);
 
-    assert.strictEqual(params.get('amount'), '1.00',
-      '100 bani should produce amount=1.00');
+    assert.strictEqual(params.get('amount'), '1.00', '100 bani should produce amount=1.00');
   });
 });

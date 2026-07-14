@@ -15,7 +15,7 @@ test('GET happy-path → 200, data is array', () =>
     run: runGet,
     url,
     expectedStatus: 200,
-    check: b => assert.ok(Array.isArray(b.data), 'data should be an array'),
+    check: (b) => assert.ok(Array.isArray(b.data), 'data should be an array'),
   }));
 
 test('GET error-wrap → 500', () => matrix.errorWrap({ run: runGet, url }));
@@ -36,7 +36,7 @@ test('POST happy-path: valid body → 201, data.id exists', () =>
     body: { name: 'Material', type: 'text', sort_order: 99 },
     method: 'POST',
     expectedStatus: 201,
-    check: b => assert.ok(b.data?.id, 'data.id should exist'),
+    check: (b) => assert.ok(b.data?.id, 'data.id should exist'),
   }));
 
 test('POST error-wrap → 500', () =>

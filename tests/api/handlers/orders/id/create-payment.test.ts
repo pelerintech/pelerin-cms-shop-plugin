@@ -11,7 +11,13 @@
 import { describe, it, before, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { ensureLoader } from '../../../../stubs/register.mjs';
-import { createTestDb, resetDb, shop_settings, orders, insertFixture } from '../../../../db/harness.ts';
+import {
+  createTestDb,
+  resetDb,
+  shop_settings,
+  orders,
+  insertFixture,
+} from '../../../../db/harness.ts';
 import { makeFakeSdk, makeCtx } from '../../../helpers.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 
@@ -34,8 +40,15 @@ describe('create-payment endpoint', () => {
   });
 
   it('auth required → 401 for non-admin', async () => {
-    const sdk = makeFakeSdk({ authThrows: Object.assign(new Error('Unauthorized'), { status: 401 }) });
-    const ctx = makeCtx({ url: 'http://localhost/api/test', method: 'POST', body: { provider: 'euplatesc' }, params: { id: 'order-1' } });
+    const sdk = makeFakeSdk({
+      authThrows: Object.assign(new Error('Unauthorized'), { status: 401 }),
+    });
+    const ctx = makeCtx({
+      url: 'http://localhost/api/test',
+      method: 'POST',
+      body: { provider: 'euplatesc' },
+      params: { id: 'order-1' },
+    });
     const res = await runPost({ db, sdk, ctx });
     assert.strictEqual(res.status, 401);
     const b = await res.json();
@@ -45,8 +58,16 @@ describe('create-payment endpoint', () => {
   it('happy-path → 200, payment_provider set, redirect_url returned', async () => {
     // Seed settings
     await db.insert(shop_settings).values([
-      { id: 's1', key: 'locales', value: JSON.stringify([{ code: 'ro', name: 'Română', isDefault: true }]) },
-      { id: 's2', key: 'currencies', value: JSON.stringify([{ code: 'RON', name: 'Leu', isDefault: true }]) },
+      {
+        id: 's1',
+        key: 'locales',
+        value: JSON.stringify([{ code: 'ro', name: 'Română', isDefault: true }]),
+      },
+      {
+        id: 's2',
+        key: 'currencies',
+        value: JSON.stringify([{ code: 'RON', name: 'Leu', isDefault: true }]),
+      },
       { id: 's3', key: 'euplatesc_merchant_id', value: '44841007584' },
       { id: 's4', key: 'euplatesc_secret_key', value: 'AA4A81EE58A1D74DE6E02DF2C1CE9982780F95DC' },
     ]);

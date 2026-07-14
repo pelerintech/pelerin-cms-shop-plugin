@@ -8,7 +8,11 @@ const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
 ---
 
-<AdminLayout title="Stripe Settings" currentPath="/admin/plugins/shop/settings/payments/stripe" user={user}>
+<AdminLayout
+  title="Stripe Settings"
+  currentPath="/admin/plugins/shop/settings/payments/stripe"
+  user={user}
+>
   <div class="col-span-12 p-6">
     <h1 class="text-2xl font-bold mb-6">Stripe Payment Settings</h1>
 
@@ -53,9 +57,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       </div>
 
       <div class="form-control mt-6">
-        <button type="submit" class="btn btn-primary" id="save-btn">
-          Save Settings
-        </button>
+        <button type="submit" class="btn btn-primary" id="save-btn"> Save Settings </button>
       </div>
     </form>
 

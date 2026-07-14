@@ -66,7 +66,8 @@ describe('general.astro client <script> syntax', () => {
 
     assert.ok(
       allPassed,
-      errorMessage || 'client <script> in general.astro has a syntax error — the entire client script is disabled at parse time.',
+      errorMessage ||
+        'client <script> in general.astro has a syntax error — the entire client script is disabled at parse time.'
     );
   });
 });

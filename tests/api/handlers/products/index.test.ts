@@ -1,12 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { ensureLoader } from '../../../stubs/register.mjs';
-import {
-  makeFakeSdk,
-  makeCtx,
-  poisonDb,
-  unauthorizedError,
-} from '../../helpers.ts';
+import { makeFakeSdk, makeCtx, poisonDb, unauthorizedError } from '../../helpers.ts';
 import { createTestDb, seedMinimal, resetDb } from '../../../db/harness.ts';
 
 ensureLoader();
@@ -64,7 +59,10 @@ test('POST validation-fail: missing required fields → 422 with fields', async 
   try {
     const sdk = makeFakeSdk();
     // Missing required name, slug, type
-    const ctx = makeCtx({ url: 'http://localhost/api/plugins/shop/products', body: { active: true } });
+    const ctx = makeCtx({
+      url: 'http://localhost/api/plugins/shop/products',
+      body: { active: true },
+    });
     const res = await runPost({ db, sdk, ctx });
     assert.equal(res.status, 422);
     const body = await jsonBody(res);
@@ -124,7 +122,11 @@ test('POST ignores has_variants input: column is always false (derived at read)'
     const { products } = await import('../../../../src/db/schema.ts');
     const { eq } = await import('drizzle-orm');
     const rows = await db.select().from(products).where(eq(products.id, id));
-    assert.equal(rows[0].has_variants, false, 'has_variants column must be false even when body sends true');
+    assert.equal(
+      rows[0].has_variants,
+      false,
+      'has_variants column must be false even when body sends true'
+    );
   } finally {
     await cleanup();
   }

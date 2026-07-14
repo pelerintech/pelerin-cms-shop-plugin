@@ -11,12 +11,7 @@
  *   matrix.happyPath({ run: runGet, url: '...', expectedStatus: 200, check: b => assert.ok(Array.isArray(b.data)) });
  */
 import assert from 'node:assert';
-import {
-  makeFakeSdk,
-  makeCtx,
-  poisonDb,
-  unauthorizedError,
-} from '../helpers.ts';
+import { makeFakeSdk, makeCtx, poisonDb, unauthorizedError } from '../helpers.ts';
 import { createTestDb, seedMinimal } from '../../db/harness.ts';
 
 export interface RunFn {
@@ -77,7 +72,11 @@ export const matrix = {
         method: opts.method,
       });
       const res = await opts.run({ db, sdk, ctx });
-      assert.equal(res.status, opts.expectedStatus ?? 200, `expected ${opts.expectedStatus ?? 200}, got ${res.status}`);
+      assert.equal(
+        res.status,
+        opts.expectedStatus ?? 200,
+        `expected ${opts.expectedStatus ?? 200}, got ${res.status}`
+      );
       const b = await body(res);
       assert.equal(b.success, true);
       if (opts.check) opts.check(b);
@@ -87,7 +86,13 @@ export const matrix = {
   },
 
   /** Error-wrap: poison db, auth passes, valid request → 500 + success:false. */
-  async errorWrap(opts: { run: RunFn; url?: string; body?: any; params?: Record<string, string>; method?: string }) {
+  async errorWrap(opts: {
+    run: RunFn;
+    url?: string;
+    body?: any;
+    params?: Record<string, string>;
+    method?: string;
+  }) {
     const sdk = makeFakeSdk();
     const ctx = makeCtx({
       url: opts.url ?? 'http://localhost/api',

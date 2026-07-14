@@ -38,7 +38,7 @@ const result = await listProducts(sdk.db, {
 // Apply type filter client-side (not supported by accessor)
 let productList = result.products;
 if (filterType) {
-  productList = productList.filter(p => p.type === filterType);
+  productList = productList.filter((p) => p.type === filterType);
 }
 
 const total = productList.length;
@@ -47,7 +47,7 @@ const offset = (page - 1) * limit;
 productList = productList.slice(offset, offset + limit);
 
 // Enrich with category names
-const productListWithCategory = productList.map(p => ({
+const productListWithCategory = productList.map((p) => ({
   ...p,
   category_name: p.category_id ? categoryNameMap.get(p.category_id) || '-' : '-',
 }));
@@ -66,9 +66,13 @@ const productListWithCategory = productList.map(p => ({
         <label class="label"><span class="label-text">Category</span></label>
         <select name="category" class="select select-bordered">
           <option value="">All Categories</option>
-          {catList.map(c => (
-            <option value={c.id} selected={filterCategory === c.id}>{c.name}</option>
-          ))}
+          {
+            catList.map((c) => (
+              <option value={c.id} selected={filterCategory === c.id}>
+                {c.name}
+              </option>
+            ))
+          }
         </select>
       </div>
       <div class="form-control">
@@ -91,71 +95,90 @@ const productListWithCategory = productList.map(p => ({
         <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
         <button type="submit" class="btn btn-outline">Filter</button>
       </div>
-      {(filterCategory || filterType || filterActive) && (
-        <div class="form-control">
-          <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
-          <a href="/admin/plugins/shop/products" class="btn btn-ghost">Clear</a>
-        </div>
-      )}
+      {
+        (filterCategory || filterType || filterActive) && (
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text opacity-0">&nbsp;</span>
+            </label>
+            <a href="/admin/plugins/shop/products" class="btn btn-ghost">
+              Clear
+            </a>
+          </div>
+        )
+      }
     </form>
 
     <!-- Product Table -->
-    {productListWithCategory.length === 0 ? (
-      <p class="text-base-content/60">No products found.</p>
-    ) : (
-      <div class="overflow-x-auto">
-        <table class="table table-zebra w-full">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>SKU</th>
-              <th>Type</th>
-              <th>Category</th>
-              <th>Status</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {productListWithCategory.map(p => (
+    {
+      productListWithCategory.length === 0 ? (
+        <p class="text-base-content/60">No products found.</p>
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="table table-zebra w-full">
+            <thead>
               <tr>
-                <td class="font-medium">{p.name}</td>
-                <td><code class="text-xs">{p.sku || '-'}</code></td>
-                <td><span class="badge badge-sm">{p.type}</span></td>
-                <td>{p.category_name}</td>
-                <td>
-                  <span class={`badge badge-sm ${p.active ? 'badge-success' : 'badge-error'}`}>
-                    {p.active ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td>
-                  <a href={`/admin/plugins/shop/products/${p.id}?from_page=${page}`} class="btn btn-ghost btn-xs">Edit</a>
-                </td>
+                <th>Name</th>
+                <th>SKU</th>
+                <th>Type</th>
+                <th>Category</th>
+                <th>Status</th>
+                <th />
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )}
+            </thead>
+            <tbody>
+              {productListWithCategory.map((p) => (
+                <tr>
+                  <td class="font-medium">{p.name}</td>
+                  <td>
+                    <code class="text-xs">{p.sku || '-'}</code>
+                  </td>
+                  <td>
+                    <span class="badge badge-sm">{p.type}</span>
+                  </td>
+                  <td>{p.category_name}</td>
+                  <td>
+                    <span class={`badge badge-sm ${p.active ? 'badge-success' : 'badge-error'}`}>
+                      {p.active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td>
+                    <a
+                      href={`/admin/plugins/shop/products/${p.id}?from_page=${page}`}
+                      class="btn btn-ghost btn-xs"
+                    >
+                      Edit
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
 
     <!-- Pagination -->
-    {totalPages > 1 && (
-      <div class="join mt-4">
-        {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => {
-          const params = new URLSearchParams();
-          if (filterCategory) params.set('category', filterCategory);
-          if (filterType) params.set('type', filterType);
-          if (filterActive) params.set('active', filterActive);
-          params.set('page', String(p));
-          return (
-            <a
-              href={`/admin/plugins/shop/products?${params.toString()}`}
-              class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
-            >
-              {p}
-            </a>
-          );
-        })}
-      </div>
-    )}
+    {
+      totalPages > 1 && (
+        <div class="join mt-4">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
+            const params = new URLSearchParams();
+            if (filterCategory) params.set('category', filterCategory);
+            if (filterType) params.set('type', filterType);
+            if (filterActive) params.set('active', filterActive);
+            params.set('page', String(p));
+            return (
+              <a
+                href={`/admin/plugins/shop/products?${params.toString()}`}
+                class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
+              >
+                {p}
+              </a>
+            );
+          })}
+        </div>
+      )
+    }
   </div>
 </AdminLayout>

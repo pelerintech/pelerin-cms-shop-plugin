@@ -41,7 +41,11 @@ describe('GET /payment-providers — dynamic provider list', () => {
     assert.strictEqual(response.status, 200, 'Response must be 200');
     assert.ok(data.success, 'Response must have success: true');
     assert.ok(Array.isArray(data.data.providers), 'Response must have providers array');
-    assert.strictEqual(data.data.providers.length, 1, 'Must have exactly 1 provider (euPlatesc only)');
+    assert.strictEqual(
+      data.data.providers.length,
+      1,
+      'Must have exactly 1 provider (euPlatesc only)'
+    );
     assert.strictEqual(data.data.providers[0].name, 'euplatesc', 'Provider must be euplatesc');
   });
 
@@ -69,10 +73,17 @@ describe('GET /payment-providers — dynamic provider list', () => {
     const response = await runGet({ db, sdk: fakeSdk, ctx: fakeCtx });
     const data = await response.json();
 
-    const names = data.data.providers.map(p => p.name);
-    assert.ok(names.includes('fake_test_provider'), 'Must include dynamically registered fake_test_provider');
-    const fakeEntry = data.data.providers.find(p => p.name === 'fake_test_provider');
-    assert.strictEqual(fakeEntry.label, 'Fake test provider', 'Label must be derived generically from name');
+    const names = data.data.providers.map((p) => p.name);
+    assert.ok(
+      names.includes('fake_test_provider'),
+      'Must include dynamically registered fake_test_provider'
+    );
+    const fakeEntry = data.data.providers.find((p) => p.name === 'fake_test_provider');
+    assert.strictEqual(
+      fakeEntry.label,
+      'Fake test provider',
+      'Label must be derived generically from name'
+    );
   });
 
   it('returns 200 (no auth required — public endpoint)', async () => {

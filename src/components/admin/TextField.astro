@@ -44,5 +44,11 @@ const {
     min={min || undefined}
     max={max || undefined}
   />
-  {error && <span class="text-error text-sm mt-1" data-field={name}>{error}</span>}
+  {
+    error && (
+      <span class="text-error text-sm mt-1" data-field={name}>
+        {error}
+      </span>
+    )
+  }
 </div>

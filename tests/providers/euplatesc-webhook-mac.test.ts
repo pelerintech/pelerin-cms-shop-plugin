@@ -69,8 +69,11 @@ describe('euPlatesc IPN webhook — response MAC verification', () => {
     const result = await handleWebhook(db, request);
 
     // Must succeed — order is paid
-    assert.strictEqual(result.status, 'paid',
-      'Valid response MAC must succeed and transition to paid');
+    assert.strictEqual(
+      result.status,
+      'paid',
+      'Valid response MAC must succeed and transition to paid'
+    );
   });
 
   it('tampered ep_id causes MAC verification failure', async () => {
@@ -122,12 +125,22 @@ describe('euPlatesc IPN webhook — response MAC verification', () => {
     const result = await handleWebhook(db, request);
 
     // Must NOT transition — MAC fails
-    assert.strictEqual(result.status, 'pending',
-      'Tampered ep_id must cause MAC verification failure');
+    assert.strictEqual(
+      result.status,
+      'pending',
+      'Tampered ep_id must cause MAC verification failure'
+    );
 
-    const orderResult = await db.select({ status: orders.status }).from(orders).where(eq(orders.id, 'order-2')).limit(1);
-    assert.strictEqual(orderResult[0].status, 'awaiting_payment',
-      'Order must stay awaiting_payment when MAC fails');
+    const orderResult = await db
+      .select({ status: orders.status })
+      .from(orders)
+      .where(eq(orders.id, 'order-2'))
+      .limit(1);
+    assert.strictEqual(
+      orderResult[0].status,
+      'awaiting_payment',
+      'Order must stay awaiting_payment when MAC fails'
+    );
   });
 
   it('dynamic optional fields included in MAC when present', async () => {
@@ -177,8 +190,11 @@ describe('euPlatesc IPN webhook — response MAC verification', () => {
     const result = await handleWebhook(db, request);
 
     // Must succeed — optional fields are included in MAC
-    assert.strictEqual(result.status, 'paid',
-      'IPN with optional fields must succeed when MAC includes them');
+    assert.strictEqual(
+      result.status,
+      'paid',
+      'IPN with optional fields must succeed when MAC includes them'
+    );
   });
 
   it('removing optional field from IPN but keeping same hash causes MAC failure', async () => {
@@ -241,7 +257,10 @@ describe('euPlatesc IPN webhook — response MAC verification', () => {
     const result = await handleWebhook(db, request);
 
     // Must fail — MAC was computed with email, but email is not in the body
-    assert.strictEqual(result.status, 'pending',
-      'Removing optional field from IPN but keeping same hash must cause MAC failure');
+    assert.strictEqual(
+      result.status,
+      'pending',
+      'Removing optional field from IPN but keeping same hash must cause MAC failure'
+    );
   });
 });

@@ -73,19 +73,27 @@ describe('euPlatesc IPN webhook — action field handling', () => {
     const result = await handleWebhook(db, request);
 
     // Assert order is now paid
-    const orderResult = await db.select({
-      status: orders.status,
-      transaction_id: orders.transaction_id,
-    }).from(orders).where(eq(orders.id, 'order-1')).limit(1);
+    const orderResult = await db
+      .select({
+        status: orders.status,
+        transaction_id: orders.transaction_id,
+      })
+      .from(orders)
+      .where(eq(orders.id, 'order-1'))
+      .limit(1);
 
-    assert.strictEqual(orderResult[0].status, 'paid',
-      'Order must transition to "paid" when action=0');
-    assert.strictEqual(orderResult[0].transaction_id, 'EP123',
-      'transaction_id must be set to ep_id');
-    assert.strictEqual(result.status, 'paid',
-      'handleWebhook must return status="paid"');
-    assert.strictEqual(result.transaction_id, 'EP123',
-      'handleWebhook must return transaction_id');
+    assert.strictEqual(
+      orderResult[0].status,
+      'paid',
+      'Order must transition to "paid" when action=0'
+    );
+    assert.strictEqual(
+      orderResult[0].transaction_id,
+      'EP123',
+      'transaction_id must be set to ep_id'
+    );
+    assert.strictEqual(result.status, 'paid', 'handleWebhook must return status="paid"');
+    assert.strictEqual(result.transaction_id, 'EP123', 'handleWebhook must return transaction_id');
   });
 
   it('action!=0 does not transition order to paid', async () => {
@@ -135,12 +143,19 @@ describe('euPlatesc IPN webhook — action field handling', () => {
     const result = await handleWebhook(db, request);
 
     // Assert order is NOT paid
-    const orderResult = await db.select({
-      status: orders.status,
-    }).from(orders).where(eq(orders.id, 'order-2')).limit(1);
+    const orderResult = await db
+      .select({
+        status: orders.status,
+      })
+      .from(orders)
+      .where(eq(orders.id, 'order-2'))
+      .limit(1);
 
-    assert.notStrictEqual(orderResult[0].status, 'paid',
-      'Order must NOT transition to "paid" when action!=0');
+    assert.notStrictEqual(
+      orderResult[0].status,
+      'paid',
+      'Order must NOT transition to "paid" when action!=0'
+    );
   });
 
   it('invalid MAC does not transition order and does not throw', async () => {
@@ -184,14 +199,24 @@ describe('euPlatesc IPN webhook — action field handling', () => {
     const result = await handleWebhook(db, request);
 
     // Assert order is NOT transitioned
-    const orderResult = await db.select({
-      status: orders.status,
-    }).from(orders).where(eq(orders.id, 'order-3')).limit(1);
+    const orderResult = await db
+      .select({
+        status: orders.status,
+      })
+      .from(orders)
+      .where(eq(orders.id, 'order-3'))
+      .limit(1);
 
-    assert.strictEqual(orderResult[0].status, 'awaiting_payment',
-      'Order must stay awaiting_payment when MAC is invalid');
-    assert.strictEqual(result.status, 'pending',
-      'handleWebhook must return status="pending" for invalid MAC');
+    assert.strictEqual(
+      orderResult[0].status,
+      'awaiting_payment',
+      'Order must stay awaiting_payment when MAC is invalid'
+    );
+    assert.strictEqual(
+      result.status,
+      'pending',
+      'handleWebhook must return status="pending" for invalid MAC'
+    );
   });
 
   it('idempotent — duplicate IPN on already-paid order', async () => {
@@ -243,13 +268,23 @@ describe('euPlatesc IPN webhook — action field handling', () => {
     const result = await handleWebhook(db, request);
 
     // Assert order stays paid
-    const orderResult = await db.select({
-      status: orders.status,
-    }).from(orders).where(eq(orders.id, 'order-4')).limit(1);
+    const orderResult = await db
+      .select({
+        status: orders.status,
+      })
+      .from(orders)
+      .where(eq(orders.id, 'order-4'))
+      .limit(1);
 
-    assert.strictEqual(orderResult[0].status, 'paid',
-      'Already-paid order must stay paid on duplicate IPN');
-    assert.strictEqual(result.status, 'paid',
-      'handleWebhook must return status="paid" for already-paid order');
+    assert.strictEqual(
+      orderResult[0].status,
+      'paid',
+      'Already-paid order must stay paid on duplicate IPN'
+    );
+    assert.strictEqual(
+      result.status,
+      'paid',
+      'handleWebhook must return status="paid" for already-paid order'
+    );
   });
 });

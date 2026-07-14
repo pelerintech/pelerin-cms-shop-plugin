@@ -14,7 +14,11 @@ describe('Products edit page - card layout', () => {
     assert.match(content, /Varies by/, 'role label "Varies by" must appear');
     assert.match(content, /Product info/, 'role label "Product info" must appear');
     assert.doesNotMatch(content, />Dimension</, 'the raw "Dimension" role label must be gone');
-    assert.doesNotMatch(content, /<option value="field">Field<\//, 'the raw "Field" role option label must be gone');
+    assert.doesNotMatch(
+      content,
+      /<option value="field">Field<\//,
+      'the raw "Field" role option label must be gone'
+    );
   });
 
   it('Manage Variants matrix: no ReferenceError on product.slug, uses data-product-slug + computeMatrix', () => {
@@ -23,12 +27,24 @@ describe('Products edit page - card layout', () => {
     const scriptStart = content.indexOf('<script>');
     const script = scriptStart >= 0 ? content.slice(scriptStart) : '';
     // Bug 1 fix: the client script must NOT reference the server-side `product` variable.
-    assert.doesNotMatch(script, /product\.slug/, 'client script must not reference server-side product.slug (ReferenceError bug)');
+    assert.doesNotMatch(
+      script,
+      /product\.slug/,
+      'client script must not reference server-side product.slug (ReferenceError bug)'
+    );
     // Slug passed via a data attribute instead.
     assert.match(content, /data-product-slug/, 'form must expose data-product-slug for the client');
     // Uses the extracted, tested pure module.
-    assert.match(script, /computeMatrix/, 'must use the extracted computeMatrix from variant-matrix');
-    assert.match(script, /selectedCombinations/, 'must use selectedCombinations to build the POST payload');
+    assert.match(
+      script,
+      /computeMatrix/,
+      'must use the extracted computeMatrix from variant-matrix'
+    );
+    assert.match(
+      script,
+      /selectedCombinations/,
+      'must use selectedCombinations to build the POST payload'
+    );
     // Button renamed.
     assert.match(content, /Manage Variants/, 'button must be renamed to "Manage Variants"');
     // Existing variants rendered as exists/disabled, not re-creatable checkboxes.
@@ -37,8 +53,16 @@ describe('Products edit page - card layout', () => {
 
   it('does NOT have an offered-options subset step (one-click assignment)', () => {
     const content = readFileSync(PAGE_PATH, 'utf-8');
-    assert.doesNotMatch(content, /assign-options-container/, 'the offered-options container must be removed');
-    assert.doesNotMatch(content, /assign-options-select/, 'the offered-options multi-select must be removed');
+    assert.doesNotMatch(
+      content,
+      /assign-options-container/,
+      'the offered-options container must be removed'
+    );
+    assert.doesNotMatch(
+      content,
+      /assign-options-select/,
+      'the offered-options multi-select must be removed'
+    );
     assert.doesNotMatch(content, /Offered Options/, 'the "Offered Options" label must be removed');
   });
 
@@ -47,7 +71,11 @@ describe('Products edit page - card layout', () => {
     const script = content.slice(content.indexOf('<script>'));
     // Bug 5 fix: price inputs per currency with inherited placeholders.
     assert.match(script, /data-variant-price/, 'modal must render per-currency price inputs');
-    assert.match(script, /inherited from product/, 'price placeholder must show the inherited value');
+    assert.match(
+      script,
+      /inherited from product/,
+      'price placeholder must show the inherited value'
+    );
     assert.match(script, /body\.prices/, 'save handler must send prices in the PUT body');
     // Bug 3 fix: per-variant custom fields (field-role attributes).
     assert.match(script, /data-field-input/, 'modal must render per-variant custom field inputs');
@@ -59,7 +87,11 @@ describe('Products edit page - card layout', () => {
     const script = content.slice(content.indexOf('<script>'));
     assert.match(script, /cachedVariants/, 'variant list must be cached');
     // The modal reads from the cache, not a per-open fetch of the variants list.
-    assert.doesNotMatch(script, /openVariantEditModal[\s\S]*fetch\([^)]*\/variants`\)[\s\S]*find/, 'modal must not fetch the variants list and filter to find one variant');
+    assert.doesNotMatch(
+      script,
+      /openVariantEditModal[\s\S]*fetch\([^)]*\/variants`\)[\s\S]*find/,
+      'modal must not fetch the variants list and filter to find one variant'
+    );
   });
 
   it('product-level select-type custom fields are populated with options (not empty)', () => {
@@ -67,12 +99,24 @@ describe('Products edit page - card layout', () => {
     const script = content.slice(content.indexOf('<script>'));
     // Bug 2 fix: the old empty `<select ...><option value="">Select...</option></select>`
     // (no options loaded) must be gone — loadCustomFields now fetches options.
-    assert.doesNotMatch(script, /<select class="select select-bordered" data-field-value="\$\{f\.assignment_id\}"><option value="">Select\.\.\.<\/option><\/select>/, 'the empty select-type custom field (no options loaded) must be gone');
+    assert.doesNotMatch(
+      script,
+      /<select class="select select-bordered" data-field-value="\$\{f\.assignment_id\}"><option value="">Select\.\.\.<\/option><\/select>/,
+      'the empty select-type custom field (no options loaded) must be gone'
+    );
     // Select-type fields fetch the attribute options and pre-select by option_id.
-    assert.match(script, /data-field-kind="select"/, 'select-type custom fields must be tagged data-field-kind=select');
+    assert.match(
+      script,
+      /data-field-kind="select"/,
+      'select-type custom fields must be tagged data-field-kind=select'
+    );
     assert.match(script, /f\.option_id === o\.id/, 'current option_id must be pre-selected');
     // The save handler sends option_id for selects (not value_text).
-    assert.match(script, /option_id: \(el as HTMLSelectElement\)\.value/, 'save handler must send option_id for select-type fields');
+    assert.match(
+      script,
+      /option_id: \(el as HTMLSelectElement\)\.value/,
+      'save handler must send option_id for select-type fields'
+    );
   });
 
   it('imports Breadcrumbs component', () => {
@@ -114,7 +158,11 @@ describe('Products edit page - card layout', () => {
 
   it('save button is right-justified with border-t', () => {
     const content = readFileSync(PAGE_PATH, 'utf-8');
-    assert.match(content, /flex justify-end gap-2 pt-4 border-t border-base-200/, 'Save button should be right-justified');
+    assert.match(
+      content,
+      /flex justify-end gap-2 pt-4 border-t border-base-200/,
+      'Save button should be right-justified'
+    );
   });
 
   it('page uses single card with sectioned layout', () => {
@@ -149,6 +197,10 @@ describe('Products edit page - card layout', () => {
   it('uses SearchSelect for category_id field', () => {
     const content = readFileSync(PAGE_PATH, 'utf-8');
     assert.match(content, /<SearchSelect/, 'Should use SearchSelect component for category field');
-    assert.doesNotMatch(content, /<SelectField name="category_id"/, 'Should NOT use SelectField for category_id (replaced by SearchSelect)');
+    assert.doesNotMatch(
+      content,
+      /<SelectField name="category_id"/,
+      'Should NOT use SelectField for category_id (replaced by SearchSelect)'
+    );
   });
 });

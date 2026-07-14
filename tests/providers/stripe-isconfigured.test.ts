@@ -23,9 +23,9 @@ describe('Stripe isConfigured', () => {
   });
 
   it('returns true when stripe_secret_key is set', async () => {
-    await db.insert(shop_settings).values([
-      { id: 's1', key: 'stripe_secret_key', value: 'sk_test_123' },
-    ]);
+    await db
+      .insert(shop_settings)
+      .values([{ id: 's1', key: 'stripe_secret_key', value: 'sk_test_123' }]);
 
     const result = await provider.isConfigured(db);
     assert.strictEqual(result, true, 'isConfigured must return true when stripe_secret_key is set');
@@ -33,6 +33,10 @@ describe('Stripe isConfigured', () => {
 
   it('returns false when stripe_secret_key is missing', async () => {
     const result = await provider.isConfigured(db);
-    assert.strictEqual(result, false, 'isConfigured must return false when stripe_secret_key is missing');
+    assert.strictEqual(
+      result,
+      false,
+      'isConfigured must return false when stripe_secret_key is missing'
+    );
   });
 });

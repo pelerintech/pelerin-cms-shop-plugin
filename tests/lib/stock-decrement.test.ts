@@ -11,14 +11,20 @@ const STOCK_PATH = resolve(__dirname, '../../src/lib/stock-decrement.ts');
 describe('Stock decrement re-export module', () => {
   it('does NOT import from astro:db', () => {
     const content = readFileSync(STOCK_PATH, 'utf-8');
-    assert.doesNotMatch(content, /from\s+['"]astro:db['"]/,
-      'stock-decrement.ts must not import from astro:db — it is a pure re-export');
+    assert.doesNotMatch(
+      content,
+      /from\s+['"]astro:db['"]/,
+      'stock-decrement.ts must not import from astro:db — it is a pure re-export'
+    );
   });
 
   it('re-exports decrementStock from ./data/orders.ts', () => {
     const content = readFileSync(STOCK_PATH, 'utf-8');
-    assert.match(content, /export\s*\{[^}]*decrementStock[^}]*\}\s*from\s+['"]\.\/data\/orders\.ts['"]/,
-      'should re-export decrementStock from ./data/orders.ts');
+    assert.match(
+      content,
+      /export\s*\{[^}]*decrementStock[^}]*\}\s*from\s+['"]\.\/data\/orders\.ts['"]/,
+      'should re-export decrementStock from ./data/orders.ts'
+    );
   });
 
   it('decrementStock is importable and is a function', async () => {

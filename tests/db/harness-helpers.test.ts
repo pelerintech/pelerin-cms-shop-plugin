@@ -21,11 +21,18 @@ test('seedMinimal inserts a predictable minimal dataset', async () => {
     // Global attributes: Color, Storage, Brand, Weight (4)
     const attrRows = await db.select().from(product_attributes).all();
     assert.ok(attrRows.length >= 3, 'at least Color/Storage/Brand attributes must exist');
-    const attrNames = attrRows.map(a => a.name);
-    assert.ok(attrNames.includes('Culoare') || attrNames.some(n => /color/i.test(n)), 'Color attribute must exist');
+    const attrNames = attrRows.map((a) => a.name);
+    assert.ok(
+      attrNames.includes('Culoare') || attrNames.some((n) => /color/i.test(n)),
+      'Color attribute must exist'
+    );
 
     // 2 variants on the variant product
-    const varRows = await db.select().from(product_variants).where(sql`${product_variants.product_id} = ${fixtures.variantProductId}`).all();
+    const varRows = await db
+      .select()
+      .from(product_variants)
+      .where(sql`${product_variants.product_id} = ${fixtures.variantProductId}`)
+      .all();
     assert.strictEqual(varRows.length, 2, 'variant product must have exactly 2 variants');
 
     // Fixtures object exposes stable IDs

@@ -1,12 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import {
-  makeFakeSdk,
-  unauthorizedError,
-  forbiddenError,
-  makeCtx,
-  poisonDb,
-} from './helpers.ts';
+import { makeFakeSdk, unauthorizedError, forbiddenError, makeCtx, poisonDb } from './helpers.ts';
 import type { HandlerDeps } from '../../src/lib/handler-types.ts';
 
 test('HandlerDeps interface is exported with db, sdk, ctx', () => {
@@ -19,7 +13,7 @@ test('makeFakeSdk({ authThrows: unauthorizedError() }) — requireAdmin throws w
   const sdk = makeFakeSdk({ authThrows: unauthorizedError() });
   await assert.rejects(
     () => sdk.auth.requireAdmin({} as any),
-    (err: any) => err.status === 401,
+    (err: any) => err.status === 401
   );
 });
 

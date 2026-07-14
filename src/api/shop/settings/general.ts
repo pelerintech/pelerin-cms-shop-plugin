@@ -1,12 +1,21 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { getSetting, upsertSetting, upsertSettingTyped, getShopConfig, deleteSetting } from '../../../lib/data/settings';
+import {
+  getSetting,
+  upsertSetting,
+  upsertSettingTyped,
+  getShopConfig,
+  deleteSetting,
+} from '../../../lib/data/settings';
 import { z } from 'zod';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
 const SETTINGS_KEYS = [
-  'shop_name', 'order_number_prefix', 'order_number_year',
-  'order_number_padding', 'default_currency',
+  'shop_name',
+  'order_number_prefix',
+  'order_number_year',
+  'order_number_padding',
+  'default_currency',
 ];
 
 const GeneralSettingsSchema = z.object({
@@ -17,13 +26,24 @@ const GeneralSettingsSchema = z.object({
   default_currency: z.string().optional(),
 });
 
-export const GET: APIRoute = (context) => { const sdk = createPluginContext(); return runGet({ db: sdk.db, sdk, ctx: context }); }
+export const GET: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runGet({ db: sdk.db, sdk, ctx: context });
+};
 
-export const PUT: APIRoute = (context) => { const sdk = createPluginContext(); return runPut({ db: sdk.db, sdk, ctx: context }); }
+export const PUT: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runPut({ db: sdk.db, sdk, ctx: context });
+};
 
 export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
-  try { await sdk.auth.requireAdmin(ctx.request); } catch {
-    return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+  try {
+    await sdk.auth.requireAdmin(ctx.request);
+  } catch {
+    return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   const settings: Record<string, any> = {};
@@ -36,22 +56,42 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   settings.defaultLocale = config.defaultLocale;
   settings.defaultCurrency = config.defaultCurrency;
 
-  return new Response(JSON.stringify({ success: true, data: settings }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify({ success: true, data: settings }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }
 
 export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
-  try { await sdk.auth.requireAdmin(ctx.request); } catch {
-    return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+  try {
+    await sdk.auth.requireAdmin(ctx.request);
+  } catch {
+    return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   let body: any;
-  try { body = await ctx.request.json(); } catch {
-    return new Response(JSON.stringify({ success: false, error: 'Invalid JSON body' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+  try {
+    body = await ctx.request.json();
+  } catch {
+    return new Response(JSON.stringify({ success: false, error: 'Invalid JSON body' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   const parsed = GeneralSettingsSchema.safeParse(body);
   if (!parsed.success) {
-    return new Response(JSON.stringify({ success: false, error: 'Validation failed', fields: Object.fromEntries(parsed.error.issues.map(i => [i.path.join('.'), i.message])) }), { status: 422, headers: { 'Content-Type': 'application/json' } });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Validation failed',
+        fields: Object.fromEntries(parsed.error.issues.map((i) => [i.path.join('.'), i.message])),
+      }),
+      { status: 422, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 
   for (const [key, value] of Object.entries(parsed.data)) {
@@ -61,5 +101,8 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   // Clean up old default_locale key (now derived from locales array isDefault)
   await deleteSetting(db, 'default_locale');
 
-  return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }

@@ -6,13 +6,7 @@
  */
 import { test } from 'node:test';
 import { ensureLoader } from '../../../../stubs/register.mjs';
-import {
-  createTestDb,
-  seedMinimal,
-  makeFakeSdk,
-  makeCtx,
-  assert,
-} from '../../_matrix.ts';
+import { createTestDb, seedMinimal, makeFakeSdk, makeCtx, assert } from '../../_matrix.ts';
 import { insertFixture, shop_settings } from '../../../../db/harness.ts';
 
 ensureLoader();
@@ -25,12 +19,22 @@ async function seedCartWithItem(db: any, f: any, sessionId = 'sess-dyn', cartId 
   const now = new Date();
   const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   await insertFixture(db, 'carts', {
-    id: cartId, session_id: sessionId, user_id: null,
-    applied_voucher_code: null, applied_referral_code: null,
-    converted_at: null, expires_at: expires, created_at: now, updated_at: now,
+    id: cartId,
+    session_id: sessionId,
+    user_id: null,
+    applied_voucher_code: null,
+    applied_referral_code: null,
+    converted_at: null,
+    expires_at: expires,
+    created_at: now,
+    updated_at: now,
   });
   await insertFixture(db, 'cart_items', {
-    id: 'ci-dyn', cart_id: cartId, product_id: f.simpleProductId, variant_id: null, quantity: 1,
+    id: 'ci-dyn',
+    cart_id: cartId,
+    product_id: f.simpleProductId,
+    variant_id: null,
+    quantity: 1,
   });
   return { sessionId, cartId };
 }
@@ -71,9 +75,9 @@ async function seedEuplatescCredentials(db: any) {
 
 // Helper: seed Stripe credentials
 async function seedStripeCredentials(db: any) {
-  await db.insert(shop_settings).values([
-    { id: 's-stripe-key', key: 'stripe_secret_key', value: 'sk_test_fake_key' },
-  ]);
+  await db
+    .insert(shop_settings)
+    .values([{ id: 's-stripe-key', key: 'stripe_secret_key', value: 'sk_test_fake_key' }]);
 }
 
 test('only euPlatesc configured → payment_providers is ["euplatesc"]', async () => {
@@ -85,14 +89,20 @@ test('only euPlatesc configured → payment_providers is ["euplatesc"]', async (
     const { sessionId } = await seedCartWithItem(db, f);
     const sdk = makeFakeSdk({ user: null });
     const ctx = makeCtx({
-      url: URL, method: 'POST', body: validCheckoutBody(),
+      url: URL,
+      method: 'POST',
+      body: validCheckoutBody(),
       headers: { cookie: `pelerin_shop_cart=${sessionId}` },
     });
     const res = await runPost({ db, sdk, ctx });
     assert.equal(res.status, 201);
     const b = await res.json();
     assert.equal(b.success, true);
-    assert.deepStrictEqual(b.data.payment_providers, ['euplatesc'], 'should only list euPlatesc, not Stripe');
+    assert.deepStrictEqual(
+      b.data.payment_providers,
+      ['euplatesc'],
+      'should only list euPlatesc, not Stripe'
+    );
   } finally {
     await cleanup();
   }
@@ -107,14 +117,20 @@ test('only Stripe configured → payment_providers is ["stripe"]', async () => {
     const { sessionId } = await seedCartWithItem(db, f);
     const sdk = makeFakeSdk({ user: null });
     const ctx = makeCtx({
-      url: URL, method: 'POST', body: validCheckoutBody(),
+      url: URL,
+      method: 'POST',
+      body: validCheckoutBody(),
       headers: { cookie: `pelerin_shop_cart=${sessionId}` },
     });
     const res = await runPost({ db, sdk, ctx });
     assert.equal(res.status, 201);
     const b = await res.json();
     assert.equal(b.success, true);
-    assert.deepStrictEqual(b.data.payment_providers, ['stripe'], 'should only list Stripe, not euPlatesc');
+    assert.deepStrictEqual(
+      b.data.payment_providers,
+      ['stripe'],
+      'should only list Stripe, not euPlatesc'
+    );
   } finally {
     await cleanup();
   }
@@ -129,7 +145,9 @@ test('both configured → payment_providers has both', async () => {
     const { sessionId } = await seedCartWithItem(db, f);
     const sdk = makeFakeSdk({ user: null });
     const ctx = makeCtx({
-      url: URL, method: 'POST', body: validCheckoutBody(),
+      url: URL,
+      method: 'POST',
+      body: validCheckoutBody(),
       headers: { cookie: `pelerin_shop_cart=${sessionId}` },
     });
     const res = await runPost({ db, sdk, ctx });
@@ -152,14 +170,20 @@ test('none configured → payment_providers is empty array', async () => {
     const { sessionId } = await seedCartWithItem(db, f);
     const sdk = makeFakeSdk({ user: null });
     const ctx = makeCtx({
-      url: URL, method: 'POST', body: validCheckoutBody(),
+      url: URL,
+      method: 'POST',
+      body: validCheckoutBody(),
       headers: { cookie: `pelerin_shop_cart=${sessionId}` },
     });
     const res = await runPost({ db, sdk, ctx });
     assert.equal(res.status, 201);
     const b = await res.json();
     assert.equal(b.success, true);
-    assert.deepStrictEqual(b.data.payment_providers, [], 'should be empty when no providers configured');
+    assert.deepStrictEqual(
+      b.data.payment_providers,
+      [],
+      'should be empty when no providers configured'
+    );
   } finally {
     await cleanup();
   }

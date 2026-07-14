@@ -49,7 +49,11 @@ test('GET returns variant effective_prices (inherited per currency when variant 
     const { product_prices } = await import('../../../../../src/db/schema.ts');
     const { eq } = await import('drizzle-orm');
     await db.insert(product_prices).values({
-      id: crypto.randomUUID(), product_id: f.variantProductId, variant_id: null, currency: 'RON', price_net: 4900,
+      id: crypto.randomUUID(),
+      product_id: f.variantProductId,
+      variant_id: null,
+      currency: 'RON',
+      price_net: 4900,
     });
     await db.delete(product_prices).where(eq(product_prices.variant_id, f.variantBlack128Id));
 
@@ -75,7 +79,19 @@ test('GET returns image urls resolved via sdk.storage.getUrl (no raw key leaked)
   try {
     const f = await seedMinimal(db);
     const { insertFixture } = await import('../../../../db/harness.ts');
-    await insertFixture(db, 'product_images', { id: 'img-pub', product_id: f.simpleProductId, variant_id: null, url: 'products/p1/pub.jpg', alt: null, sort_order: 0, mime: 'image/jpeg', size: 10, width: null, height: null, original_filename: 'pub.jpg' });
+    await insertFixture(db, 'product_images', {
+      id: 'img-pub',
+      product_id: f.simpleProductId,
+      variant_id: null,
+      url: 'products/p1/pub.jpg',
+      alt: null,
+      sort_order: 0,
+      mime: 'image/jpeg',
+      size: 10,
+      width: null,
+      height: null,
+      original_filename: 'pub.jpg',
+    });
     const sdk = makeFakeSdk({ user: null });
     const ctx = makeCtx({ url: URL(f.simpleProductId), params: { id: f.simpleProductId } });
     const res = await runGet({ db, sdk, ctx });
@@ -84,7 +100,10 @@ test('GET returns image urls resolved via sdk.storage.getUrl (no raw key leaked)
     assert.ok(Array.isArray(b.data.images), 'images array must be present');
     assert.strictEqual(b.data.images.length, 1);
     assert.match(b.data.images[0].url, /^\/uploads\/products\//, 'image url must be resolved');
-    assert.ok(!/^products\//.test(b.data.images[0].url), 'raw key must never leak to the headless API');
+    assert.ok(
+      !/^products\//.test(b.data.images[0].url),
+      'raw key must never leak to the headless API'
+    );
   } finally {
     await cleanup();
   }

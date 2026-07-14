@@ -37,22 +37,26 @@ export type ShopSettingOutput = z.infer<typeof ShopSettingOutputSchema>;
  * subset. Validation runs BEFORE encrypt()/upsertSetting() — no non-string ever
  * reaches the crypto layer.
  */
-export const EuplatescSettingsSchema = z.object({
-  euplatesc_merchant_id: z.string(),
-  euplatesc_secret_key: z.string(),
-  euplatesc_ukey: z.string(),
-  euplatesc_uapi_key: z.string(),
-}).partial();
+export const EuplatescSettingsSchema = z
+  .object({
+    euplatesc_merchant_id: z.string(),
+    euplatesc_secret_key: z.string(),
+    euplatesc_ukey: z.string(),
+    euplatesc_uapi_key: z.string(),
+  })
+  .partial();
 
 export type EuplatescSettingsInput = z.infer<typeof EuplatescSettingsSchema>;
 
 /**
  * Stripe payment settings (r17 Task 5). String fields validated before encrypt().
  */
-export const StripeSettingsSchema = z.object({
-  stripe_secret_key: z.string(),
-  stripe_webhook_secret: z.string(),
-  stripe_publishable_key: z.string().optional(),
-}).partial();
+export const StripeSettingsSchema = z
+  .object({
+    stripe_secret_key: z.string(),
+    stripe_webhook_secret: z.string(),
+    stripe_publishable_key: z.string().optional(),
+  })
+  .partial();
 
 export type StripeSettingsInput = z.infer<typeof StripeSettingsSchema>;

@@ -27,8 +27,11 @@ test('importPrices upserts a price for an existing product SKU', async () => {
     assert.strictEqual(result.updated, 1);
     assert.strictEqual(result.errors.length, 0);
 
-    const prodPrices = await db.select().from(product_prices).where(eq(product_prices.product_id, f.simpleProductId));
-    const ron = prodPrices.find(p => p.currency === 'RON' && p.variant_id === null);
+    const prodPrices = await db
+      .select()
+      .from(product_prices)
+      .where(eq(product_prices.product_id, f.simpleProductId));
+    const ron = prodPrices.find((p) => p.currency === 'RON' && p.variant_id === null);
     assert.strictEqual(ron.price_net, 5500, 'product price updated in place');
   } finally {
     await cleanup();
@@ -42,13 +45,24 @@ test('importPrices inserts a new price for a configured currency the product lac
     // Create a fresh product with a SKU and NO prices, then import a RON price.
     const { createProduct } = await import('../../src/lib/data/products.ts');
     const newId = await createProduct(db, {
-      sku: 'NOPRICE-001', type: 'physical', has_variants: false, vat_rate: null, stock: null,
-      category_id: null, active: true, name: 'No Price', description: null, slug: 'no-price',
+      sku: 'NOPRICE-001',
+      type: 'physical',
+      has_variants: false,
+      vat_rate: null,
+      stock: null,
+      category_id: null,
+      active: true,
+      name: 'No Price',
+      description: null,
+      slug: 'no-price',
     });
     const rows = [{ sku: 'NOPRICE-001', currency: 'RON', price_net: '600' }];
     const result = await importPrices(db, rows);
     assert.strictEqual(result.updated, 1);
-    const prodPrices = await db.select().from(product_prices).where(eq(product_prices.product_id, newId));
+    const prodPrices = await db
+      .select()
+      .from(product_prices)
+      .where(eq(product_prices.product_id, newId));
     assert.strictEqual(prodPrices.length, 1, 'one price inserted, no duplicate');
     assert.strictEqual(prodPrices[0].currency, 'RON');
     assert.strictEqual(prodPrices[0].price_net, 600);
@@ -67,8 +81,11 @@ test('importPrices upserts a price for an existing variant SKU', async () => {
     assert.strictEqual(result.updated, 1);
     assert.strictEqual(result.errors.length, 0);
 
-    const variantPrices = await db.select().from(product_prices).where(eq(product_prices.variant_id, f.variantBlack128Id));
-    const ron = variantPrices.find(p => p.currency === 'RON');
+    const variantPrices = await db
+      .select()
+      .from(product_prices)
+      .where(eq(product_prices.variant_id, f.variantBlack128Id));
+    const ron = variantPrices.find((p) => p.currency === 'RON');
     assert.strictEqual(ron.price_net, 26000, 'variant price updated in place');
     assert.strictEqual(variantPrices.length, 2, 'EUR untouched, no duplicate');
   } finally {
@@ -81,9 +98,9 @@ test('importPrices reports unknown currency per-row and continues valid rows', a
   try {
     await seedMinimal(db);
     const rows = [
-      { sku: 'BOOK-001', currency: 'RON', price_net: '100' },     // ok
-      { sku: 'BOOK-001', currency: 'XYZ', price_net: '200' },     // unknown currency
-      { sku: 'BOOK-001', currency: 'EUR', price_net: '300' },     // ok
+      { sku: 'BOOK-001', currency: 'RON', price_net: '100' }, // ok
+      { sku: 'BOOK-001', currency: 'XYZ', price_net: '200' }, // unknown currency
+      { sku: 'BOOK-001', currency: 'EUR', price_net: '300' }, // ok
     ];
     const result = await importPrices(db, rows);
     assert.strictEqual(result.total, 3);
@@ -101,8 +118,8 @@ test('importPrices reports unknown SKU per-row and continues valid rows', async 
   try {
     await seedMinimal(db);
     const rows = [
-      { sku: 'BOOK-001', currency: 'RON', price_net: '100' },     // ok
-      { sku: 'NOPE-999', currency: 'RON', price_net: '200' },     // unknown sku
+      { sku: 'BOOK-001', currency: 'RON', price_net: '100' }, // ok
+      { sku: 'NOPE-999', currency: 'RON', price_net: '200' }, // unknown sku
     ];
     const result = await importPrices(db, rows);
     assert.strictEqual(result.updated, 1);

@@ -3,7 +3,8 @@ import { ensureLoader } from '../../../../../stubs/register.mjs';
 import { matrix, assert, makeFakeSdk } from '../../../_matrix.ts';
 
 ensureLoader();
-const { runPost, runDelete } = await import('../../../../../../src/api/shop/public/cart/referral/index.ts');
+const { runPost, runDelete } =
+  await import('../../../../../../src/api/shop/public/cart/referral/index.ts');
 
 const URL = 'http://localhost/api/plugins/shop/public/cart/referral';
 

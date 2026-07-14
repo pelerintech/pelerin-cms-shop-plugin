@@ -18,7 +18,7 @@ test('CreateCartItemSchema rejects empty cart_id (FK guard via Zod)', () => {
   });
   assert.strictEqual(result.success, false, 'empty cart_id must be rejected');
   if (!result.success) {
-    const cartIdError = result.error.issues.find(i => i.path.includes('cart_id'));
+    const cartIdError = result.error.issues.find((i) => i.path.includes('cart_id'));
     assert.ok(cartIdError, 'error must be on cart_id field');
   }
 });

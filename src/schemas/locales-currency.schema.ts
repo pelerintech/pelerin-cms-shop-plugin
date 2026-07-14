@@ -22,14 +22,21 @@ const BaseItemSchema = z.object({
  * optionally followed by a hyphen and 2 uppercase letters (e.g. "en-US").
  */
 export const LocaleItemSchema = BaseItemSchema.extend({
-  code: z.string().regex(/^[a-z]{2}(-[A-Z]{2})?$/, 'Locale code must be a valid BCP-47 code (e.g. "ro", "en-US")'),
+  code: z
+    .string()
+    .regex(
+      /^[a-z]{2}(-[A-Z]{2})?$/,
+      'Locale code must be a valid BCP-47 code (e.g. "ro", "en-US")'
+    ),
 });
 
 /**
  * Currency item — code must be 3-letter ISO 4217 (uppercase).
  */
 export const CurrencyItemSchema = BaseItemSchema.extend({
-  code: z.string().regex(/^[A-Z]{3}$/, 'Currency code must be a valid 3-letter ISO code (e.g. "RON", "EUR")'),
+  code: z
+    .string()
+    .regex(/^[A-Z]{3}$/, 'Currency code must be a valid 3-letter ISO code (e.g. "RON", "EUR")'),
 });
 
 /**
@@ -50,7 +57,7 @@ export const LocalesSchema = z.array(LocaleItemSchema).superRefine((items, ctx) 
   }
 
   // Check unique codes
-  const codes = items.map(i => i.code);
+  const codes = items.map((i) => i.code);
   const duplicates = codes.filter((code, index) => codes.indexOf(code) !== index);
   if (duplicates.length > 0) {
     ctx.addIssue({
@@ -61,7 +68,7 @@ export const LocalesSchema = z.array(LocaleItemSchema).superRefine((items, ctx) 
   }
 
   // Check exactly one default
-  const defaults = items.filter(i => i.isDefault);
+  const defaults = items.filter((i) => i.isDefault);
   if (defaults.length === 0) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -95,7 +102,7 @@ export const CurrenciesSchema = z.array(CurrencyItemSchema).superRefine((items, 
   }
 
   // Check unique codes
-  const codes = items.map(i => i.code);
+  const codes = items.map((i) => i.code);
   const duplicates = codes.filter((code, index) => codes.indexOf(code) !== index);
   if (duplicates.length > 0) {
     ctx.addIssue({
@@ -106,7 +113,7 @@ export const CurrenciesSchema = z.array(CurrencyItemSchema).superRefine((items, 
   }
 
   // Check exactly one default
-  const defaults = items.filter(i => i.isDefault);
+  const defaults = items.filter((i) => i.isDefault);
   if (defaults.length === 0) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

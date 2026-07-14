@@ -14,26 +14,57 @@ import { product_prices, product_variants, products } from '../../../src/db/sche
 const NOW = new Date();
 const rid = () => crypto.randomUUID();
 
-async function seedProductWithPrices(db: any, productId: string, prices: { currency: string; price_net: number }[]) {
+async function seedProductWithPrices(
+  db: any,
+  productId: string,
+  prices: { currency: string; price_net: number }[]
+) {
   await insertFixture(db, 'products', {
-    id: productId, sku: 'P-001', type: 'physical', has_variants: false, vat_rate: 0.19,
-    stock: 10, category_id: null, active: true, name: 'Test Product', description: '', slug: 'test-product',
-    created_at: NOW, updated_at: NOW,
+    id: productId,
+    sku: 'P-001',
+    type: 'physical',
+    has_variants: false,
+    vat_rate: 0.19,
+    stock: 10,
+    category_id: null,
+    active: true,
+    name: 'Test Product',
+    description: '',
+    slug: 'test-product',
+    created_at: NOW,
+    updated_at: NOW,
   });
   for (const p of prices) {
     await insertFixture(db, 'product_prices', {
-      id: rid(), product_id: productId, variant_id: null, currency: p.currency, price_net: p.price_net,
+      id: rid(),
+      product_id: productId,
+      variant_id: null,
+      currency: p.currency,
+      price_net: p.price_net,
     });
   }
 }
 
-async function seedVariant(db: any, variantId: string, productId: string, prices: { currency: string; price_net: number }[]) {
+async function seedVariant(
+  db: any,
+  variantId: string,
+  productId: string,
+  prices: { currency: string; price_net: number }[]
+) {
   await insertFixture(db, 'product_variants', {
-    id: variantId, product_id: productId, sku: 'V-001', stock: 5, active: true,
+    id: variantId,
+    product_id: productId,
+    sku: 'V-001',
+    stock: 5,
+    active: true,
   });
   for (const p of prices) {
     await insertFixture(db, 'product_prices', {
-      id: rid(), product_id: null, variant_id: variantId, currency: p.currency, price_net: p.price_net,
+      id: rid(),
+      product_id: null,
+      variant_id: variantId,
+      currency: p.currency,
+      price_net: p.price_net,
     });
   }
 }
@@ -47,9 +78,7 @@ test('getEffectiveVariantPrices: variant with own RON only inherits EUR from pro
       { currency: 'RON', price_net: 49 },
       { currency: 'EUR', price_net: 11 },
     ]);
-    await seedVariant(db, variantId, productId, [
-      { currency: 'RON', price_net: 54 },
-    ]);
+    await seedVariant(db, variantId, productId, [{ currency: 'RON', price_net: 54 }]);
 
     const effective = await getEffectiveVariantPrices(db, variantId, productId);
     effective.sort((a: any, b: any) => a.currency.localeCompare(b.currency));
@@ -126,12 +155,8 @@ test('getEffectiveVariantPrices: variant own row deleted → currency reverts to
   try {
     const productId = rid();
     const variantId = rid();
-    await seedProductWithPrices(db, productId, [
-      { currency: 'RON', price_net: 49 },
-    ]);
-    await seedVariant(db, variantId, productId, [
-      { currency: 'RON', price_net: 54 },
-    ]);
+    await seedProductWithPrices(db, productId, [{ currency: 'RON', price_net: 49 }]);
+    await seedVariant(db, variantId, productId, [{ currency: 'RON', price_net: 54 }]);
     // Simulate "clear and save = revert" by deleting the variant's RON row.
     await db.delete(product_prices).where(eq(product_prices.variant_id, variantId));
     const effective = await getEffectiveVariantPrices(db, variantId, productId);

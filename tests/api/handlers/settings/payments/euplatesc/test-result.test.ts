@@ -23,7 +23,8 @@ describe('test-result endpoint', () => {
     const harness = await createTestDb();
     db = harness.db;
     await resetDb(db);
-    const mod = await import('../../../../../../src/api/shop/settings/payments/euplatesc/test-result.ts');
+    const mod =
+      await import('../../../../../../src/api/shop/settings/payments/euplatesc/test-result.ts');
     runGet = mod.runGet;
   });
 
@@ -32,7 +33,9 @@ describe('test-result endpoint', () => {
   });
 
   it('auth required → 401 for non-admin', async () => {
-    const sdk = makeFakeSdk({ authThrows: Object.assign(new Error('Unauthorized'), { status: 401 }) });
+    const sdk = makeFakeSdk({
+      authThrows: Object.assign(new Error('Unauthorized'), { status: 401 }),
+    });
     const ctx = makeCtx({ url: 'http://localhost/api/test', method: 'GET' });
     const res = await runGet({ db, sdk, ctx });
     assert.strictEqual(res.status, 401);
@@ -51,12 +54,15 @@ describe('test-result endpoint', () => {
       amount: '1.00',
       curr: 'RON',
     });
-    await db.insert(shop_settings).values([
-      { id: 's1', key: 'euplatesc_test_result', value: testResult },
-    ]);
+    await db
+      .insert(shop_settings)
+      .values([{ id: 's1', key: 'euplatesc_test_result', value: testResult }]);
 
     const sdk = makeFakeSdk();
-    const ctx = makeCtx({ url: 'http://localhost/api/plugins/shop/settings/payments/euplatesc/test-result', method: 'GET' });
+    const ctx = makeCtx({
+      url: 'http://localhost/api/plugins/shop/settings/payments/euplatesc/test-result',
+      method: 'GET',
+    });
     const res = await runGet({ db, sdk, ctx });
     assert.strictEqual(res.status, 200);
     const b = await res.json();
@@ -70,7 +76,10 @@ describe('test-result endpoint', () => {
   it('no result stored → returns null', async () => {
     // No settings seeded
     const sdk = makeFakeSdk();
-    const ctx = makeCtx({ url: 'http://localhost/api/plugins/shop/settings/payments/euplatesc/test-result', method: 'GET' });
+    const ctx = makeCtx({
+      url: 'http://localhost/api/plugins/shop/settings/payments/euplatesc/test-result',
+      method: 'GET',
+    });
     const res = await runGet({ db, sdk, ctx });
     assert.strictEqual(res.status, 200);
     const b = await res.json();

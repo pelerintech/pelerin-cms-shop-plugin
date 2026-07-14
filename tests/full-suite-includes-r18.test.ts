@@ -17,9 +17,6 @@ const required = [
 
 test('full-suite TEST_FILES lists every new r18 test file', () => {
   for (const f of required) {
-    assert.ok(
-      source.includes(`'${f}'`),
-      `TEST_FILES missing entry: ${f}`,
-    );
+    assert.ok(source.includes(`'${f}'`), `TEST_FILES missing entry: ${f}`);
   }
 });

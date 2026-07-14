@@ -25,7 +25,7 @@ function assertRejects(from: string, to: string) {
   assert.throws(
     () => validateTransition(from, to),
     (err: any) => err instanceof OrderTransitionError,
-    `expected ${from} → ${to} to be rejected`,
+    `expected ${from} → ${to} to be rejected`
   );
 }
 
@@ -62,11 +62,11 @@ test('seed.ts clears order_refunds before orders (FK-safe clear order)', () => {
   assert.notEqual(ordersIdx, -1, 'seed.ts must contain "DELETE FROM orders"');
   assert.ok(
     refundsIdx < ordersIdx,
-    'seed.ts must clear order_refunds BEFORE orders (FK-safe order)',
+    'seed.ts must clear order_refunds BEFORE orders (FK-safe order)'
   );
   const orderItemsIdx = source.indexOf('DELETE FROM order_items');
   assert.ok(
     orderItemsIdx !== -1 && refundsIdx < orderItemsIdx,
-    'seed.ts must clear order_refunds BEFORE order_items (FK-safe order)',
+    'seed.ts must clear order_refunds BEFORE order_items (FK-safe order)'
   );
 });

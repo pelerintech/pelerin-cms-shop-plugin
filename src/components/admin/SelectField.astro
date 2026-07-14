@@ -26,11 +26,26 @@ const {
       {label}{required && <span class="text-error ml-1">*</span>}
     </span>
   </label>
-  <select id={name} name={name} class={`select select-bordered w-full ${error ? 'select-error' : ''}`} required={required}>
+  <select
+    id={name}
+    name={name}
+    class={`select select-bordered w-full ${error ? 'select-error' : ''}`}
+    required={required}
+  >
     <option value="">{placeholder}</option>
-    {options.map(opt => (
-      <option value={opt.value} selected={value === opt.value}>{opt.label}</option>
-    ))}
+    {
+      options.map((opt) => (
+        <option value={opt.value} selected={value === opt.value}>
+          {opt.label}
+        </option>
+      ))
+    }
   </select>
-  {error && <span class="text-error text-sm mt-1" data-field={name}>{error}</span>}
+  {
+    error && (
+      <span class="text-error text-sm mt-1" data-field={name}>
+        {error}
+      </span>
+    )
+  }
 </div>

@@ -1,7 +1,6 @@
 ---
-description: "Produce all planning artifacts for a reespec request — brief, design, specs, and tasks with explicit 3-step RED/GREEN checklists. Use when the user wants to plan a request, create a task list, or generate implementation artifacts after discovery."
+description: 'Produce all planning artifacts for a reespec request — brief, design, specs, and tasks with explicit 3-step RED/GREEN checklists. Use when the user wants to plan a request, create a task list, or generate implementation artifacts after discovery.'
 ---
-
 
 Produce all artifacts needed to execute a reespec request.
 
@@ -16,6 +15,7 @@ Produce all artifacts needed to execute a reespec request.
 Announce: "Planning request: <name>"
 
 Check what exists:
+
 ```bash
 reespec status --request "<name>"
 ```
@@ -76,6 +76,7 @@ For anything involving writing or changing code, RED means writing an actual tes
 ```
 
 Rules for code tasks:
+
 - RED **always** produces a runnable test file. Not a description of a test. An actual file.
 - Tests verify behavior through **public interfaces** only — not internal functions.
 - One test → one implementation → repeat. Never write all tests then all implementation.
@@ -95,6 +96,7 @@ For research, documentation, config, or any task where no test runner applies:
 ```
 
 Rules for non-code tasks:
+
 - RED is a specific, binary, agent-verifiable assertion. Not a vague description.
 - "Documentation is clear" is NOT a valid RED. "README contains section X" IS valid.
 - GREEN re-checks the exact same assertion and confirms it passes.
@@ -105,6 +107,7 @@ Rules for non-code tasks:
 ## TDD discipline for code tasks
 
 **Vertical slices — the only correct approach:**
+
 ```
 RIGHT:  RED(test1) → GREEN(impl1) → RED(test2) → GREEN(impl2)
 WRONG:  RED(test1, test2, test3) → GREEN(impl1, impl2, impl3)
@@ -113,6 +116,7 @@ WRONG:  RED(test1, test2, test3) → GREEN(impl1, impl2, impl3)
 Writing all tests first produces tests that verify imagined behavior. One test → one impl → repeat.
 
 **Test quality:**
+
 - Tests use public interfaces only — survive internal refactors
 - Test names describe WHAT the system does, not HOW
 - Mock only at system boundaries (external APIs, time, filesystem where unavoidable)

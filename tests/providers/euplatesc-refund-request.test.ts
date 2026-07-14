@@ -45,30 +45,46 @@ describe('euPlatesc refund WebService', () => {
       { id: 's4', key: 'euplatesc_uapi_key', value: 'AA4A81EE58A1D74DE6E02DF2C1CE9982780F95DC' },
     ]);
 
-    const result = await provider.refund(db, {
-      id: 'order-1',
-      order_number: 'ORD-001',
-      currency: 'RON',
-      total: 5000,
-      customer_email: 'test@example.com',
-      customer_name: 'Test User',
-      status: 'delivered',
-      transaction_id: 'EP123',
-    }, 5000, 'Product not in stock');
+    const result = await provider.refund(
+      db,
+      {
+        id: 'order-1',
+        order_number: 'ORD-001',
+        currency: 'RON',
+        total: 5000,
+        customer_email: 'test@example.com',
+        customer_name: 'Test User',
+        status: 'delivered',
+        transaction_id: 'EP123',
+      },
+      5000,
+      'Product not in stock'
+    );
 
     assert.strictEqual(result.success, true, 'refund must succeed');
 
     // Verify fetch was called correctly
     assert.strictEqual(fetchCalls.length, 1, 'fetch must be called once');
-    assert.strictEqual(fetchCalls[0].url, 'https://manager.euplatesc.ro/v3/index.php?action=ws',
-      'fetch must be called with correct WebService URL');
+    assert.strictEqual(
+      fetchCalls[0].url,
+      'https://manager.euplatesc.ro/v3/index.php?action=ws',
+      'fetch must be called with correct WebService URL'
+    );
     assert.strictEqual(fetchCalls[0].method, 'POST', 'fetch must use POST method');
 
     const params = new URLSearchParams(fetchCalls[0].body);
     assert.strictEqual(params.get('method'), 'refund', 'method must be refund');
     assert.strictEqual(params.get('ukey'), 'UKEY123', 'ukey must be from settings');
-    assert.strictEqual(params.get('amount'), '50.00', 'amount must be in RON (5000 bani = 50.00 RON)');
-    assert.strictEqual(params.get('reason'), 'Product not in stock', 'reason must be passed through');
+    assert.strictEqual(
+      params.get('amount'),
+      '50.00',
+      'amount must be in RON (5000 bani = 50.00 RON)'
+    );
+    assert.strictEqual(
+      params.get('reason'),
+      'Product not in stock',
+      'reason must be passed through'
+    );
     assert.strictEqual(params.get('epid'), 'EP123', 'epid must be the transaction_id');
     assert.ok(params.get('timestamp'), 'timestamp must be present');
     assert.ok(params.get('nonce'), 'nonce must be present');
@@ -81,19 +97,27 @@ describe('euPlatesc refund WebService', () => {
       { id: 's2', key: 'euplatesc_secret_key', value: 'AA4A81EE58A1D74DE6E02DF2C1CE9982780F95DC' },
     ]);
 
-    const result = await provider.refund(db, {
-      id: 'order-1',
-      order_number: 'ORD-001',
-      currency: 'RON',
-      total: 5000,
-      customer_email: 'test@example.com',
-      customer_name: 'Test User',
-      status: 'delivered',
-      transaction_id: 'EP123',
-    }, 5000, 'Product not in stock');
+    const result = await provider.refund(
+      db,
+      {
+        id: 'order-1',
+        order_number: 'ORD-001',
+        currency: 'RON',
+        total: 5000,
+        customer_email: 'test@example.com',
+        customer_name: 'Test User',
+        status: 'delivered',
+        transaction_id: 'EP123',
+      },
+      5000,
+      'Product not in stock'
+    );
 
     assert.strictEqual(result.success, false, 'refund must fail');
-    assert.ok(result.error?.includes('credentials'), `error must mention credentials: ${result.error}`);
+    assert.ok(
+      result.error?.includes('credentials'),
+      `error must mention credentials: ${result.error}`
+    );
     assert.strictEqual(fetchCalls.length, 0, 'fetch must NOT be called when credentials missing');
   });
 
@@ -105,19 +129,27 @@ describe('euPlatesc refund WebService', () => {
       { id: 's4', key: 'euplatesc_uapi_key', value: 'AA4A81EE58A1D74DE6E02DF2C1CE9982780F95DC' },
     ]);
 
-    const result = await provider.refund(db, {
-      id: 'order-1',
-      order_number: 'ORD-001',
-      currency: 'RON',
-      total: 5000,
-      customer_email: 'test@example.com',
-      customer_name: 'Test User',
-      status: 'delivered',
-      transaction_id: null,
-    }, 5000, 'Product not in stock');
+    const result = await provider.refund(
+      db,
+      {
+        id: 'order-1',
+        order_number: 'ORD-001',
+        currency: 'RON',
+        total: 5000,
+        customer_email: 'test@example.com',
+        customer_name: 'Test User',
+        status: 'delivered',
+        transaction_id: null,
+      },
+      5000,
+      'Product not in stock'
+    );
 
     assert.strictEqual(result.success, false, 'refund must fail');
-    assert.ok(result.error?.includes('transaction ID'), `error must mention transaction ID: ${result.error}`);
+    assert.ok(
+      result.error?.includes('transaction ID'),
+      `error must mention transaction ID: ${result.error}`
+    );
     assert.strictEqual(fetchCalls.length, 0, 'fetch must NOT be called when no transaction_id');
   });
 });

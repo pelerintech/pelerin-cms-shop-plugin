@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createTestDb, seedMinimal, categories, products, translations as harnessTranslations } from '../../db/harness.ts';
+import {
+  createTestDb,
+  seedMinimal,
+  categories,
+  products,
+  translations as harnessTranslations,
+} from '../../db/harness.ts';
 import { findSlugCollisions } from '../../../src/lib/data/slug-resolution.ts';
 
 test('findSlugCollisions returns empty array when no collisions exist', async () => {
@@ -22,12 +28,24 @@ test('findSlugCollisions returns locale when slug collides with another entity',
     // Insert a second category with the same en slug 'books'.
     const secondCatId = crypto.randomUUID();
     await db.insert(categories).values({
-      id: secondCatId, parent_id: null, name: 'Second Cat', description: null,
-      slug: 'second-cat', sort_order: 99, created_at: null, updated_at: null,
+      id: secondCatId,
+      parent_id: null,
+      name: 'Second Cat',
+      description: null,
+      slug: 'second-cat',
+      sort_order: 99,
+      created_at: null,
+      updated_at: null,
     });
     await db.insert(harnessTranslations).values({
-      id: crypto.randomUUID(), entity_type: 'category', entity_id: secondCatId,
-      locale: 'en', name: 'Second Category', description: null, slug: 'books', label: null,
+      id: crypto.randomUUID(),
+      entity_type: 'category',
+      entity_id: secondCatId,
+      locale: 'en',
+      name: 'Second Category',
+      description: null,
+      slug: 'books',
+      label: null,
     });
     // Books category's en slug 'books' now collides with second category's en slug 'books'.
     const collisions = await findSlugCollisions(db, 'category', f.categoryBooksId, ['en', 'ro']);
@@ -44,14 +62,29 @@ test('findSlugCollisions works for products', async () => {
     // Insert a second product with the same en slug 'programming-book'.
     const secondProdId = crypto.randomUUID();
     await db.insert(products).values({
-      id: secondProdId, sku: 'BOOK-002', type: 'physical', has_variants: false,
-      vat_rate: 0.05, stock: 10, category_id: f.categoryBooksId, active: true,
-      name: 'Second Book', description: null, slug: 'second-book',
-      created_at: new Date(), updated_at: new Date(),
+      id: secondProdId,
+      sku: 'BOOK-002',
+      type: 'physical',
+      has_variants: false,
+      vat_rate: 0.05,
+      stock: 10,
+      category_id: f.categoryBooksId,
+      active: true,
+      name: 'Second Book',
+      description: null,
+      slug: 'second-book',
+      created_at: new Date(),
+      updated_at: new Date(),
     });
     await db.insert(harnessTranslations).values({
-      id: crypto.randomUUID(), entity_type: 'product', entity_id: secondProdId,
-      locale: 'en', name: 'Duplicate', description: null, slug: 'programming-book', label: null,
+      id: crypto.randomUUID(),
+      entity_type: 'product',
+      entity_id: secondProdId,
+      locale: 'en',
+      name: 'Duplicate',
+      description: null,
+      slug: 'programming-book',
+      label: null,
     });
     // The simple product's en slug 'programming-book' now collides.
     const collisions = await findSlugCollisions(db, 'product', f.simpleProductId, ['en', 'ro']);
@@ -81,17 +114,35 @@ test('findSlugCollisions returns multiple locales when collisions exist in more 
     // Insert a second category with the same en slug 'books'.
     const secondCatId = crypto.randomUUID();
     await db.insert(categories).values({
-      id: secondCatId, parent_id: null, name: 'Second Cat', description: null,
-      slug: 'second-cat', sort_order: 99, created_at: null, updated_at: null,
+      id: secondCatId,
+      parent_id: null,
+      name: 'Second Cat',
+      description: null,
+      slug: 'second-cat',
+      sort_order: 99,
+      created_at: null,
+      updated_at: null,
     });
     await db.insert(harnessTranslations).values([
       {
-        id: crypto.randomUUID(), entity_type: 'category', entity_id: secondCatId,
-        locale: 'en', name: 'Second Category EN', description: null, slug: 'books', label: null,
+        id: crypto.randomUUID(),
+        entity_type: 'category',
+        entity_id: secondCatId,
+        locale: 'en',
+        name: 'Second Category EN',
+        description: null,
+        slug: 'books',
+        label: null,
       },
       {
-        id: crypto.randomUUID(), entity_type: 'category', entity_id: secondCatId,
-        locale: 'ro', name: 'Second Category RO', description: null, slug: 'carti', label: null,
+        id: crypto.randomUUID(),
+        entity_type: 'category',
+        entity_id: secondCatId,
+        locale: 'ro',
+        name: 'Second Category RO',
+        description: null,
+        slug: 'carti',
+        label: null,
       },
     ]);
     // Books category now collides in both en ('books') and ro ('carti').

@@ -30,8 +30,14 @@ test('seed inserts at least 2 products', () => {
 
 test('seed inserts product prices in both currencies', () => {
   assert.ok(contents.includes('product_prices'), 'seed should reference product_prices');
-  assert.ok(contents.includes("'RON'") || contents.includes('"RON"'), 'seed should have RON prices');
-  assert.ok(contents.includes("'EUR'") || contents.includes('"EUR"'), 'seed should have EUR prices');
+  assert.ok(
+    contents.includes("'RON'") || contents.includes('"RON"'),
+    'seed should have RON prices'
+  );
+  assert.ok(
+    contents.includes("'EUR'") || contents.includes('"EUR"'),
+    'seed should have EUR prices'
+  );
 });
 
 test('seed prices: simple product priced at product level, variant product priced at variant level', () => {
@@ -55,7 +61,16 @@ test('seed prices: simple product priced at product level, variant product price
 test('seed inserts at least one product with variants and option values', () => {
   assert.ok(contents.includes('product_variants'), 'seed should reference product_variants');
   assert.ok(contents.includes('product_attributes'), 'seed should reference product_attributes');
-  assert.ok(contents.includes('product_attribute_options'), 'seed should reference product_attribute_options');
-  assert.ok(contents.includes('product_attribute_assignments'), 'seed should reference product_attribute_assignments');
-  assert.ok(contents.includes('product_attribute_values'), 'seed should reference product_attribute_values');
+  assert.ok(
+    contents.includes('product_attribute_options'),
+    'seed should reference product_attribute_options'
+  );
+  assert.ok(
+    contents.includes('product_attribute_assignments'),
+    'seed should reference product_attribute_assignments'
+  );
+  assert.ok(
+    contents.includes('product_attribute_values'),
+    'seed should reference product_attribute_values'
+  );
 });

@@ -42,7 +42,7 @@ test('listCategories with search filters by name (case-insensitive)', async () =
 
     // Search for "elec" should match Electronics and Electrical Parts, but not Clothing
     const results = await listCategories(db, 'ro', { search: 'elec' });
-    const names = results.map(c => c.name);
+    const names = results.map((c) => c.name);
 
     assert.ok(names.includes('Electronics'), 'should include Electronics');
     assert.ok(names.includes('Electrical Parts'), 'should include Electrical Parts');

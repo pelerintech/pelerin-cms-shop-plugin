@@ -12,6 +12,32 @@ The CMS repo lives at `../pelerin_cms/`. The plugin repo is `../ecomm_plugin/` (
 
 ---
 
+## 1a. Local Development Workflow
+
+After every change to the plugin source, run these commands in order. All must exit cleanly:
+
+```bash
+npm run format
+npm run lint
+npm test
+```
+
+Before submitting a pull request, also run:
+
+```bash
+npm run type-check
+```
+
+### CI pipeline overview
+
+The GitHub Actions workflow (`.github/workflows/ci.yml`) runs these checks on every push and pull request:
+
+- **Quality** (gate — must pass): prettier format check, eslint lint, gitleaks security scan (allow_failure), npm audit (allow_failure)
+- **Type-check** (allow_failure): `tsc --noEmit` — informative only, does not block the pipeline
+- **Test** (gate — must pass, depends on Quality): full test suite (Tiers 1–3) with coverage reporting uploaded as an artifact
+
+---
+
 ## 2. How Pelerin plugins work
 
 The CMS discovers plugins via `pelerin.config.mjs` (gitignored, user-managed). Example entry for **git-based** install:
@@ -36,6 +62,7 @@ npm run dev               # Astro loads the plugin
 ```
 
 The CMS integration reads `pelerin.manifest.json` at plugin root and wires up:
+
 - **Database tables** via `astro:db:setup` hook (`extendDb` with `dbConfig` + optional `dbSeed`)
 - **Routes** (public pages, admin pages, API endpoints) via `astro:config:setup` hook (`injectRoute`)
 - **Admin navigation** items rendered in the CMS admin sidebar
@@ -52,22 +79,17 @@ Every plugin **must** have this file at its root. It is the contract the CMS rea
   "version": "1.0.0",
   "dbConfig": "./src/db/config.ts",
   "dbSeed": "./src/db/seed.ts",
-  "publicPages": [
-    { "pattern": "/shop", "entrypoint": "./src/pages/shop/index.astro" }
-  ],
+  "publicPages": [{ "pattern": "/shop", "entrypoint": "./src/pages/shop/index.astro" }],
   "adminPages": [
     { "pattern": "/admin/plugins/shop", "entrypoint": "./src/pages/admin/index.astro" }
   ],
-  "apiEndpoints": [
-    { "pattern": "/api/plugins/shop/orders", "entrypoint": "./src/api/orders.ts" }
-  ],
-  "navItems": [
-    { "label": "Shop", "href": "/admin/plugins/shop", "icon": "shopping-cart" }
-  ]
+  "apiEndpoints": [{ "pattern": "/api/plugins/shop/orders", "entrypoint": "./src/api/orders.ts" }],
+  "navItems": [{ "label": "Shop", "href": "/admin/plugins/shop", "icon": "shopping-cart" }]
 }
 ```
 
 **Rules:**
+
 - `name` must match the directory name and the `name` in `pelerin.config.mjs`
 - `dbConfig` is required and points to an Astro DB `defineDb()` module
 - `dbSeed` is optional; runs on every local dev startup (clears + re-seeds — see dummy pattern)
@@ -97,6 +119,7 @@ All accessor functions in `src/lib/data/` import table objects from `src/db/sche
 ### seed.ts
 
 Follow the **dummy plugin seed pattern**:
+
 - Run on every local dev start
 - **Always clear plugin tables first** (FK order — child tables before parents)
 - Re-insert fixture data so the dev environment is predictable
@@ -172,6 +195,7 @@ Return JSON with `{ success, data }` or `{ success: false, error }` shape for co
 **All database access must live in `src/lib/data/` as pure functions that receive `db` as an injected parameter.** API endpoints, pages, and lib modules must NOT write queries inline — they call accessor functions and pass the `db` handle.
 
 **How `db` is obtained at the call site:**
+
 - **Admin pages**: `sdk.db` from `createPluginContext()` (see §5)
 - **API endpoints**: injected `db` parameter via `runMethod({ db, sdk, ctx })` pattern (see §2)
 - **Providers**: injected `db` parameter (see payment provider interface)
@@ -195,6 +219,7 @@ const data = await listAttributes(sdk.db, 'ro');
 ```
 
 **Rules:**
+
 - Table objects are imported from `src/db/schema.ts` (pure Drizzle). This is the **sole schema definition** — no `astro:db` imports outside `seed.ts`.
 - Use `inArray()` for IN clauses — NEVER `sql.raw()` with positional placeholders (produces `near "?": syntax error` in this Drizzle/libsql version).
 - **No file** other than `seed.ts` may import from `astro:db`.
@@ -218,13 +243,13 @@ const sdk = createPluginContext();
 
 ### Available APIs
 
-| Namespace | Methods | Purpose |
-|-----------|---------|---------|
-| `sdk.auth` | `getUser(req)`, `requireAdmin(req)`, `withAuth(req, handler)` | Authentication & authorization |
-| `sdk.collections` | `listCollections()`, `listItems(coll, opts)`, `getItem(coll, id)`, `getItemById(id)`, `createItem(coll, data)`, `updateItem(coll, id, data)`, `deleteItem(coll, id)`, `findByName(coll, name)` | CMS collections CRUD |
-| `sdk.db` | Drizzle `LibSQLDatabase` instance | Passed to accessor functions (never queried directly in pages) |
-| `sdk.storage` | `upload(file)`, `delete(path)`, `getUrl(path)` | File upload (local or S3) |
-| `sdk.webhooks` | `trigger(event, payload)` | Fire CMS webhooks |
+| Namespace         | Methods                                                                                                                                                                                        | Purpose                                                        |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `sdk.auth`        | `getUser(req)`, `requireAdmin(req)`, `withAuth(req, handler)`                                                                                                                                  | Authentication & authorization                                 |
+| `sdk.collections` | `listCollections()`, `listItems(coll, opts)`, `getItem(coll, id)`, `getItemById(id)`, `createItem(coll, data)`, `updateItem(coll, id, data)`, `deleteItem(coll, id)`, `findByName(coll, name)` | CMS collections CRUD                                           |
+| `sdk.db`          | Drizzle `LibSQLDatabase` instance                                                                                                                                                              | Passed to accessor functions (never queried directly in pages) |
+| `sdk.storage`     | `upload(file)`, `delete(path)`, `getUrl(path)`                                                                                                                                                 | File upload (local or S3)                                      |
+| `sdk.webhooks`    | `trigger(event, payload)`                                                                                                                                                                      | Fire CMS webhooks                                              |
 
 ### Source of truth
 
@@ -319,17 +344,17 @@ All major architectural decisions have been resolved. See `reespec/decisions.md`
 
 ## 12. CMS references (read before implementing)
 
-| What | Where |
-|------|-------|
-| Plugin manifest validation | `../pelerin_cms/src/lib/plugins/manifest.ts` |
-| Plugin types | `../pelerin_cms/src/lib/plugins/types.ts` |
-| Plugin discovery (config parsing) | `../pelerin_cms/src/lib/plugins/discovery.ts` |
-| SDK (all methods) | `../pelerin_cms/src/lib/plugins/sdk/index.ts` |
+| What                                | Where                                                |
+| ----------------------------------- | ---------------------------------------------------- |
+| Plugin manifest validation          | `../pelerin_cms/src/lib/plugins/manifest.ts`         |
+| Plugin types                        | `../pelerin_cms/src/lib/plugins/types.ts`            |
+| Plugin discovery (config parsing)   | `../pelerin_cms/src/lib/plugins/discovery.ts`        |
+| SDK (all methods)                   | `../pelerin_cms/src/lib/plugins/sdk/index.ts`        |
 | Integration (how plugins are wired) | `../pelerin_cms/src/integrations/pelerin-plugins.ts` |
-| Install script | `../pelerin_cms/scripts/install-plugins.ts` |
-| Dummy plugin (reference) | `../pelerin_cms/dev-plugins/dummy/` |
-| CMS DB config | `../pelerin_cms/db/config.ts` |
-| CMS collections API | `../pelerin_cms/src/lib/plugins/sdk/collections.ts` |
+| Install script                      | `../pelerin_cms/scripts/install-plugins.ts`          |
+| Dummy plugin (reference)            | `../pelerin_cms/dev-plugins/dummy/`                  |
+| CMS DB config                       | `../pelerin_cms/db/config.ts`                        |
+| CMS collections API                 | `../pelerin_cms/src/lib/plugins/sdk/collections.ts`  |
 
 ---
 
@@ -353,12 +378,12 @@ The plugin has **four test tiers**, organized by what they exercise and what env
 
 ### Tier overview
 
-| Tier | Location | Runner | Needs CMS dev server? | What it catches |
-|------|----------|--------|-----------------------|-----------------|
-| 1. Data accessors | `tests/lib/data/*.test.ts` | `node --test` | No (real-SQLite harness) | SQL bugs, wrong rows, drift vs schema |
-| 2. API handlers | `tests/api/handlers/**/*.test.ts` | `node --test` | No (`{db, sdk, ctx}` injection) | handler logic, auth/validation/error-wrap |
-| 3. Client logic + page source | `tests/lib/*.test.ts`, `tests/pages/*.test.ts`, `tests/db/*.test.ts`, `tests/schemas/*.test.ts`, `tests/api/*.test.ts` | `node --test` | No | pure TS logic, schema parity, static UI structure, client-`<script>` syntax |
-| 4. E2E (browser) | `tests/e2e/*.spec.ts` | `npx playwright test` | **Yes** (`../pelerin_cms` on `:3000`) | runtime client `<script>` behavior, full user flows |
+| Tier                          | Location                                                                                                               | Runner                | Needs CMS dev server?                 | What it catches                                                             |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------- | ------------------------------------- | --------------------------------------------------------------------------- |
+| 1. Data accessors             | `tests/lib/data/*.test.ts`                                                                                             | `node --test`         | No (real-SQLite harness)              | SQL bugs, wrong rows, drift vs schema                                       |
+| 2. API handlers               | `tests/api/handlers/**/*.test.ts`                                                                                      | `node --test`         | No (`{db, sdk, ctx}` injection)       | handler logic, auth/validation/error-wrap                                   |
+| 3. Client logic + page source | `tests/lib/*.test.ts`, `tests/pages/*.test.ts`, `tests/db/*.test.ts`, `tests/schemas/*.test.ts`, `tests/api/*.test.ts` | `node --test`         | No                                    | pure TS logic, schema parity, static UI structure, client-`<script>` syntax |
+| 4. E2E (browser)              | `tests/e2e/*.spec.ts`                                                                                                  | `npx playwright test` | **Yes** (`../pelerin_cms` on `:3000`) | runtime client `<script>` behavior, full user flows                         |
 
 Tiers 1–3 are aggregated by **`tests/full-suite.test.ts`** (see below). Tier 4 is **never** included in `full-suite` and **never** runs under `node --test` — it is the only tier that boots a browser and the CMS.
 
@@ -385,7 +410,7 @@ node --test tests/api/handlers/products/id/variants/variantId.test.ts
 - **Pure client logic** (e.g. `tests/lib/variant-matrix.test.ts`) — the Cartesian-product / SKU-generation / exists-diff logic extracted from inline `<script>` into `src/lib/variant-matrix.ts`, tested as plain TS under `node --test`. No DOM, no browser.
 - **Client `<script>` syntax guard** (`tests/pages/admin-products-script-syntax.test.ts`) — extracts the client `<script>` from an admin `.astro` page and transforms it with **esbuild** (a transitive Vite/Astro dep at `node_modules/esbuild`) to catch parse-time errors (duplicate `const`, unbalanced braces) that `readFileSync + assert.match` page tests cannot detect. **When you add or edit a client `<script>` in any admin `.astro` page, add an analogous esbuild-syntax guard** rather than relying on source-string regex.
 - **Schema integrity** (`tests/db/`) — `src/db/schema.ts` (pure Drizzle) is the sole schema definition; `tests/db/schema-integrity.test.ts` verifies all tables are creatable and columns match expectations. Seed files can't be imported under bare Node (`astro:db`), so seed tests assert on the source text.
-- **Static UI structure** (`tests/pages/*.test.ts`) — honest checks of imports, element ids, CSS classes, breadcrumbs. These are NOT behavioral tests; runtime UI behavior is covered by Tier 4 (Playwright). Never treat a passing `readFileSync + assert.match` test as proof a page *works* — it only proves the source contains a string.
+- **Static UI structure** (`tests/pages/*.test.ts`) — honest checks of imports, element ids, CSS classes, breadcrumbs. These are NOT behavioral tests; runtime UI behavior is covered by Tier 4 (Playwright). Never treat a passing `readFileSync + assert.match` test as proof a page _works_ — it only proves the source contains a string.
 
 ```bash
 node --test tests/lib/variant-matrix.test.ts
@@ -401,6 +426,7 @@ node --test tests/full-suite.test.ts        # all unit/accessor/handler/syntax t
 ```
 
 **Two landmines preserved by this wrapper (see `decisions.md`):**
+
 1. **Bare param names in test paths** — dynamic-route test files live at `tests/api/handlers/products/id.test.ts`, NOT `[id].test.ts`. `node --test` treats `[`/`]` as a glob character class and **silently skips** such files (0 tests, no failure). `tests/api/no-bracket-paths.test.ts` enforces this. Source files legitimately keep `[id]` for Astro routing; test paths mirror the source **minus brackets**.
 2. **Nested `node --test` env** — the wrapper strips `NODE_TEST_CONTEXT` / `NODE_TEST_WORKER_ID` from the child env. If inherited, the child runs as a nested worker (0 tests, exit 0 → false green). Any `node --test` process that spawns another `node --test` MUST strip these vars.
 
@@ -411,11 +437,13 @@ node --test tests/full-suite.test.ts        # all unit/accessor/handler/syntax t
 **Configuration:** `playwright.config.ts` at the plugin root. `webServer.command = 'npm run dev'`, `cwd: '../pelerin_cms'`, `url: 'http://localhost:3000'`, `reuseExistingServer: true`. Port **3000 is mandatory** — the CMS `.env` sets `PORT=3000` and `BETTER_AUTH_URL=http://localhost:3000`; better-auth's cookie/redirect flow is bound to that URL, so running on any other port breaks login.
 
 **Setup (first run only):**
+
 ```bash
 npx playwright install chromium
 ```
 
 **Run:**
+
 ```bash
 # Option A — let Playwright start the CMS dev server itself:
 npx playwright test

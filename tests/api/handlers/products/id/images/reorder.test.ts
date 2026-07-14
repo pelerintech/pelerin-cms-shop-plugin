@@ -7,12 +7,9 @@ import { makeFakeSdk, makeCtx } from '../../../../helpers.ts';
 import { createProductImage } from '../../../../../../src/lib/data/products.ts';
 
 ensureLoader();
-const { runPut } = await import(
-  '../../../../../../src/api/shop/products/[id]/images/reorder.ts'
-);
+const { runPut } = await import('../../../../../../src/api/shop/products/[id]/images/reorder.ts');
 
-const URL = (id: string) =>
-  `http://localhost/api/plugins/shop/products/${id}/images/reorder`;
+const URL = (id: string) => `http://localhost/api/plugins/shop/products/${id}/images/reorder`;
 
 test('PUT auth-fail → 401', () =>
   matrix.adminAuthFail({
@@ -45,8 +42,20 @@ test('PUT happy-path → 200', async () => {
   const { db, cleanup } = await createTestDb();
   try {
     const f = await seedMinimal(db);
-    const a = await createProductImage(db, { product_id: f.simpleProductId, storage_key: 'products/p1/a.png', mime: 'image/png', size: 0, sort_order: 0 });
-    const b2 = await createProductImage(db, { product_id: f.simpleProductId, storage_key: 'products/p1/b.png', mime: 'image/png', size: 0, sort_order: 1 });
+    const a = await createProductImage(db, {
+      product_id: f.simpleProductId,
+      storage_key: 'products/p1/a.png',
+      mime: 'image/png',
+      size: 0,
+      sort_order: 0,
+    });
+    const b2 = await createProductImage(db, {
+      product_id: f.simpleProductId,
+      storage_key: 'products/p1/b.png',
+      mime: 'image/png',
+      size: 0,
+      sort_order: 1,
+    });
     const sdk = makeFakeSdk();
     const ctx = makeCtx({
       url: URL(f.simpleProductId),

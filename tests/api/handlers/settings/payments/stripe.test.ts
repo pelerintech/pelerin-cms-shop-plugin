@@ -15,14 +15,11 @@ import { shop_settings } from '../../../../db/harness.ts';
 process.env.BETTER_AUTH_SECRET = 'test-secret-for-stripe-settings';
 
 ensureLoader();
-const { runGet, runPut } = await import(
-  '../../../../../src/api/shop/settings/payments/stripe.ts'
-);
+const { runGet, runPut } = await import('../../../../../src/api/shop/settings/payments/stripe.ts');
 
 const base = 'http://localhost/api/plugins/shop/settings/payments/stripe';
 
-test('GET auth-fail → 401', () =>
-  matrix.adminAuthFail({ run: runGet, url: base }));
+test('GET auth-fail → 401', () => matrix.adminAuthFail({ run: runGet, url: base }));
 
 test('GET happy-path → 200, data has stripe keys', () =>
   matrix.happyPath({
@@ -40,14 +37,10 @@ test('GET happy-path → 200, data has stripe keys', () =>
 test('GET error-wrap → rejects on db error (Pattern A)', async () => {
   const sdk = makeFakeSdk();
   const ctx = makeCtx({ url: base });
-  await assert.rejects(
-    () => runGet({ db: poisonDb(), sdk, ctx }),
-    /poison/,
-  );
+  await assert.rejects(() => runGet({ db: poisonDb(), sdk, ctx }), /poison/);
 });
 
-test('PUT auth-fail → 401', () =>
-  matrix.adminAuthFail({ run: runPut, url: base, body: {} }));
+test('PUT auth-fail → 401', () => matrix.adminAuthFail({ run: runPut, url: base, body: {} }));
 
 // stripe PUT has no Zod validation (raw body) → no validation-fail cell.
 
@@ -111,16 +104,16 @@ test('PUT validation-fail → 422 when stripe_webhook_secret is a number', async
   try {
     await seedMinimal(db);
     const sdk = makeFakeSdk();
-        const ctx = makeCtx({
-          url: base,
-          body: { stripe_webhook_secret: 999 },
-          method: 'PUT',
-        });
-        const res = await runPut({ db, sdk, ctx });
-        assert.equal(res.status, 422);
-        const b = await res.json();
-        assert.equal(b.success, false);
-        assert.ok(b.fields && 'stripe_webhook_secret' in b.fields);
+    const ctx = makeCtx({
+      url: base,
+      body: { stripe_webhook_secret: 999 },
+      method: 'PUT',
+    });
+    const res = await runPut({ db, sdk, ctx });
+    assert.equal(res.status, 422);
+    const b = await res.json();
+    assert.equal(b.success, false);
+    assert.ok(b.fields && 'stripe_webhook_secret' in b.fields);
   } finally {
     await cleanup();
   }
@@ -149,10 +142,7 @@ test('PUT happy-path → 200, settings written to shop_settings', async () => {
     const { eq } = await import('drizzle-orm');
     const keys = ['stripe_publishable_key', 'stripe_secret_key', 'stripe_webhook_secret'];
     for (const key of keys) {
-      const [row] = await db
-        .select()
-        .from(shop_settings)
-        .where(eq(shop_settings.key, key));
+      const [row] = await db.select().from(shop_settings).where(eq(shop_settings.key, key));
       assert.ok(row, `setting ${key} should exist after PUT`);
     }
   } finally {
@@ -167,8 +157,5 @@ test('PUT error-wrap → rejects on db error (Pattern A)', async () => {
     body: { stripe_publishable_key: 'pk' },
     method: 'PUT',
   });
-  await assert.rejects(
-    () => runPut({ db: poisonDb(), sdk, ctx }),
-    /poison/,
-  );
+  await assert.rejects(() => runPut({ db: poisonDb(), sdk, ctx }), /poison/);
 });

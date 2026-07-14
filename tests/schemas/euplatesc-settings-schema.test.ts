@@ -76,5 +76,9 @@ test('euplatesc_test_mode is not in the schema (removed)', () => {
   });
   assert.ok(result.success);
   // test_mode should not appear in the parsed data
-  assert.equal(result.data.euplatesc_test_mode, undefined, 'test_mode should not be in parsed output');
+  assert.equal(
+    result.data.euplatesc_test_mode,
+    undefined,
+    'test_mode should not be in parsed output'
+  );
 });

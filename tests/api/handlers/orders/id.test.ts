@@ -19,12 +19,22 @@ async function makeCartWithItem(db: any, f: any, cartId: string, productId: stri
   const now = new Date();
   const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   await insertFixture(db, 'carts', {
-    id: cartId, session_id: 'sess-' + cartId, user_id: null, applied_voucher_code: null,
-    applied_referral_code: null, converted_at: null, expires_at: expires,
-    created_at: now, updated_at: now,
+    id: cartId,
+    session_id: 'sess-' + cartId,
+    user_id: null,
+    applied_voucher_code: null,
+    applied_referral_code: null,
+    converted_at: null,
+    expires_at: expires,
+    created_at: now,
+    updated_at: now,
   });
   await insertFixture(db, 'cart_items', {
-    id: 'ci-' + cartId, cart_id: cartId, product_id: productId, variant_id: null, quantity: 1,
+    id: 'ci-' + cartId,
+    cart_id: cartId,
+    product_id: productId,
+    variant_id: null,
+    quantity: 1,
   });
   return cartId;
 }

@@ -7,7 +7,10 @@ import type { PaymentOrder, PaymentOptions } from '../../../../../providers/paym
 import { getOrderWithItems } from '../../../../../lib/data/orders';
 import type { HandlerDeps } from '../../../../../lib/handler-types';
 
-export const POST: APIRoute = (context) => { const sdk = createPluginContext(); return runPost({ db: sdk.db, sdk, ctx: context }); }
+export const POST: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runPost({ db: sdk.db, sdk, ctx: context });
+};
 
 export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
@@ -17,28 +20,35 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
 
     if (!provider) {
       return new Response(JSON.stringify({ success: false, error: 'provider is required' }), {
-        status: 422, headers: { 'Content-Type': 'application/json' },
+        status: 422,
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
     // Client must provide success_url and cancel_url — the plugin is domain-agnostic
     if (!success_url || !cancel_url) {
-      return new Response(JSON.stringify({ success: false, error: 'success_url and cancel_url are required' }), {
-        status: 422, headers: { 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ success: false, error: 'success_url and cancel_url are required' }),
+        {
+          status: 422,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const paymentProvider = getProvider(provider.toLowerCase());
     if (!paymentProvider) {
       return new Response(JSON.stringify({ success: false, error: 'Unknown payment provider' }), {
-        status: 422, headers: { 'Content-Type': 'application/json' },
+        status: 422,
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
     const result = await getOrderWithItems(db, orderId);
     if (!result) {
       return new Response(JSON.stringify({ success: false, error: 'Order not found' }), {
-        status: 404, headers: { 'Content-Type': 'application/json' },
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -64,11 +74,13 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     const paymentResult = await paymentProvider.initiatePayment(db, paymentOrder, paymentOptions);
 
     return new Response(JSON.stringify({ success: true, data: paymentResult }), {
-      status: 200, headers: { 'Content-Type': 'application/json' },
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
     });
   } catch (err: any) {
     return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: 500, headers: { 'Content-Type': 'application/json' },
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 }

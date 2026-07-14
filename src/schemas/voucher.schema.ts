@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { VoucherType } from './enums.ts'
+import { VoucherType } from './enums.ts';
 
 const VoucherBaseSchema = z.object({
   code: z.string().min(1),
@@ -18,27 +18,27 @@ const VoucherBaseSchema = z.object({
  * Schema for creating a new voucher
  */
 export const CreateVoucherSchema = VoucherBaseSchema.superRefine((data, ctx) => {
-    if (data.type === 'fixed_amount' || data.type === 'percentage') {
-      if (data.value === null || data.value === undefined) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `value is required for ${data.type} vouchers`,
-          path: ['value'],
-        });
-      }
+  if (data.type === 'fixed_amount' || data.type === 'percentage') {
+    if (data.value === null || data.value === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `value is required for ${data.type} vouchers`,
+        path: ['value'],
+      });
     }
-    if (data.valid_from && data.valid_until) {
-      const from = new Date(data.valid_from);
-      const until = new Date(data.valid_until);
-      if (until <= from) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'valid_until must be after valid_from',
-          path: ['valid_until'],
-        });
-      }
+  }
+  if (data.valid_from && data.valid_until) {
+    const from = new Date(data.valid_from);
+    const until = new Date(data.valid_until);
+    if (until <= from) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'valid_until must be after valid_from',
+        path: ['valid_until'],
+      });
     }
-  });
+  }
+});
 
 export type CreateVoucherInput = z.infer<typeof CreateVoucherSchema>;
 

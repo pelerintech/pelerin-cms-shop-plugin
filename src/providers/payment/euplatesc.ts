@@ -6,7 +6,13 @@ import { decryptIfNeeded } from '../../lib/crypto';
 import { transitionOrder } from '../../lib/order-transitions';
 import { getSetting, upsertSetting } from '../../lib/data/settings';
 import { registerProvider } from './registry';
-import { computeEuplatescHash, buildRequestFields, buildResponseFields, buildRefundFields, buildCheckMidFields } from '../../lib/euplatesc-mac';
+import {
+  computeEuplatescHash,
+  buildRequestFields,
+  buildResponseFields,
+  buildRefundFields,
+  buildCheckMidFields,
+} from '../../lib/euplatesc-mac';
 import type {
   PaymentProvider,
   PaymentOrder,
@@ -21,13 +27,15 @@ const EUPLATESC_ENDPOINT = 'https://secure.euplatesc.ro/tdsprocess/tranzactd.php
 async function initiatePayment(
   db: LibSQLDatabase,
   order: PaymentOrder,
-  options: PaymentOptions,
+  options: PaymentOptions
 ): Promise<PaymentInitResult> {
   const midRaw = await getSetting(db, 'euplatesc_merchant_id');
   const secretKeyRaw = await getSetting(db, 'euplatesc_secret_key');
 
   if (!midRaw || !secretKeyRaw) {
-    throw new Error('euPlatesc is not configured. Set euplatesc_merchant_id and euplatesc_secret_key in shop settings.');
+    throw new Error(
+      'euPlatesc is not configured. Set euplatesc_merchant_id and euplatesc_secret_key in shop settings.'
+    );
   }
 
   const mid = decryptIfNeeded(midRaw);
@@ -37,18 +45,24 @@ async function initiatePayment(
   const curr = order.currency;
   const invoiceId = order.order_number;
   const orderDesc = `Order ${order.order_number}`;
-  const timestamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
+  const timestamp = new Date()
+    .toISOString()
+    .replace(/[-:T.]/g, '')
+    .slice(0, 14);
   const nonce = crypto.randomBytes(16).toString('hex');
 
-  const fpHash = computeEuplatescHash(buildRequestFields({
-    amount,
-    curr,
-    invoice_id: invoiceId,
-    order_desc: orderDesc,
-    merch_id: mid,
-    timestamp,
-    nonce,
-  }), secretKey).toUpperCase();
+  const fpHash = computeEuplatescHash(
+    buildRequestFields({
+      amount,
+      curr,
+      invoice_id: invoiceId,
+      order_desc: orderDesc,
+      merch_id: mid,
+      timestamp,
+      nonce,
+    }),
+    secretKey
+  ).toUpperCase();
 
   // Build redirect URL with query parameters
   const params = new URLSearchParams({
@@ -148,23 +162,27 @@ async function handleWebhook(db: LibSQLDatabase, request: Request): Promise<Webh
   // Verify HMAC using response field set
   const expectedHash = computeEuplatescHash(
     buildResponseFields(responseParams),
-    secretKey,
+    secretKey
   ).toUpperCase();
 
   const macValid = receivedHash.toUpperCase() === expectedHash;
 
   // Handle TEST- prefix (diagnostic test payment)
   if (invoiceId.startsWith('TEST-')) {
-    await upsertSetting(db, 'euplatesc_test_result', JSON.stringify({
-      timestamp: new Date().toISOString(),
-      invoice_id: invoiceId,
-      action,
-      message,
-      mac_valid: macValid,
-      ep_id: epId,
-      amount: responseParams.amount,
-      curr: responseParams.curr,
-    }));
+    await upsertSetting(
+      db,
+      'euplatesc_test_result',
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        invoice_id: invoiceId,
+        action,
+        message,
+        mac_valid: macValid,
+        ep_id: epId,
+        amount: responseParams.amount,
+        curr: responseParams.curr,
+      })
+    );
     return { order_id: '', status: 'pending' };
   }
 
@@ -228,7 +246,7 @@ async function refund(
   db: LibSQLDatabase,
   order: PaymentOrder & { transaction_id: string | null },
   amount: number,
-  reason: string,
+  reason: string
 ): Promise<RefundResult> {
   const ukey = await getSetting(db, 'euplatesc_ukey');
   const uapiKey = await getSetting(db, 'euplatesc_uapi_key');
@@ -242,7 +260,10 @@ async function refund(
   }
 
   const decryptedUapiKey = decryptIfNeeded(uapiKey);
-  const timestamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
+  const timestamp = new Date()
+    .toISOString()
+    .replace(/[-:T.]/g, '')
+    .slice(0, 14);
   const nonce = crypto.randomBytes(16).toString('hex');
   const amountRon = (amount / 100).toFixed(2); // bani → RON
 

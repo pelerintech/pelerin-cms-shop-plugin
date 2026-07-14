@@ -4,7 +4,10 @@ import { getOrCreateCart } from '../../../../lib/cart-session';
 import { clearCart } from '../../../../lib/data/cart';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 
-export const DELETE: APIRoute = (context) => { const sdk = createPluginContext(); return runDelete({ db: sdk.db, sdk, ctx: context }); }
+export const DELETE: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runDelete({ db: sdk.db, sdk, ctx: context });
+};
 
 export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
@@ -14,12 +17,17 @@ export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (setCookie) headers['Set-Cookie'] = setCookie;
 
-    return new Response(JSON.stringify({ success: true, data: { cart_id: cart.id, cleared: true } }), {
-      status: 200, headers,
-    });
+    return new Response(
+      JSON.stringify({ success: true, data: { cart_id: cart.id, cleared: true } }),
+      {
+        status: 200,
+        headers,
+      }
+    );
   } catch (err: any) {
     return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: 500, headers: { 'Content-Type': 'application/json' },
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 }

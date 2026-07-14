@@ -15,11 +15,13 @@ const shopConfig = await getShopConfig(sdk.db);
 ---
 
 <AdminLayout title="New Order" currentPath="/admin/plugins/shop/orders" user={user}>
-  <Breadcrumbs items={[
-    { label: 'Shop', href: '/admin/plugins/shop' },
-    { label: 'Orders', href: '/admin/plugins/shop/orders' },
-    { label: 'New Order' },
-  ]} />
+  <Breadcrumbs
+    items={[
+      { label: 'Shop', href: '/admin/plugins/shop' },
+      { label: 'Orders', href: '/admin/plugins/shop/orders' },
+      { label: 'New Order' },
+    ]}
+  />
 
   <div class="flex items-center justify-between col-span-12 mb-4">
     <div>
@@ -32,26 +34,43 @@ const shopConfig = await getShopConfig(sdk.db);
   <div class="card bg-base-100 shadow-lg col-span-12">
     <div class="card-body">
       <form id="order-form" class="space-y-6" data-default-currency={shopConfig.defaultCurrency}>
-
         <!-- Section 1: Customer -->
         <div class="card bg-base-200/50">
           <div class="card-body pb-4">
-            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Customer</h4>
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">
+              Customer
+            </h4>
             <div class="space-y-4">
-              <SelectField name="customer_type" label="Type" required options={[
-                { value: 'individual', label: 'Individual' },
-                { value: 'company', label: 'Company' },
-              ]} value="individual" />
+              <SelectField
+                name="customer_type"
+                label="Type"
+                required
+                options={[
+                  { value: 'individual', label: 'Individual' },
+                  { value: 'company', label: 'Company' },
+                ]}
+                value="individual"
+              />
               <div class="grid grid-cols-2 gap-4">
                 <TextField name="customer_name" label="Name" required placeholder="Customer name" />
-                <TextField name="customer_email" label="Email" type="email" required placeholder="Email address" />
+                <TextField
+                  name="customer_email"
+                  label="Email"
+                  type="email"
+                  required
+                  placeholder="Email address"
+                />
               </div>
               <TextField name="customer_phone" label="Phone" placeholder="Phone number" />
 
               <!-- Company fields (conditionally shown) -->
               <div id="company-fields" class="hidden space-y-4">
                 <TextField name="billing_company" label="Company Name" placeholder="Company name" />
-                <TextField name="billing_vat_number" label="VAT Number" placeholder="e.g. RO12345678" />
+                <TextField
+                  name="billing_vat_number"
+                  label="VAT Number"
+                  placeholder="e.g. RO12345678"
+                />
               </div>
             </div>
           </div>
@@ -60,67 +79,146 @@ const shopConfig = await getShopConfig(sdk.db);
         <!-- Section 2: Items -->
         <div class="card bg-base-200/50">
           <div class="card-body pb-4">
-            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Items</h4>
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">
+              Items
+            </h4>
 
             <!-- Items list -->
             <div id="items-list" class="space-y-2 mb-4"></div>
 
             <!-- Add item button -->
-            <button type="button" class="btn btn-outline btn-sm" id="open-item-modal">+ Add Product</button>
+            <button type="button" class="btn btn-outline btn-sm" id="open-item-modal"
+              >+ Add Product</button
+            >
           </div>
         </div>
 
         <!-- Section 3: Billing & Shipping -->
         <div class="card bg-base-200/50">
           <div class="card-body pb-4">
-            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Billing & Shipping</h4>
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">
+              Billing & Shipping
+            </h4>
             <div class="space-y-4">
-
               <!-- Shipping type & method -->
               <div class="grid grid-cols-2 gap-4">
-                <SelectField name="shipping_type" label="Shipping Type" required options={[
-                  { value: 'physical', label: 'Physical' },
-                  { value: 'digital', label: 'Digital' },
-                  { value: 'pickup', label: 'Pickup' },
-                ]} value="physical" />
-                <TextField name="shipping_method" label="Shipping Method" placeholder="Courier name" />
+                <SelectField
+                  name="shipping_type"
+                  label="Shipping Type"
+                  required
+                  options={[
+                    { value: 'physical', label: 'Physical' },
+                    { value: 'digital', label: 'Digital' },
+                    { value: 'pickup', label: 'Pickup' },
+                  ]}
+                  value="physical"
+                />
+                <TextField
+                  name="shipping_method"
+                  label="Shipping Method"
+                  placeholder="Courier name"
+                />
               </div>
               <div class="grid grid-cols-2 gap-4">
-                <TextField name="shipping_cost" label="Shipping Cost" type="number" step="0.01" value="0" placeholder="0.00" />
-                <TextField name="discount_amount" label="Discount" type="number" step="0.01" value="0" placeholder="0.00" />
+                <TextField
+                  name="shipping_cost"
+                  label="Shipping Cost"
+                  type="number"
+                  step="0.01"
+                  value="0"
+                  placeholder="0.00"
+                />
+                <TextField
+                  name="discount_amount"
+                  label="Discount"
+                  type="number"
+                  step="0.01"
+                  value="0"
+                  placeholder="0.00"
+                />
               </div>
 
               <!-- Billing Address -->
               <h5 class="font-medium text-sm mt-2">Billing Address</h5>
               <div class="grid grid-cols-2 gap-4">
-                <TextField name="billing_first_name" label="First Name" required placeholder="First name" />
-                <TextField name="billing_last_name" label="Last Name" required placeholder="Last name" />
+                <TextField
+                  name="billing_first_name"
+                  label="First Name"
+                  required
+                  placeholder="First name"
+                />
+                <TextField
+                  name="billing_last_name"
+                  label="Last Name"
+                  required
+                  placeholder="Last name"
+                />
               </div>
-              <TextField name="billing_address" label="Address" required placeholder="Street name and number" />
-              <TextField name="billing_address_extra" label="Address Details" placeholder="Apartment, floor, building, etc." />
+              <TextField
+                name="billing_address"
+                label="Address"
+                required
+                placeholder="Street name and number"
+              />
+              <TextField
+                name="billing_address_extra"
+                label="Address Details"
+                placeholder="Apartment, floor, building, etc."
+              />
               <div class="grid grid-cols-3 gap-4">
                 <TextField name="billing_city" label="City" required placeholder="City" />
                 <TextField name="billing_county" label="County" placeholder="County" />
-                <TextField name="billing_postal_code" label="Postal Code" required placeholder="Postal code" />
+                <TextField
+                  name="billing_postal_code"
+                  label="Postal Code"
+                  required
+                  placeholder="Postal code"
+                />
               </div>
-              <TextField name="billing_country" label="Country" value="Romania" required placeholder="Country" />
+              <TextField
+                name="billing_country"
+                label="Country"
+                value="Romania"
+                required
+                placeholder="Country"
+              />
 
               <!-- Shipping address toggle -->
-              <CheckboxField name="shipping_same_as_billing" label="Shipping same as billing" checked />
+              <CheckboxField
+                name="shipping_same_as_billing"
+                label="Shipping same as billing"
+                checked
+              />
 
               <!-- Shipping address (conditionally shown) -->
               <div id="ship-fields" class="hidden space-y-4">
                 <h5 class="font-medium text-sm">Shipping Address</h5>
                 <div class="grid grid-cols-2 gap-4">
-                  <TextField name="shipping_first_name" label="First Name" placeholder="First name" />
+                  <TextField
+                    name="shipping_first_name"
+                    label="First Name"
+                    placeholder="First name"
+                  />
                   <TextField name="shipping_last_name" label="Last Name" placeholder="Last name" />
                 </div>
-                <TextField name="shipping_address" label="Address" placeholder="Street name and number" />
-                <TextField name="shipping_address_extra" label="Address Details" placeholder="Apartment, floor, building, etc." />
+                <TextField
+                  name="shipping_address"
+                  label="Address"
+                  placeholder="Street name and number"
+                />
+                <TextField
+                  name="shipping_address_extra"
+                  label="Address Details"
+                  placeholder="Apartment, floor, building, etc."
+                />
                 <div class="grid grid-cols-3 gap-4">
                   <TextField name="shipping_city" label="City" placeholder="City" />
                   <TextField name="shipping_county" label="County" placeholder="County" />
-                  <TextField name="shipping_postal_code" label="Postal Code" placeholder="Postal code" />
+                  <TextField
+                    name="shipping_postal_code"
+                    label="Postal Code"
+                    placeholder="Postal code"
+                  />
                 </div>
                 <TextField name="shipping_country" label="Country" placeholder="Country" />
               </div>
@@ -131,7 +229,9 @@ const shopConfig = await getShopConfig(sdk.db);
         <!-- Section 4: Summary -->
         <div class="card bg-base-200/50">
           <div class="card-body pb-4">
-            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Summary</h4>
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">
+              Summary
+            </h4>
             <div id="summary-content" class="space-y-2 text-sm">
               <p class="text-base-content/60">Add items to see the order summary.</p>
             </div>
@@ -158,7 +258,12 @@ const shopConfig = await getShopConfig(sdk.db);
       <!-- Search -->
       <div class="form-control mb-4">
         <label class="label"><span class="label-text">Search by name, SKU, or ID</span></label>
-        <input type="text" id="product-search" class="input input-bordered w-full" placeholder="Type to search..." />
+        <input
+          type="text"
+          id="product-search"
+          class="input input-bordered w-full"
+          placeholder="Type to search..."
+        />
       </div>
 
       <!-- Search results -->
@@ -197,8 +302,14 @@ const shopConfig = await getShopConfig(sdk.db);
       <div id="item-modal-error" class="text-error text-sm hidden mt-2"></div>
 
       <div class="flex justify-end gap-2 pt-4 border-t border-base-200">
-        <button type="button" class="btn btn-ghost" onclick="document.getElementById('item-modal').close()">Cancel</button>
-        <button type="button" class="btn btn-primary" id="confirm-add-item" disabled>Add to Order</button>
+        <button
+          type="button"
+          class="btn btn-ghost"
+          onclick="document.getElementById('item-modal').close()">Cancel</button
+        >
+        <button type="button" class="btn btn-primary" id="confirm-add-item" disabled
+          >Add to Order</button
+        >
       </div>
     </div>
     <form method="dialog" class="modal-backdrop"><button>close</button></form>
@@ -213,7 +324,7 @@ const shopConfig = await getShopConfig(sdk.db);
   var searchTimeout = null;
 
   // Toggle company fields
-  document.getElementById('customer_type').addEventListener('change', function() {
+  document.getElementById('customer_type').addEventListener('change', function () {
     var show = this.value === 'company';
     document.getElementById('company-fields').classList.toggle('hidden', !show);
     document.getElementById('billing_company').toggleAttribute('required', show);
@@ -221,12 +332,12 @@ const shopConfig = await getShopConfig(sdk.db);
   });
 
   // Toggle shipping address
-  document.getElementById('shipping_same_as_billing').addEventListener('change', function() {
+  document.getElementById('shipping_same_as_billing').addEventListener('change', function () {
     document.getElementById('ship-fields').classList.toggle('hidden', this.checked);
   });
 
   // Also toggle on shipping type change (digital = no shipping address needed)
-  document.getElementById('shipping_type').addEventListener('change', function() {
+  document.getElementById('shipping_type').addEventListener('change', function () {
     if (this.value === 'digital') {
       document.getElementById('ship-fields').classList.add('hidden');
       document.getElementById('shipping_same_as_billing').checked = true;
@@ -234,7 +345,7 @@ const shopConfig = await getShopConfig(sdk.db);
   });
 
   // ── Product search modal ──
-  document.getElementById('open-item-modal').addEventListener('click', function() {
+  document.getElementById('open-item-modal').addEventListener('click', function () {
     selectedProduct = null;
     selectedVariantId = null;
     document.getElementById('selected-product').classList.add('hidden');
@@ -243,44 +354,66 @@ const shopConfig = await getShopConfig(sdk.db);
     document.getElementById('confirm-add-item').disabled = true;
     document.getElementById('item-modal').showModal();
     // Focus the search input after modal opens
-    setTimeout(function() { document.getElementById('product-search').focus(); }, 100);
+    setTimeout(function () {
+      document.getElementById('product-search').focus();
+    }, 100);
   });
 
-  document.getElementById('product-search').addEventListener('input', function() {
+  document.getElementById('product-search').addEventListener('input', function () {
     var query = this.value.trim();
     clearTimeout(searchTimeout);
     if (query.length < 2) {
       document.getElementById('product-results').innerHTML = '';
       return;
     }
-    searchTimeout = setTimeout(function() { searchProducts(query); }, 300);
+    searchTimeout = setTimeout(function () {
+      searchProducts(query);
+    }, 300);
   });
 
   async function searchProducts(query) {
     try {
-      var res = await fetch('/api/plugins/shop/products?search=' + encodeURIComponent(query) + '&limit=20');
+      var res = await fetch(
+        '/api/plugins/shop/products?search=' + encodeURIComponent(query) + '&limit=20'
+      );
       var json = await res.json();
       var results = document.getElementById('product-results');
       if (json.success && json.data && json.data.length > 0) {
-        results.innerHTML = json.data.map(function(p) {
-          return '<div class="flex items-center justify-between p-2 hover:bg-base-200 rounded cursor-pointer" data-id="' + p.id + '" data-name="' + p.name + '" data-sku="' + (p.sku || '') + '">' +
-            '<div><span class="font-medium">' + p.name + '</span>' +
-            (p.sku ? '<span class="text-xs text-base-content/50 ml-2">(' + p.sku + ')</span>' : '') +
-            (p.has_variants ? '<span class="text-xs text-info ml-2">(variants)</span>' : '') +
-            '</div>' +
-            '<button type="button" class="btn btn-xs btn-outline">Select</button></div>';
-        }).join('');
+        results.innerHTML = json.data
+          .map(function (p) {
+            return (
+              '<div class="flex items-center justify-between p-2 hover:bg-base-200 rounded cursor-pointer" data-id="' +
+              p.id +
+              '" data-name="' +
+              p.name +
+              '" data-sku="' +
+              (p.sku || '') +
+              '">' +
+              '<div><span class="font-medium">' +
+              p.name +
+              '</span>' +
+              (p.sku
+                ? '<span class="text-xs text-base-content/50 ml-2">(' + p.sku + ')</span>'
+                : '') +
+              (p.has_variants ? '<span class="text-xs text-info ml-2">(variants)</span>' : '') +
+              '</div>' +
+              '<button type="button" class="btn btn-xs btn-outline">Select</button></div>'
+            );
+          })
+          .join('');
         // Attach click handlers
-        results.querySelectorAll('[data-id]').forEach(function(row) {
-          row.addEventListener('click', function() {
+        results.querySelectorAll('[data-id]').forEach(function (row) {
+          row.addEventListener('click', function () {
             loadProductDetail(this.getAttribute('data-id'));
           });
         });
       } else {
-        results.innerHTML = '<p class="text-base-content/60 text-sm text-center py-4">No products found</p>';
+        results.innerHTML =
+          '<p class="text-base-content/60 text-sm text-center py-4">No products found</p>';
       }
     } catch (err) {
-      document.getElementById('product-results').innerHTML = '<p class="text-error text-sm">Search failed</p>';
+      document.getElementById('product-results').innerHTML =
+        '<p class="text-error text-sm">Search failed</p>';
     }
   }
 
@@ -289,7 +422,8 @@ const shopConfig = await getShopConfig(sdk.db);
       var res = await fetch('/api/plugins/shop/products/' + productId + '?locale=ro');
       var json = await res.json();
       if (!json.success || !json.data) {
-        document.getElementById('product-results').innerHTML = '<p class="text-error text-sm">Failed to load product</p>';
+        document.getElementById('product-results').innerHTML =
+          '<p class="text-error text-sm">Failed to load product</p>';
         return;
       }
       productDetailCache[productId] = json.data;
@@ -301,23 +435,35 @@ const shopConfig = await getShopConfig(sdk.db);
       selectedVariantId = null;
       showSelectedProduct(json.data);
     } catch (err) {
-      document.getElementById('product-results').innerHTML = '<p class="text-error text-sm">Failed to load product</p>';
+      document.getElementById('product-results').innerHTML =
+        '<p class="text-error text-sm">Failed to load product</p>';
     }
   }
 
   function showSelectedProduct(product) {
     document.getElementById('selected-product').classList.remove('hidden');
-    document.getElementById('selected-product-name').textContent = product.name + (product.sku ? ' (' + product.sku + ')' : '');
+    document.getElementById('selected-product-name').textContent =
+      product.name + (product.sku ? ' (' + product.sku + ')' : '');
 
     // Set up variant selector
     var variantSection = document.getElementById('variant-section');
     var variantSelect = document.getElementById('variant-select');
     if (product.variants && product.variants.length > 0) {
       variantSection.classList.remove('hidden');
-      variantSelect.innerHTML = '<option value="">— Product level —</option>' +
-        product.variants.map(function(v) {
-          return '<option value="' + v.id + '">' + (v.sku || 'Variant') + (v.stock !== null ? ' (stock: ' + v.stock + ')' : '') + '</option>';
-        }).join('');
+      variantSelect.innerHTML =
+        '<option value="">— Product level —</option>' +
+        product.variants
+          .map(function (v) {
+            return (
+              '<option value="' +
+              v.id +
+              '">' +
+              (v.sku || 'Variant') +
+              (v.stock !== null ? ' (stock: ' + v.stock + ')' : '') +
+              '</option>'
+            );
+          })
+          .join('');
       // Prefill with first variant's price if available
       updatePriceFromVariant(product);
     } else {
@@ -325,7 +471,7 @@ const shopConfig = await getShopConfig(sdk.db);
     }
 
     // Prefill price and VAT from the first product-level price
-    var primaryPrice = (product.prices && product.prices.length > 0) ? product.prices[0] : null;
+    var primaryPrice = product.prices && product.prices.length > 0 ? product.prices[0] : null;
     var priceInput = document.getElementById('modal-price');
     var vatInput = document.getElementById('modal-vat');
     if (primaryPrice && !selectedVariantId) {
@@ -346,16 +492,20 @@ const shopConfig = await getShopConfig(sdk.db);
       variantNameDisplay.classList.add('hidden');
       variantNameDisplay.textContent = '';
       // Reset product name to base product name
-      document.getElementById('selected-product-name').textContent = product.name + (product.sku ? ' (' + product.sku + ')' : '');
+      document.getElementById('selected-product-name').textContent =
+        product.name + (product.sku ? ' (' + product.sku + ')' : '');
       return;
     }
-    var variant = product.variants.find(function(v) { return v.id === variantId; });
+    var variant = product.variants.find(function (v) {
+      return v.id === variantId;
+    });
     if (!variant) return;
 
     // Show final product name (with variant) and update display
     var variantLabel = variant.sku || 'Variant ' + variant.id.substring(0, 8);
     var finalName = product.name + ' — ' + variantLabel;
-    document.getElementById('selected-product-name').textContent = finalName + (variant.sku ? ' (' + variant.sku + ')' : '');
+    document.getElementById('selected-product-name').textContent =
+      finalName + (variant.sku ? ' (' + variant.sku + ')' : '');
     variantNameDisplay.textContent = 'Variant selected — this will be the item name on the order';
     variantNameDisplay.classList.remove('hidden');
 
@@ -368,13 +518,13 @@ const shopConfig = await getShopConfig(sdk.db);
     }
   }
 
-  document.getElementById('variant-select').addEventListener('change', function() {
+  document.getElementById('variant-select').addEventListener('change', function () {
     if (!selectedProduct || !productDetailCache[selectedProduct.id]) return;
     selectedVariantId = this.value || null;
     updatePriceFromVariant(productDetailCache[selectedProduct.id]);
   });
 
-  document.getElementById('confirm-add-item').addEventListener('click', function() {
+  document.getElementById('confirm-add-item').addEventListener('click', function () {
     if (!selectedProduct) return;
     var qty = parseInt(document.getElementById('modal-qty').value) || 1;
     var price = parseFloat(document.getElementById('modal-price').value) || 0;
@@ -393,7 +543,9 @@ const shopConfig = await getShopConfig(sdk.db);
     var itemName = selectedProduct.name;
     var itemSku = selectedProduct.sku;
     if (selectedVariantId && productDetailCache[selectedProduct.id]) {
-      var v = productDetailCache[selectedProduct.id].variants.find(function(v) { return v.id === selectedVariantId; });
+      var v = productDetailCache[selectedProduct.id].variants.find(function (v) {
+        return v.id === selectedVariantId;
+      });
       if (v) {
         itemName = selectedProduct.name + ' — ' + (v.sku || 'Variant');
         itemSku = v.sku || itemSku;
@@ -410,7 +562,7 @@ const shopConfig = await getShopConfig(sdk.db);
       price_net: price,
       vat_rate: vat,
       price_gross: gross,
-      currency: curr
+      currency: curr,
     });
 
     renderItems();
@@ -428,34 +580,78 @@ const shopConfig = await getShopConfig(sdk.db);
   });
 
   function renderItems() {
-    document.getElementById('items-list').innerHTML = items.map(function(item, i) {
-      return '<div class="flex justify-between items-center p-2 bg-base-200 rounded">' +
-        '<span class="flex-1">' + item.product_name + (item.sku ? ' <span class="text-xs text-base-content/50">(' + item.sku + ')</span>' : '') + '<br>x' + item.quantity + ' @ ' + item.price_net.toFixed(2) + ' ' + item.currency + ' (VAT ' + ((item.vat_rate || 0) * 100).toFixed(0) + '%)</span>' +
-        '<span class="font-mono mx-4">' + item.price_gross.toFixed(2) + ' ' + item.currency + '</span>' +
-        '<button type="button" class="btn btn-xs btn-error" onclick="removeItem(' + i + ')">✕</button></div>';
-    }).join('');
+    document.getElementById('items-list').innerHTML = items
+      .map(function (item, i) {
+        return (
+          '<div class="flex justify-between items-center p-2 bg-base-200 rounded">' +
+          '<span class="flex-1">' +
+          item.product_name +
+          (item.sku
+            ? ' <span class="text-xs text-base-content/50">(' + item.sku + ')</span>'
+            : '') +
+          '<br>x' +
+          item.quantity +
+          ' @ ' +
+          item.price_net.toFixed(2) +
+          ' ' +
+          item.currency +
+          ' (VAT ' +
+          ((item.vat_rate || 0) * 100).toFixed(0) +
+          '%)</span>' +
+          '<span class="font-mono mx-4">' +
+          item.price_gross.toFixed(2) +
+          ' ' +
+          item.currency +
+          '</span>' +
+          '<button type="button" class="btn btn-xs btn-error" onclick="removeItem(' +
+          i +
+          ')">✕</button></div>'
+        );
+      })
+      .join('');
   }
 
-  window.removeItem = function(i) { items.splice(i, 1); renderItems(); renderSummary(); };
+  window.removeItem = function (i) {
+    items.splice(i, 1);
+    renderItems();
+    renderSummary();
+  };
 
   function renderSummary() {
     if (items.length === 0) {
-      document.getElementById('summary-content').innerHTML = '<p class="text-base-content/60">Add items to see the order summary.</p>';
+      document.getElementById('summary-content').innerHTML =
+        '<p class="text-base-content/60">Add items to see the order summary.</p>';
       return;
     }
 
-    var subtotal = items.reduce(function(s, i) { return s + i.price_net * i.quantity; }, 0);
-    var vatTotal = items.reduce(function(s, i) { return s + (i.price_net * i.quantity * (i.vat_rate || 0)); }, 0);
+    var subtotal = items.reduce(function (s, i) {
+      return s + i.price_net * i.quantity;
+    }, 0);
+    var vatTotal = items.reduce(function (s, i) {
+      return s + i.price_net * i.quantity * (i.vat_rate || 0);
+    }, 0);
     var shipping = parseFloat(document.getElementById('shipping_cost').value) || 0;
     var discount = parseFloat(document.getElementById('discount_amount').value) || 0;
     var total = subtotal + vatTotal + shipping - discount;
 
     document.getElementById('summary-content').innerHTML =
-      '<div class="flex justify-between"><span>Subtotal (net):</span><span class="font-mono">' + subtotal.toFixed(2) + '</span></div>' +
-      '<div class="flex justify-between"><span>VAT:</span><span class="font-mono">' + vatTotal.toFixed(2) + '</span></div>' +
-      '<div class="flex justify-between"><span>Shipping:</span><span class="font-mono">' + shipping.toFixed(2) + '</span></div>' +
-      (discount > 0 ? '<div class="flex justify-between"><span>Discount:</span><span class="font-mono text-error">-' + discount.toFixed(2) + '</span></div>' : '') +
-      '<div class="flex justify-between text-lg font-bold mt-2 pt-2 border-t border-base-200"><span>Total:</span><span class="font-mono">' + total.toFixed(2) + '</span></div>';
+      '<div class="flex justify-between"><span>Subtotal (net):</span><span class="font-mono">' +
+      subtotal.toFixed(2) +
+      '</span></div>' +
+      '<div class="flex justify-between"><span>VAT:</span><span class="font-mono">' +
+      vatTotal.toFixed(2) +
+      '</span></div>' +
+      '<div class="flex justify-between"><span>Shipping:</span><span class="font-mono">' +
+      shipping.toFixed(2) +
+      '</span></div>' +
+      (discount > 0
+        ? '<div class="flex justify-between"><span>Discount:</span><span class="font-mono text-error">-' +
+          discount.toFixed(2) +
+          '</span></div>'
+        : '') +
+      '<div class="flex justify-between text-lg font-bold mt-2 pt-2 border-t border-base-200"><span>Total:</span><span class="font-mono">' +
+      total.toFixed(2) +
+      '</span></div>';
   }
 
   // Update summary when shipping/discount changes
@@ -463,7 +659,7 @@ const shopConfig = await getShopConfig(sdk.db);
   document.getElementById('discount_amount').addEventListener('input', renderSummary);
 
   // Form submit
-  document.getElementById('order-form').addEventListener('submit', async function(e) {
+  document.getElementById('order-form').addEventListener('submit', async function (e) {
     e.preventDefault();
 
     if (items.length === 0) return alert('Add at least one item');
@@ -474,8 +670,12 @@ const shopConfig = await getShopConfig(sdk.db);
     var customerType = fd.get('customer_type');
     var isCompany = customerType === 'company';
 
-    var subtotal = items.reduce(function(s, i) { return s + i.price_net * i.quantity; }, 0);
-    var vatTotal = items.reduce(function(s, i) { return s + (i.price_net * i.quantity * (i.vat_rate || 0)); }, 0);
+    var subtotal = items.reduce(function (s, i) {
+      return s + i.price_net * i.quantity;
+    }, 0);
+    var vatTotal = items.reduce(function (s, i) {
+      return s + i.price_net * i.quantity * (i.vat_rate || 0);
+    }, 0);
     var shipping = parseFloat(fd.get('shipping_cost')) || 0;
     var discount = parseFloat(fd.get('discount_amount')) || 0;
     var total = subtotal + vatTotal + shipping - discount;
@@ -506,19 +706,29 @@ const shopConfig = await getShopConfig(sdk.db);
       billing_phone: null,
       billing_company: isCompany ? fd.get('billing_company') : null,
       billing_vat_number: isCompany ? fd.get('billing_vat_number') : null,
-      shipping_first_name: sameAsBilling ? fd.get('billing_first_name') : fd.get('shipping_first_name'),
-      shipping_last_name: sameAsBilling ? fd.get('billing_last_name') : fd.get('shipping_last_name'),
+      shipping_first_name: sameAsBilling
+        ? fd.get('billing_first_name')
+        : fd.get('shipping_first_name'),
+      shipping_last_name: sameAsBilling
+        ? fd.get('billing_last_name')
+        : fd.get('shipping_last_name'),
       shipping_address: sameAsBilling ? fd.get('billing_address') : fd.get('shipping_address'),
-      shipping_address_extra: sameAsBilling ? (fd.get('billing_address_extra') || null) : (fd.get('shipping_address_extra') || null),
+      shipping_address_extra: sameAsBilling
+        ? fd.get('billing_address_extra') || null
+        : fd.get('shipping_address_extra') || null,
       shipping_city: sameAsBilling ? fd.get('billing_city') : fd.get('shipping_city'),
-      shipping_postal_code: sameAsBilling ? fd.get('billing_postal_code') : fd.get('shipping_postal_code'),
+      shipping_postal_code: sameAsBilling
+        ? fd.get('billing_postal_code')
+        : fd.get('shipping_postal_code'),
       shipping_country: sameAsBilling ? fd.get('billing_country') : fd.get('shipping_country'),
-      shipping_county: sameAsBilling ? (fd.get('billing_county') || null) : (fd.get('shipping_county') || null),
+      shipping_county: sameAsBilling
+        ? fd.get('billing_county') || null
+        : fd.get('shipping_county') || null,
       shipping_phone: null,
       shipping_company: null,
       shipping_vat_number: null,
       shipping_same_as_billing: sameAsBilling,
-      items: items
+      items: items,
     };
 
     var errorsEl = document.getElementById('form-error');
@@ -531,7 +741,7 @@ const shopConfig = await getShopConfig(sdk.db);
       var res = await fetch('/api/plugins/shop/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
       var json = await res.json();
       if (json.success) {

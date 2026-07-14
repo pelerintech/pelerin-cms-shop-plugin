@@ -59,7 +59,7 @@ export interface EffectivePrice {
 export async function getEffectiveVariantPrices(
   db: LibSQLDatabase,
   variantId: string,
-  productId: string,
+  productId: string
 ): Promise<EffectivePrice[]> {
   // Product-level prices (variant_id IS NULL, product_id = productId)
   const productPrices = await db
@@ -72,14 +72,14 @@ export async function getEffectiveVariantPrices(
     .from(product_prices)
     .where(eq(product_prices.variant_id, variantId));
 
-  const variantByCurrency = new Map(variantPrices.map(p => [p.currency, p.price_net]));
+  const variantByCurrency = new Map(variantPrices.map((p) => [p.currency, p.price_net]));
 
   // Currencies are the union of product + variant currencies, but a variant can
   // only inherit a currency the product defines. A variant with an own row for a
   // currency the product doesn't define is still surfaced (own override).
   const currencies = new Set<string>([
-    ...productPrices.map(p => p.currency),
-    ...variantPrices.map(p => p.currency),
+    ...productPrices.map((p) => p.currency),
+    ...variantPrices.map((p) => p.currency),
   ]);
 
   const out: EffectivePrice[] = [];
@@ -89,7 +89,7 @@ export async function getEffectiveVariantPrices(
       out.push({ currency, price_net: own, inherited: false });
       continue;
     }
-    const prod = productPrices.find(p => p.currency === currency);
+    const prod = productPrices.find((p) => p.currency === currency);
     if (prod) {
       out.push({ currency, price_net: prod.price_net, inherited: true });
     }
@@ -105,13 +105,10 @@ export async function getEffectiveVariantPrices(
  */
 function computeEffectivePrices(
   ownPrices: { currency: string; price_net: number }[],
-  productPriceByCurrency: Map<string, number>,
+  productPriceByCurrency: Map<string, number>
 ): EffectivePrice[] {
-  const ownByCurrency = new Map(ownPrices.map(p => [p.currency, p.price_net]));
-  const currencies = new Set<string>([
-    ...productPriceByCurrency.keys(),
-    ...ownByCurrency.keys(),
-  ]);
+  const ownByCurrency = new Map(ownPrices.map((p) => [p.currency, p.price_net]));
+  const currencies = new Set<string>([...productPriceByCurrency.keys(), ...ownByCurrency.keys()]);
   const out: EffectivePrice[] = [];
   for (const currency of currencies) {
     const own = ownByCurrency.get(currency);
@@ -131,7 +128,7 @@ function computeEffectivePrices(
 export async function listVariants(
   db: LibSQLDatabase,
   productId: string,
-  locale: string,
+  locale: string
 ): Promise<VariantRow[]> {
   const variants = await db
     .select()
@@ -142,16 +139,14 @@ export async function listVariants(
     return [];
   }
 
-  const variantIds = variants.map(v => v.id);
+  const variantIds = variants.map((v) => v.id);
 
   // Variant-level attribute values (inArray — this is the live-500 fix)
   const allVav = await db
     .select()
     .from(product_attribute_values)
-    .where(
-      inArray(product_attribute_values.entity_id, variantIds),
-    );
-  const variantAttrValues = allVav.filter(v => v.entity_type === 'variant');
+    .where(inArray(product_attribute_values.entity_id, variantIds));
+  const variantAttrValues = allVav.filter((v) => v.entity_type === 'variant');
 
   // Variant prices
   const allVp = await db
@@ -165,10 +160,10 @@ export async function listVariants(
     .select()
     .from(product_prices)
     .where(and(eq(product_prices.product_id, productId), isNull(product_prices.variant_id)));
-  const productPriceByCurrency = new Map(productPrices.map(p => [p.currency, p.price_net]));
+  const productPriceByCurrency = new Map(productPrices.map((p) => [p.currency, p.price_net]));
 
   // Assignment details for the values
-  const assignmentIds = Array.from(new Set(variantAttrValues.map(v => v.assignment_id)));
+  const assignmentIds = Array.from(new Set(variantAttrValues.map((v) => v.assignment_id)));
   const assignmentsMap = new Map<string, any>();
   if (assignmentIds.length > 0) {
     const assignments = await db
@@ -179,13 +174,21 @@ export async function listVariants(
   }
 
   // Attribute details
-  const attributeIds = Array.from(new Set(Array.from(assignmentsMap.values()).map(a => a.attribute_id)));
+  const attributeIds = Array.from(
+    new Set(Array.from(assignmentsMap.values()).map((a) => a.attribute_id))
+  );
   const attributesMap = new Map<string, any>();
   const attrTransMap = new Map<string, string>();
   if (attributeIds.length > 0) {
-    const attrs = await db.select().from(product_attributes).where(inArray(product_attributes.id, attributeIds));
+    const attrs = await db
+      .select()
+      .from(product_attributes)
+      .where(inArray(product_attributes.id, attributeIds));
     for (const attr of attrs) attributesMap.set(attr.id, attr);
-    const transRows = await db.select().from(translations).where(inArray(translations.entity_id, attributeIds));
+    const transRows = await db
+      .select()
+      .from(translations)
+      .where(inArray(translations.entity_id, attributeIds));
     for (const t of transRows) {
       if (t.entity_type === 'product_attribute' && t.locale === locale && t.name) {
         attrTransMap.set(t.entity_id, t.name);
@@ -194,10 +197,15 @@ export async function listVariants(
   }
 
   // Option labels for select-type values
-  const optionIds = Array.from(new Set(variantAttrValues.map(v => v.option_id).filter(Boolean) as string[]));
+  const optionIds = Array.from(
+    new Set(variantAttrValues.map((v) => v.option_id).filter(Boolean) as string[])
+  );
   const optionLabelsMap = new Map<string, string>();
   if (optionIds.length > 0) {
-    const optTransRows = await db.select().from(translations).where(inArray(translations.entity_id, optionIds));
+    const optTransRows = await db
+      .select()
+      .from(translations)
+      .where(inArray(translations.entity_id, optionIds));
     for (const t of optTransRows) {
       if (t.entity_type === 'product_attribute_option' && t.locale === locale && t.label) {
         optionLabelsMap.set(t.entity_id, t.label);
@@ -205,14 +213,14 @@ export async function listVariants(
     }
   }
 
-  return variants.map(v => {
-    const vav = variantAttrValues.filter(val => val.entity_id === v.id);
-    const vp = allVp.filter(p => p.variant_id === v.id);
+  return variants.map((v) => {
+    const vav = variantAttrValues.filter((val) => val.entity_id === v.id);
+    const vp = allVp.filter((p) => p.variant_id === v.id);
 
-    const attributes: VariantAttribute[] = vav.map(val => {
+    const attributes: VariantAttribute[] = vav.map((val) => {
       const assignment = assignmentsMap.get(val.assignment_id);
       const attr = assignment ? attributesMap.get(assignment.attribute_id) : null;
-      const attrName = attr ? (attrTransMap.get(attr.id) || attr.name) : '';
+      const attrName = attr ? attrTransMap.get(attr.id) || attr.name : '';
       let value: string | number | boolean | null = null;
       if (val.option_id) {
         value = optionLabelsMap.get(val.option_id) || val.option_id;
@@ -240,23 +248,35 @@ export async function listVariants(
       stock: v.stock,
       active: v.active,
       attributes,
-      prices: vp.map(p => ({ currency: p.currency, price_net: p.price_net })),
+      prices: vp.map((p) => ({ currency: p.currency, price_net: p.price_net })),
       effective_prices: computeEffectivePrices(vp, productPriceByCurrency),
     };
   });
 }
 
 /** List all variant IDs for a product. */
-export async function listVariantIdsForProduct(db: LibSQLDatabase, productId: string): Promise<string[]> {
-  const rows = await db.select().from(product_variants).where(eq(product_variants.product_id, productId));
-  return rows.map(v => v.id);
+export async function listVariantIdsForProduct(
+  db: LibSQLDatabase,
+  productId: string
+): Promise<string[]> {
+  const rows = await db
+    .select()
+    .from(product_variants)
+    .where(eq(product_variants.product_id, productId));
+  return rows.map((v) => v.id);
 }
 
 /** Find a variant by its SKU (case-sensitive). Returns null if not found. */
 export async function findVariantBySku(
   db: LibSQLDatabase,
-  sku: string,
-): Promise<{ id: string; product_id: string; sku: string | null; stock: number | null; active: boolean } | null> {
+  sku: string
+): Promise<{
+  id: string;
+  product_id: string;
+  sku: string | null;
+  stock: number | null;
+  active: boolean;
+} | null> {
   const [variant] = await db.select().from(product_variants).where(eq(product_variants.sku, sku));
   return (variant as any) ?? null;
 }
@@ -280,8 +300,10 @@ export class VariantError extends Error {
 export async function createVariants(
   db: LibSQLDatabase,
   productId: string,
-  combinations: VariantCombination[],
-): Promise<{ id: string; sku: string | null; stock: number | null; active: boolean; option_ids: string[] }[]> {
+  combinations: VariantCombination[]
+): Promise<
+  { id: string; sku: string | null; stock: number | null; active: boolean; option_ids: string[] }[]
+> {
   // Fetch dimension assignments for this product
   const assignments = await db
     .select()
@@ -289,8 +311,8 @@ export async function createVariants(
     .where(
       and(
         eq(product_attribute_assignments.product_id, productId),
-        eq(product_attribute_assignments.role, 'dimension'),
-      ),
+        eq(product_attribute_assignments.role, 'dimension')
+      )
     );
 
   // Build map: option_id → assignment_id using ALL options of each dimension
@@ -298,14 +320,14 @@ export async function createVariants(
   // column is ignored for generation — assigning a dimension is one click, and
   // the merchant prunes at the Manage Variants matrix.
   const assignmentOptionMap = new Map<string, string>();
-  const dimensionAttrIds = assignments.map(a => a.attribute_id);
+  const dimensionAttrIds = assignments.map((a) => a.attribute_id);
   if (dimensionAttrIds.length > 0) {
     const allOptions = await db
       .select()
       .from(product_attribute_options)
       .where(inArray(product_attribute_options.attribute_id, dimensionAttrIds));
     // Map each option to its assignment (attribute_id → assignment_id).
-    const attrIdToAssignmentId = new Map(assignments.map(a => [a.attribute_id, a.id]));
+    const attrIdToAssignmentId = new Map(assignments.map((a) => [a.attribute_id, a.id]));
     for (const opt of allOptions) {
       const assignmentId = attrIdToAssignmentId.get(opt.attribute_id);
       if (assignmentId) assignmentOptionMap.set(opt.id, assignmentId);
@@ -313,27 +335,36 @@ export async function createVariants(
   }
 
   // Check for duplicate combinations against existing variants
-  const existingVariants = await db.select().from(product_variants).where(eq(product_variants.product_id, productId));
-  const existingVariantIds = existingVariants.map(v => v.id);
+  const existingVariants = await db
+    .select()
+    .from(product_variants)
+    .where(eq(product_variants.product_id, productId));
+  const existingVariantIds = existingVariants.map((v) => v.id);
   const existingValues = new Map<string, Set<string>>();
   if (existingVariantIds.length > 0) {
     const vavRows = await db
       .select()
       .from(product_attribute_values)
       .where(inArray(product_attribute_values.entity_id, existingVariantIds));
-    const variantVav = vavRows.filter(v => v.entity_type === 'variant');
+    const variantVav = vavRows.filter((v) => v.entity_type === 'variant');
     for (const row of variantVav) {
       if (!existingValues.has(row.entity_id)) existingValues.set(row.entity_id, new Set());
       if (row.option_id) existingValues.get(row.entity_id)!.add(row.option_id);
     }
   }
 
-  const created: { id: string; sku: string | null; stock: number | null; active: boolean; option_ids: string[] }[] = [];
+  const created: {
+    id: string;
+    sku: string | null;
+    stock: number | null;
+    active: boolean;
+    option_ids: string[];
+  }[] = [];
 
   for (const combo of combinations) {
     const comboSet = new Set(combo.option_ids);
     for (const [vId, optSet] of existingValues) {
-      if (optSet.size === comboSet.size && [...optSet].every(id => comboSet.has(id))) {
+      if (optSet.size === comboSet.size && [...optSet].every((id) => comboSet.has(id))) {
         throw new VariantError('Duplicate variant combination', 'duplicate_combination');
       }
     }
@@ -384,7 +415,13 @@ export interface UpdateVariantInput {
   sku?: string | null;
   stock?: number | null;
   active?: boolean;
-  field_values?: { assignment_id: string; option_id?: string | null; value_text?: string | null; value_number?: number | null; value_boolean?: boolean | null }[];
+  field_values?: {
+    assignment_id: string;
+    option_id?: string | null;
+    value_text?: string | null;
+    value_number?: number | null;
+    value_boolean?: boolean | null;
+  }[];
   /**
    * Per-currency variant price overrides. For each entry:
    * - `price_net` is a number → UPSERT the variant's `product_prices` row for that currency.
@@ -398,9 +435,18 @@ export interface UpdateVariantInput {
 export async function updateVariant(
   db: LibSQLDatabase,
   variantId: string,
-  input: UpdateVariantInput,
-): Promise<{ id: string; product_id: string; sku: string | null; stock: number | null; active: boolean }> {
-  const [existing] = await db.select().from(product_variants).where(eq(product_variants.id, variantId));
+  input: UpdateVariantInput
+): Promise<{
+  id: string;
+  product_id: string;
+  sku: string | null;
+  stock: number | null;
+  active: boolean;
+}> {
+  const [existing] = await db
+    .select()
+    .from(product_variants)
+    .where(eq(product_variants.id, variantId));
   if (!existing) throw new VariantError('Variant not found', 'not_found');
 
   const updateData: Record<string, any> = {};
@@ -415,19 +461,28 @@ export async function updateVariant(
     for (const price of input.prices) {
       if (price.price_net === null) {
         // Revert to inherit: delete the variant's row for this currency (if any).
-        await db.delete(product_prices).where(
-          and(eq(product_prices.variant_id, variantId), eq(product_prices.currency, price.currency)),
-        );
+        await db
+          .delete(product_prices)
+          .where(
+            and(
+              eq(product_prices.variant_id, variantId),
+              eq(product_prices.currency, price.currency)
+            )
+          );
       } else {
         // Override: upsert the variant's row for this currency.
         const [existingPrice] = await db
           .select()
           .from(product_prices)
           .where(
-            and(eq(product_prices.variant_id, variantId), eq(product_prices.currency, price.currency)),
+            and(
+              eq(product_prices.variant_id, variantId),
+              eq(product_prices.currency, price.currency)
+            )
           );
         if (existingPrice) {
-          await db.update(product_prices)
+          await db
+            .update(product_prices)
             .set({ price_net: price.price_net })
             .where(eq(product_prices.id, existingPrice.id));
         } else {
@@ -456,8 +511,8 @@ export async function updateVariant(
             and(
               eq(product_attribute_assignments.id, fv.assignment_id),
               eq(product_attribute_assignments.product_id, existing.product_id),
-              eq(product_attribute_assignments.role, 'field'),
-            ),
+              eq(product_attribute_assignments.role, 'field')
+            )
           );
         if (!assignment) continue;
 
@@ -468,12 +523,13 @@ export async function updateVariant(
             and(
               eq(product_attribute_values.entity_type, 'variant'),
               eq(product_attribute_values.entity_id, variantId),
-              eq(product_attribute_values.assignment_id, fv.assignment_id),
-            ),
+              eq(product_attribute_values.assignment_id, fv.assignment_id)
+            )
           );
 
         if (existingValue) {
-          await tx.update(product_attribute_values)
+          await tx
+            .update(product_attribute_values)
             .set({
               option_id: fv.option_id ?? null,
               value_text: fv.value_text ?? null,
@@ -497,20 +553,29 @@ export async function updateVariant(
     });
   }
 
-  const [updated] = await db.select().from(product_variants).where(eq(product_variants.id, variantId));
+  const [updated] = await db
+    .select()
+    .from(product_variants)
+    .where(eq(product_variants.id, variantId));
   return updated;
 }
 
 /** Delete a variant and its attribute values + prices. */
-export async function deleteVariant(
-  db: LibSQLDatabase,
-  variantId: string,
-): Promise<void> {
-  const [existing] = await db.select().from(product_variants).where(eq(product_variants.id, variantId));
+export async function deleteVariant(db: LibSQLDatabase, variantId: string): Promise<void> {
+  const [existing] = await db
+    .select()
+    .from(product_variants)
+    .where(eq(product_variants.id, variantId));
   if (!existing) throw new VariantError('Variant not found', 'not_found');
 
-  await db.delete(product_attribute_values)
-    .where(and(eq(product_attribute_values.entity_type, 'variant'), eq(product_attribute_values.entity_id, variantId)));
+  await db
+    .delete(product_attribute_values)
+    .where(
+      and(
+        eq(product_attribute_values.entity_type, 'variant'),
+        eq(product_attribute_values.entity_id, variantId)
+      )
+    );
   await db.delete(product_prices).where(eq(product_prices.variant_id, variantId));
   await db.delete(product_variants).where(eq(product_variants.id, variantId));
 }

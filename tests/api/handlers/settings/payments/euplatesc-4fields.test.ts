@@ -9,20 +9,15 @@
  */
 import { test } from 'node:test';
 import { ensureLoader } from '../../../../stubs/register.mjs';
-import {
-  createTestDb,
-  seedMinimal,
-  makeFakeSdk,
-  makeCtx,
-  assert,
-} from '../../_matrix.ts';
+import { createTestDb, seedMinimal, makeFakeSdk, makeCtx, assert } from '../../_matrix.ts';
 import { shop_settings } from '../../../../db/harness.ts';
 
 // crypto.encrypt requires an encryption key at call-time.
 process.env.BETTER_AUTH_SECRET = 'test-secret-for-euplatesc-4fields';
 
 ensureLoader();
-const { runGet, runPut } = await import('../../../../../src/api/shop/settings/payments/euplatesc.ts');
+const { runGet, runPut } =
+  await import('../../../../../src/api/shop/settings/payments/euplatesc.ts');
 
 const URL = 'http://localhost/api/plugins/shop/settings/payments/euplatesc';
 
@@ -32,7 +27,8 @@ test('PUT all 4 fields → stored correctly, uapi_key encrypted', async () => {
     await seedMinimal(db);
     const sdk = makeFakeSdk();
     const ctx = makeCtx({
-      url: URL, method: 'PUT',
+      url: URL,
+      method: 'PUT',
       body: {
         euplatesc_merchant_id: 'testmerchant',
         euplatesc_secret_key: 'AA4A81EE58A1D74DE6E02DF2C1CE9982780F95DC',
@@ -48,18 +44,38 @@ test('PUT all 4 fields → stored correctly, uapi_key encrypted', async () => {
     // Verify values in DB
     const { eq } = await import('drizzle-orm');
 
-    const [midRow] = await db.select().from(shop_settings).where(eq(shop_settings.key, 'euplatesc_merchant_id'));
+    const [midRow] = await db
+      .select()
+      .from(shop_settings)
+      .where(eq(shop_settings.key, 'euplatesc_merchant_id'));
     assert.equal(midRow.value, 'testmerchant', 'merchant_id stored plaintext');
 
-    const [keyRow] = await db.select().from(shop_settings).where(eq(shop_settings.key, 'euplatesc_secret_key'));
-    assert.notEqual(keyRow.value, 'AA4A81EE58A1D74DE6E02DF2C1CE9982780F95DC', 'secret_key should be encrypted');
+    const [keyRow] = await db
+      .select()
+      .from(shop_settings)
+      .where(eq(shop_settings.key, 'euplatesc_secret_key'));
+    assert.notEqual(
+      keyRow.value,
+      'AA4A81EE58A1D74DE6E02DF2C1CE9982780F95DC',
+      'secret_key should be encrypted'
+    );
     assert.ok(keyRow.value.includes(':'), 'secret_key should be encrypted (iv:tag:ct format)');
 
-    const [ukeyRow] = await db.select().from(shop_settings).where(eq(shop_settings.key, 'euplatesc_ukey'));
+    const [ukeyRow] = await db
+      .select()
+      .from(shop_settings)
+      .where(eq(shop_settings.key, 'euplatesc_ukey'));
     assert.equal(ukeyRow.value, 'testukey123', 'ukey stored plaintext');
 
-    const [uapiKeyRow] = await db.select().from(shop_settings).where(eq(shop_settings.key, 'euplatesc_uapi_key'));
-    assert.notEqual(uapiKeyRow.value, 'BB5B92FF69B2E85EF7F13EF3D2DF0093891G06ED', 'uapi_key should be encrypted');
+    const [uapiKeyRow] = await db
+      .select()
+      .from(shop_settings)
+      .where(eq(shop_settings.key, 'euplatesc_uapi_key'));
+    assert.notEqual(
+      uapiKeyRow.value,
+      'BB5B92FF69B2E85EF7F13EF3D2DF0093891G06ED',
+      'uapi_key should be encrypted'
+    );
     assert.ok(uapiKeyRow.value.includes(':'), 'uapi_key should be encrypted (iv:tag:ct format)');
   } finally {
     await cleanup();
@@ -120,7 +136,9 @@ test('PUT auth required → 401', async () => {
   const { db, cleanup } = await createTestDb();
   try {
     await seedMinimal(db);
-    const sdk = makeFakeSdk({ authThrows: Object.assign(new Error('Unauthorized'), { status: 401 }) });
+    const sdk = makeFakeSdk({
+      authThrows: Object.assign(new Error('Unauthorized'), { status: 401 }),
+    });
     const ctx = makeCtx({ url: URL, method: 'PUT', body: { euplatesc_merchant_id: 'test' } });
     const res = await runPut({ db, sdk, ctx });
     assert.equal(res.status, 401);
@@ -137,7 +155,8 @@ test('PUT validates schema → 422 for non-string ukey', async () => {
     await seedMinimal(db);
     const sdk = makeFakeSdk();
     const ctx = makeCtx({
-      url: URL, method: 'PUT',
+      url: URL,
+      method: 'PUT',
       body: { euplatesc_ukey: 12345 },
     });
     const res = await runPut({ db, sdk, ctx });

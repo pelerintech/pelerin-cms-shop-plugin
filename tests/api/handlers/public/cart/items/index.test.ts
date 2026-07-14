@@ -1,6 +1,13 @@
 import { test } from 'node:test';
 import { ensureLoader } from '../../../../../stubs/register.mjs';
-import { matrix, assert, createTestDb, seedMinimal, makeFakeSdk, makeCtx } from '../../../_matrix.ts';
+import {
+  matrix,
+  assert,
+  createTestDb,
+  seedMinimal,
+  makeFakeSdk,
+  makeCtx,
+} from '../../../_matrix.ts';
 
 ensureLoader();
 const { runPost } = await import('../../../../../../src/api/shop/public/cart/items/index.ts');

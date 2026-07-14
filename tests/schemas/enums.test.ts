@@ -1,6 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { OrderStatus, ProductType, ShippingType, VoucherType, CustomerType, OptionValueType } from '../../src/schemas/enums.ts';
+import {
+  OrderStatus,
+  ProductType,
+  ShippingType,
+  VoucherType,
+  CustomerType,
+  OptionValueType,
+} from '../../src/schemas/enums.ts';
 
 test('OrderStatus enum exports correct values', () => {
   assert.deepStrictEqual(OrderStatus.options, [
@@ -34,5 +41,11 @@ test('CustomerType enum exports correct values', () => {
 });
 
 test('OptionValueType enum exports correct values', () => {
-  assert.deepStrictEqual(OptionValueType.options, ['short_text', 'long_text', 'number', 'boolean', 'list']);
+  assert.deepStrictEqual(OptionValueType.options, [
+    'short_text',
+    'long_text',
+    'number',
+    'boolean',
+    'list',
+  ]);
 });

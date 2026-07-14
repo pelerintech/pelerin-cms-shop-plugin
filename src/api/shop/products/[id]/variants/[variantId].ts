@@ -4,9 +4,15 @@ import { UpdateVariantSchema } from '../../../../../schemas/product.schema';
 import { updateVariant, deleteVariant, VariantError } from '../../../../../lib/data/variants';
 import type { HandlerDeps } from '../../../../../lib/handler-types';
 
-export const PUT: APIRoute = (context) => { const sdk = createPluginContext(); return runPut({ db: sdk.db, sdk, ctx: context }); }
+export const PUT: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runPut({ db: sdk.db, sdk, ctx: context });
+};
 
-export const DELETE: APIRoute = (context) => { const sdk = createPluginContext(); return runDelete({ db: sdk.db, sdk, ctx: context }); }
+export const DELETE: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runDelete({ db: sdk.db, sdk, ctx: context });
+};
 
 export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
@@ -15,7 +21,13 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
 
     const body = await ctx.request.json();
 
-    const input: { sku?: string | null; stock?: number | null; active?: boolean; field_values?: any[]; prices?: { currency: string; price_net: number | null }[] } = {};
+    const input: {
+      sku?: string | null;
+      stock?: number | null;
+      active?: boolean;
+      field_values?: any[];
+      prices?: { currency: string; price_net: number | null }[];
+    } = {};
     const variantResult = UpdateVariantSchema.safeParse(body);
     if (variantResult.success) {
       if (body.sku !== undefined) input.sku = body.sku;
@@ -38,7 +50,8 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   } catch (err: any) {
     if (err instanceof VariantError) {
       return new Response(JSON.stringify({ success: false, error: err.message }), {
-        status: 404, headers: { 'Content-Type': 'application/json' },
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
       });
     }
     const status = err.status ?? 500;
@@ -63,7 +76,8 @@ export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response
   } catch (err: any) {
     if (err instanceof VariantError) {
       return new Response(JSON.stringify({ success: false, error: err.message }), {
-        status: 404, headers: { 'Content-Type': 'application/json' },
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
       });
     }
     const status = err.status ?? 500;

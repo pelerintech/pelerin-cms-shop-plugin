@@ -4,7 +4,7 @@ description: Archive a completed reespec request. Use when the user wants to fin
 license: MIT
 metadata:
   author: reespec
-  version: "1.0"
+  version: '1.0'
 ---
 
 Archive a completed reespec request.
@@ -26,6 +26,7 @@ Read `reespec/requests/<name>/tasks.md`.
 Count `- [ ]` (incomplete) vs `- [x]` (complete).
 
 **If incomplete tasks exist:**
+
 - Show warning: "N task(s) are not complete"
 - List the incomplete tasks
 - Ask the user: "Archive anyway? [y/N]"
@@ -36,6 +37,7 @@ Count `- [ ]` (incomplete) vs `- [x]` (complete).
 ### 3. Check artifact completeness
 
 Run:
+
 ```bash
 reespec status --request "<name>"
 ```

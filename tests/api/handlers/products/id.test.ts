@@ -10,8 +10,7 @@ const { runGet, runPut, runDelete } = await import('../../../../src/api/shop/pro
 
 const base = 'http://localhost/api/plugins/shop/products/';
 
-test('GET auth-fail → 401', () =>
-  matrix.adminAuthFail({ run: runGet, url: base + 'x' }));
+test('GET auth-fail → 401', () => matrix.adminAuthFail({ run: runGet, url: base + 'x' }));
 
 test('GET happy-path → 200, data.id matches', async () => {
   const { db, cleanup } = await createTestDb();
@@ -47,8 +46,7 @@ test('GET happy-path 404: unknown id → 404', async () => {
 test('GET error-wrap → 500', () =>
   matrix.errorWrap({ run: runGet, url: base + 'x', params: { id: 'x' } }));
 
-test('PUT auth-fail → 401', () =>
-  matrix.adminAuthFail({ run: runPut, url: base + 'x', body: {} }));
+test('PUT auth-fail → 401', () => matrix.adminAuthFail({ run: runPut, url: base + 'x', body: {} }));
 
 test('PUT validation-fail → 422', () =>
   matrix.validationFail({ run: runPut, url: base + 'x', invalidBody: { slug: '' } }));
@@ -58,7 +56,11 @@ test('PUT happy-path → 200, data.id matches', async () => {
   try {
     const f = await seedMinimal(db);
     const sdk = makeFakeSdk();
-    const ctx = makeCtx({ url: base + f.simpleProductId, body: { name: 'Updated Name' }, params: { id: f.simpleProductId } });
+    const ctx = makeCtx({
+      url: base + f.simpleProductId,
+      body: { name: 'Updated Name' },
+      params: { id: f.simpleProductId },
+    });
     const res = await runPut({ db, sdk, ctx });
     assert.equal(res.status, 200);
     const b = await res.json();
@@ -79,10 +81,19 @@ test('PUT slug collision → 422 with field-level error', async () => {
     // Create a second product.
     const secondProdId = crypto.randomUUID();
     await db.insert(products).values({
-      id: secondProdId, sku: 'BOOK-002', type: 'physical', has_variants: false,
-      vat_rate: 0.05, stock: 10, category_id: f.categoryBooksId, active: true,
-      name: 'Second Book', description: null, slug: 'second-book',
-      created_at: new Date(), updated_at: new Date(),
+      id: secondProdId,
+      sku: 'BOOK-002',
+      type: 'physical',
+      has_variants: false,
+      vat_rate: 0.05,
+      stock: 10,
+      category_id: f.categoryBooksId,
+      active: true,
+      name: 'Second Book',
+      description: null,
+      slug: 'second-book',
+      created_at: new Date(),
+      updated_at: new Date(),
     });
     const sdk = makeFakeSdk();
     const ctx = makeCtx({
@@ -107,21 +118,28 @@ test('PUT ignores has_variants input: column is never written from body (derived
   try {
     const f = await seedMinimal(db);
     const sdk = makeFakeSdk();
-    const ctx = makeCtx({ url: base + f.simpleProductId, body: { has_variants: true }, params: { id: f.simpleProductId } });
+    const ctx = makeCtx({
+      url: base + f.simpleProductId,
+      body: { has_variants: true },
+      params: { id: f.simpleProductId },
+    });
     const res = await runPut({ db, sdk, ctx });
     assert.equal(res.status, 200);
     // The DB column must remain false — has_variants is never written from input.
     const { products } = await import('../../../../src/db/schema.ts');
     const { eq } = await import('drizzle-orm');
     const rows = await db.select().from(products).where(eq(products.id, f.simpleProductId));
-    assert.equal(rows[0].has_variants, false, 'has_variants column must NOT be set to true from a PUT body');
+    assert.equal(
+      rows[0].has_variants,
+      false,
+      'has_variants column must NOT be set to true from a PUT body'
+    );
   } finally {
     await cleanup();
   }
 });
 
-test('DELETE auth-fail → 401', () =>
-  matrix.adminAuthFail({ run: runDelete, url: base + 'x' }));
+test('DELETE auth-fail → 401', () => matrix.adminAuthFail({ run: runDelete, url: base + 'x' }));
 
 test('DELETE happy-path → 200', async () => {
   const { db, cleanup } = await createTestDb();

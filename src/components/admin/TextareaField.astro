@@ -31,7 +31,13 @@ const {
     name={name}
     placeholder={placeholder}
     class={`textarea textarea-bordered w-full h-${rows} ${error ? 'textarea-error' : ''}`}
-    required={required}
-  >{value}</textarea>
-  {error && <span class="text-error text-sm mt-1" data-field={name}>{error}</span>}
+    required={required}>{value}</textarea
+  >
+  {
+    error && (
+      <span class="text-error text-sm mt-1" data-field={name}>
+        {error}
+      </span>
+    )
+  }
 </div>

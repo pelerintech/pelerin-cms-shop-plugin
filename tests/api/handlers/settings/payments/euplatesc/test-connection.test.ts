@@ -26,7 +26,8 @@ describe('test-connection endpoint', () => {
     const harness = await createTestDb();
     db = harness.db;
     await resetDb(db);
-    const mod = await import('../../../../../../src/api/shop/settings/payments/euplatesc/test-connection.ts');
+    const mod =
+      await import('../../../../../../src/api/shop/settings/payments/euplatesc/test-connection.ts');
     runPost = mod.runPost;
   });
 
@@ -42,7 +43,14 @@ describe('test-connection endpoint', () => {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ name: 'Test Merchant', status: 'test', url: 'https://example.com', cui: 'RO12345678', j: '1', recuring: 'N' }),
+        json: async () => ({
+          name: 'Test Merchant',
+          status: 'test',
+          url: 'https://example.com',
+          cui: 'RO12345678',
+          j: '1',
+          recuring: 'N',
+        }),
       };
     };
   });
@@ -52,7 +60,9 @@ describe('test-connection endpoint', () => {
   });
 
   it('auth required → 401 for non-admin', async () => {
-    const sdk = makeFakeSdk({ authThrows: Object.assign(new Error('Unauthorized'), { status: 401 }) });
+    const sdk = makeFakeSdk({
+      authThrows: Object.assign(new Error('Unauthorized'), { status: 401 }),
+    });
     const ctx = makeCtx({ url: 'http://localhost/api/test', method: 'POST' });
     const res = await runPost({ db, sdk, ctx });
     assert.strictEqual(res.status, 401);
@@ -67,7 +77,10 @@ describe('test-connection endpoint', () => {
     ]);
 
     const sdk = makeFakeSdk();
-    const ctx = makeCtx({ url: 'http://localhost/api/plugins/shop/settings/payments/euplatesc/test-connection', method: 'POST' });
+    const ctx = makeCtx({
+      url: 'http://localhost/api/plugins/shop/settings/payments/euplatesc/test-connection',
+      method: 'POST',
+    });
     const res = await runPost({ db, sdk, ctx });
     assert.strictEqual(res.status, 200);
     const b = await res.json();
@@ -80,7 +93,10 @@ describe('test-connection endpoint', () => {
     assert.strictEqual(fetchCalls.length, 1, 'fetch must be called once');
     assert.strictEqual(fetchCalls[0].url, 'https://manager.euplatesc.ro/v3/index.php?action=ws');
     assert.strictEqual(fetchCalls[0].method, 'POST');
-    assert.ok(fetchCalls[0].body.includes('method=check_mid'), 'body must contain method=check_mid');
+    assert.ok(
+      fetchCalls[0].body.includes('method=check_mid'),
+      'body must contain method=check_mid'
+    );
     assert.ok(fetchCalls[0].body.includes('mid=44841007584'), 'body must contain merchant ID');
     assert.ok(fetchCalls[0].body.includes('timestamp='), 'body must contain timestamp');
     assert.ok(fetchCalls[0].body.includes('nonce='), 'body must contain nonce');
@@ -101,7 +117,10 @@ describe('test-connection endpoint', () => {
     });
 
     const sdk = makeFakeSdk();
-    const ctx = makeCtx({ url: 'http://localhost/api/plugins/shop/settings/payments/euplatesc/test-connection', method: 'POST' });
+    const ctx = makeCtx({
+      url: 'http://localhost/api/plugins/shop/settings/payments/euplatesc/test-connection',
+      method: 'POST',
+    });
     const res = await runPost({ db, sdk, ctx });
     assert.strictEqual(res.status, 200);
     const b = await res.json();
@@ -112,7 +131,10 @@ describe('test-connection endpoint', () => {
   it('missing credentials → 422 error', async () => {
     // No settings seeded
     const sdk = makeFakeSdk();
-    const ctx = makeCtx({ url: 'http://localhost/api/plugins/shop/settings/payments/euplatesc/test-connection', method: 'POST' });
+    const ctx = makeCtx({
+      url: 'http://localhost/api/plugins/shop/settings/payments/euplatesc/test-connection',
+      method: 'POST',
+    });
     const res = await runPost({ db, sdk, ctx });
     assert.strictEqual(res.status, 422);
     const b = await res.json();

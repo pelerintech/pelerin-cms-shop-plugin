@@ -1,17 +1,34 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { listPricesForProduct, listPricesForVariant, upsertPrice, deletePrice } from '../../../../lib/data/products';
+import {
+  listPricesForProduct,
+  listPricesForVariant,
+  upsertPrice,
+  deletePrice,
+} from '../../../../lib/data/products';
 import { listVariantIdsForProduct } from '../../../../lib/data/variants';
 import { BulkUpsertPricesSchema, CreatePriceSchema } from '../../../../schemas/product.schema';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 
-export const GET: APIRoute = (context) => { const sdk = createPluginContext(); return runGet({ db: sdk.db, sdk, ctx: context }); }
+export const GET: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runGet({ db: sdk.db, sdk, ctx: context });
+};
 
-export const POST: APIRoute = (context) => { const sdk = createPluginContext(); return runPost({ db: sdk.db, sdk, ctx: context }); }
+export const POST: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runPost({ db: sdk.db, sdk, ctx: context });
+};
 
-export const PUT: APIRoute = (context) => { const sdk = createPluginContext(); return runPut({ db: sdk.db, sdk, ctx: context }); }
+export const PUT: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runPut({ db: sdk.db, sdk, ctx: context });
+};
 
-export const DELETE: APIRoute = (context) => { const sdk = createPluginContext(); return runDelete({ db: sdk.db, sdk, ctx: context }); }
+export const DELETE: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runDelete({ db: sdk.db, sdk, ctx: context });
+};
 
 export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
@@ -24,9 +41,15 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       const vp = await listPricesForVariant(db, vid);
       variantPrices.push(...vp);
     }
-    return new Response(JSON.stringify({ success: true, data: [...prices, ...variantPrices] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ success: true, data: [...prices, ...variantPrices] }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status: err.status ?? 500, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
+      status: err.status ?? 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }
 
@@ -45,14 +68,32 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       price_net: body.price_net,
     });
     if (!parsed.success) {
-      return new Response(JSON.stringify({ success: false, error: 'Validation failed', fields: Object.fromEntries(parsed.error.issues.map(i => [i.path.join('.'), i.message])) }), { status: 422, headers: { 'Content-Type': 'application/json' } });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Validation failed',
+          fields: Object.fromEntries(parsed.error.issues.map((i) => [i.path.join('.'), i.message])),
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/json' } }
+      );
     }
-    await upsertPrice(db, { product_id: parsed.data.product_id, variant_id: parsed.data.variant_id ?? null, currency: parsed.data.currency, price_net: parsed.data.price_net });
-    return new Response(JSON.stringify({ success: true, data: parsed.data }), { status: 201, headers: { 'Content-Type': 'application/json' } });
+    await upsertPrice(db, {
+      product_id: parsed.data.product_id,
+      variant_id: parsed.data.variant_id ?? null,
+      currency: parsed.data.currency,
+      price_net: parsed.data.price_net,
+    });
+    return new Response(JSON.stringify({ success: true, data: parsed.data }), {
+      status: 201,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status: err.status ?? 500, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
+      status: err.status ?? 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
-};
+}
 
 export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
@@ -67,7 +108,14 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     }));
     const parsed = BulkUpsertPricesSchema.safeParse(payload);
     if (!parsed.success) {
-      return new Response(JSON.stringify({ success: false, error: 'Validation failed', fields: Object.fromEntries(parsed.error.issues.map(i => [i.path.join('.'), i.message])) }), { status: 422, headers: { 'Content-Type': 'application/json' } });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Validation failed',
+          fields: Object.fromEntries(parsed.error.issues.map((i) => [i.path.join('.'), i.message])),
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/json' } }
+      );
     }
     for (const p of parsed.data.prices) {
       await upsertPrice(db, {
@@ -77,11 +125,17 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
         price_net: p.price_net,
       });
     }
-    return new Response(JSON.stringify({ success: true, data: parsed.data.prices }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ success: true, data: parsed.data.prices }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status: err.status ?? 500, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
+      status: err.status ?? 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
-};
+}
 
 export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
@@ -89,8 +143,14 @@ export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response
     const url = new URL(ctx.request.url);
     const priceId = url.searchParams.get('id');
     if (priceId) await deletePrice(db, priceId);
-    return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), { status: err.status ?? 500, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
+      status: err.status ?? 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
-};
+}

@@ -213,9 +213,7 @@ test('getShopConfig derives defaultLocale from isDefault flag', async () => {
     await insertFixture(db, 'shop_settings', {
       id: crypto.randomUUID(),
       key: 'currencies',
-      value: JSON.stringify([
-        { code: 'RON', name: 'Leu românesc', isDefault: true },
-      ]),
+      value: JSON.stringify([{ code: 'RON', name: 'Leu românesc', isDefault: true }]),
     });
 
     const config = await getShopConfig(db);
@@ -233,9 +231,7 @@ test('getShopConfig derives defaultCurrency from isDefault flag', async () => {
     await insertFixture(db, 'shop_settings', {
       id: crypto.randomUUID(),
       key: 'locales',
-      value: JSON.stringify([
-        { code: 'ro', name: 'Română', isDefault: true },
-      ]),
+      value: JSON.stringify([{ code: 'ro', name: 'Română', isDefault: true }]),
     });
     await insertFixture(db, 'shop_settings', {
       id: crypto.randomUUID(),
@@ -328,8 +324,14 @@ test('getShopConfig handles completely empty database', async () => {
     const config = await getShopConfig(db);
     assert.strictEqual(config.locales.length, 0);
     assert.strictEqual(config.currencies.length, 0);
-    assert.ok(typeof config.defaultLocale === 'string', 'defaultLocale must be a string even with no data');
-    assert.ok(typeof config.defaultCurrency === 'string', 'defaultCurrency must be a string even with no data');
+    assert.ok(
+      typeof config.defaultLocale === 'string',
+      'defaultLocale must be a string even with no data'
+    );
+    assert.ok(
+      typeof config.defaultCurrency === 'string',
+      'defaultCurrency must be a string even with no data'
+    );
     assert.ok(typeof config.raw === 'object', 'raw must be an object');
   } finally {
     await cleanup();

@@ -59,8 +59,7 @@ function validOrderBody(productId: string) {
   };
 }
 
-test('GET auth-fail → 401', () =>
-  matrix.adminAuthFail({ run: runGet, url: base }));
+test('GET auth-fail → 401', () => matrix.adminAuthFail({ run: runGet, url: base }));
 
 test('GET happy-path → 200, data is array', () =>
   matrix.happyPath({
@@ -70,14 +69,16 @@ test('GET happy-path → 200, data is array', () =>
     check: (b) => assert.ok(Array.isArray(b.data), 'data should be an array'),
   }));
 
-test('GET error-wrap → 500', () =>
-  matrix.errorWrap({ run: runGet, url: base }));
+test('GET error-wrap → 500', () => matrix.errorWrap({ run: runGet, url: base }));
 
-test('POST auth-fail → 401', () =>
-  matrix.adminAuthFail({ run: runPost, url: base, body: {} }));
+test('POST auth-fail → 401', () => matrix.adminAuthFail({ run: runPost, url: base, body: {} }));
 
 test('POST validation-fail → 422', () =>
-  matrix.validationFail({ run: runPost, url: base, invalidBody: { customer_email: 'not-an-email' } }));
+  matrix.validationFail({
+    run: runPost,
+    url: base,
+    invalidBody: { customer_email: 'not-an-email' },
+  }));
 
 test('POST happy-path → 201, data.id exists', async () => {
   const { db, cleanup } = await createTestDb();

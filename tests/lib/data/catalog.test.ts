@@ -31,8 +31,11 @@ test('listProducts returns localized name', async () => {
   try {
     await seedMinimal(db);
     const result = await listProducts(db, { page: 1, limit: 10, locale: 'en' });
-    const names = result.products.map(p => p.name);
-    assert.ok(names.some(n => /Programming Book/i.test(n)), 'en locale must return English name');
+    const names = result.products.map((p) => p.name);
+    assert.ok(
+      names.some((n) => /Programming Book/i.test(n)),
+      'en locale must return English name'
+    );
   } finally {
     await cleanup();
   }
@@ -57,7 +60,7 @@ test('getProductWithPrices returns product with prices keyed by currency (net + 
     assert.ok(product, 'must return the product');
     assert.ok(product!.prices, 'must have prices');
     assert.ok(product!.prices.length >= 2, 'must have RON + EUR prices');
-    const ron = product!.prices.find(p => p.currency === 'RON');
+    const ron = product!.prices.find((p) => p.currency === 'RON');
     assert.ok(ron, 'must have RON price');
     assert.strictEqual(ron!.price_net, 5000);
     // Gross = net * (1 + vat_rate). Simple product vat_rate = 0.05
@@ -104,9 +107,19 @@ test('upsertTranslation inserts a new translation then updates it (no dupes)', a
   try {
     await seedMinimal(db);
     // Insert
-    await upsertTranslation(db, { entity_type: 'category', entity_id: 'cat-x', locale: 'en', name: 'Test Cat' });
+    await upsertTranslation(db, {
+      entity_type: 'category',
+      entity_id: 'cat-x',
+      locale: 'en',
+      name: 'Test Cat',
+    });
     // Update (same key)
-    await upsertTranslation(db, { entity_type: 'category', entity_id: 'cat-x', locale: 'en', name: 'Updated Cat' });
+    await upsertTranslation(db, {
+      entity_type: 'category',
+      entity_id: 'cat-x',
+      locale: 'en',
+      name: 'Updated Cat',
+    });
     const cats = await listCategories(db, 'ro');
     // The upserted translation doesn't affect categories list (cat-x doesn't exist as a category)
     // but the function should not throw
@@ -121,9 +134,37 @@ test('listProductImages returns images for a product ordered by sort_order', asy
   try {
     const f = await seedMinimal(db);
     // Insert images
-    await insertFixture(db, 'product_images', { id: 'img-1', product_id: f.simpleProductId, variant_id: null, url: '/img1.jpg', alt: 'Img 1', sort_order: 2, mime: 'image/jpeg', size: 100, width: null, height: null, original_filename: 'img1.jpg' });
-    await insertFixture(db, 'product_images', { id: 'img-2', product_id: f.simpleProductId, variant_id: null, url: '/img2.jpg', alt: 'Img 2', sort_order: 1, mime: 'image/jpeg', size: 100, width: null, height: null, original_filename: 'img2.jpg' });
-    const images = await listProductImage(db, { storage: { getUrl: (k: string) => k } }, f.simpleProductId);
+    await insertFixture(db, 'product_images', {
+      id: 'img-1',
+      product_id: f.simpleProductId,
+      variant_id: null,
+      url: '/img1.jpg',
+      alt: 'Img 1',
+      sort_order: 2,
+      mime: 'image/jpeg',
+      size: 100,
+      width: null,
+      height: null,
+      original_filename: 'img1.jpg',
+    });
+    await insertFixture(db, 'product_images', {
+      id: 'img-2',
+      product_id: f.simpleProductId,
+      variant_id: null,
+      url: '/img2.jpg',
+      alt: 'Img 2',
+      sort_order: 1,
+      mime: 'image/jpeg',
+      size: 100,
+      width: null,
+      height: null,
+      original_filename: 'img2.jpg',
+    });
+    const images = await listProductImage(
+      db,
+      { storage: { getUrl: (k: string) => k } },
+      f.simpleProductId
+    );
     assert.strictEqual(images.length, 2);
     assert.strictEqual(images[0].sort_order, 1, 'first image must have lower sort_order');
   } finally {
@@ -135,7 +176,11 @@ test('listProductImages on a product with no images returns []', async () => {
   const { db, cleanup } = await createTestDb();
   try {
     const f = await seedMinimal(db);
-    const images = await listProductImage(db, { storage: { getUrl: (k: string) => k } }, f.simpleProductId);
+    const images = await listProductImage(
+      db,
+      { storage: { getUrl: (k: string) => k } },
+      f.simpleProductId
+    );
     assert.strictEqual(images.length, 0);
   } finally {
     await cleanup();

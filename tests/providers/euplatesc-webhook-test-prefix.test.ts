@@ -56,8 +56,11 @@ describe('euPlatesc IPN webhook — TEST- prefix handling', () => {
     const result = await handleWebhook(db, request);
 
     // Must return pending (not paid, since no real order)
-    assert.strictEqual(result.status, 'pending',
-      'TEST- prefix IPN must return pending status (no order transition)');
+    assert.strictEqual(
+      result.status,
+      'pending',
+      'TEST- prefix IPN must return pending status (no order transition)'
+    );
   });
 
   it('stores result in shop_settings key euplatesc_test_result', async () => {
@@ -97,14 +100,16 @@ describe('euPlatesc IPN webhook — TEST- prefix handling', () => {
       .where(eq(shop_settings.key, 'euplatesc_test_result'))
       .limit(1);
 
-    assert.ok(settingsResult.length > 0,
-      'euplatesc_test_result must be stored in shop_settings');
+    assert.ok(settingsResult.length > 0, 'euplatesc_test_result must be stored in shop_settings');
 
     const parsed = JSON.parse(settingsResult[0].value);
 
     assert.ok(parsed.timestamp, 'Result must have timestamp');
-    assert.strictEqual(parsed.invoice_id, 'TEST-20260710143046',
-      'Result must have correct invoice_id');
+    assert.strictEqual(
+      parsed.invoice_id,
+      'TEST-20260710143046',
+      'Result must have correct invoice_id'
+    );
     assert.strictEqual(parsed.action, '0', 'Result must have action');
     assert.strictEqual(parsed.message, 'OK', 'Result must have message');
     assert.strictEqual(parsed.mac_valid, true, 'Result must have mac_valid=true');

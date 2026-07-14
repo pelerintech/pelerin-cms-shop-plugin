@@ -34,7 +34,11 @@ describe('euPlatesc isConfigured', () => {
 
   it('returns false when merchant_id is missing', async () => {
     await db.insert(shop_settings).values([
-      { id: 's2', key: 'euplatesc_secret_key', value: 'AA4A81EE58A1D74DE6E02DF2C1CE9982780F95DC' },
+      {
+        id: 's2',
+        key: 'euplatesc_secret_key',
+        value: 'AA4A81EE58A1D74DE6E02DF2C1CE9982780F95DC',
+      },
     ]);
 
     const result = await provider.isConfigured(db);
@@ -42,9 +46,9 @@ describe('euPlatesc isConfigured', () => {
   });
 
   it('returns false when secret_key is missing', async () => {
-    await db.insert(shop_settings).values([
-      { id: 's1', key: 'euplatesc_merchant_id', value: '44841007584' },
-    ]);
+    await db
+      .insert(shop_settings)
+      .values([{ id: 's1', key: 'euplatesc_merchant_id', value: '44841007584' }]);
 
     const result = await provider.isConfigured(db);
     assert.strictEqual(result, false, 'isConfigured must return false when secret_key is missing');

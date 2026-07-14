@@ -8,9 +8,15 @@ import {
 import { getShopConfig } from '../../../../lib/data/settings';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 
-export const GET: APIRoute = (context) => { const sdk = createPluginContext(); return runGet({ db: sdk.db, sdk, ctx: context }); }
+export const GET: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runGet({ db: sdk.db, sdk, ctx: context });
+};
 
-export const PUT: APIRoute = (context) => { const sdk = createPluginContext(); return runPut({ db: sdk.db, sdk, ctx: context }); }
+export const PUT: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runPut({ db: sdk.db, sdk, ctx: context });
+};
 
 export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
@@ -22,10 +28,10 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
 
     const enriched = await listProductAttributeValues(db, productId, locale);
 
-    return new Response(
-      JSON.stringify({ success: true, data: enriched }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ success: true, data: enriched }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (err: any) {
     const status = err.status ?? 500;
     return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
@@ -43,10 +49,10 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     const body = await ctx.request.json();
 
     if (!body.values || !Array.isArray(body.values)) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'values array is required' }),
-        { status: 422, headers: { 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: 'values array is required' }), {
+        status: 422,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     for (const val of body.values) {
@@ -63,19 +69,19 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
         });
       } catch (e: any) {
         if (e instanceof AttributeValueError) {
-          return new Response(
-            JSON.stringify({ success: false, error: e.message }),
-            { status: 422, headers: { 'Content-Type': 'application/json' } }
-          );
+          return new Response(JSON.stringify({ success: false, error: e.message }), {
+            status: 422,
+            headers: { 'Content-Type': 'application/json' },
+          });
         }
         throw e;
       }
     }
 
-    return new Response(
-      JSON.stringify({ success: true }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (err: any) {
     const status = err.status ?? 500;
     return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {

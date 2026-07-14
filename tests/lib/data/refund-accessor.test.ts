@@ -15,39 +15,89 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { eq } from 'drizzle-orm';
 import { createTestDb, seedMinimal, insertFixture } from '../../db/harness.ts';
-import {
-  products, orders, order_items, order_refunds,
-} from '../../../src/db/schema.ts';
+import { products, orders, order_items, order_refunds } from '../../../src/db/schema.ts';
 import { createOrder, recordLineItemRefund, RefundError } from '../../../src/lib/data/orders.ts';
 
 const now = () => new Date();
 const futureExpiry = () => new Date(now().getTime() + 30 * 24 * 60 * 60 * 1000);
 
-async function makeCart(db: any, f: any, cartId: string, items: { productId: string; quantity: number }[]) {
+async function makeCart(
+  db: any,
+  f: any,
+  cartId: string,
+  items: { productId: string; quantity: number }[]
+) {
   await insertFixture(db, 'carts', {
-    id: cartId, session_id: 'sess-' + cartId, user_id: null, applied_voucher_code: null,
-    applied_referral_code: null, converted_at: null, expires_at: futureExpiry(),
-    created_at: now(), updated_at: now(),
+    id: cartId,
+    session_id: 'sess-' + cartId,
+    user_id: null,
+    applied_voucher_code: null,
+    applied_referral_code: null,
+    converted_at: null,
+    expires_at: futureExpiry(),
+    created_at: now(),
+    updated_at: now(),
   });
   for (const [i, it] of items.entries()) {
     await insertFixture(db, 'cart_items', {
-      id: `ci-${cartId}-${i}`, cart_id: cartId, product_id: it.productId, variant_id: null, quantity: it.quantity,
+      id: `ci-${cartId}-${i}`,
+      cart_id: cartId,
+      product_id: it.productId,
+      variant_id: null,
+      quantity: it.quantity,
     });
   }
 }
 
-async function seedDeliveredOrder(db: any, f: any, orderNumber: string, cartId: string, qty: number) {
+async function seedDeliveredOrder(
+  db: any,
+  f: any,
+  orderNumber: string,
+  cartId: string,
+  qty: number
+) {
   await makeCart(db, f, cartId, [{ productId: f.simpleProductId, quantity: qty }]);
   const order = await createOrder(db, {
-    order_number: orderNumber, user_id: null, customer_type: 'individual',
-    customer_email: 't@e.com', customer_name: 'T', customer_phone: null, currency: 'RON',
-    subtotal_net: 5000, vat_total: 250, shipping_cost: 0, discount_amount: 0, total: 5250,
-    shipping_type: 'physical', billing_first_name: 'T', billing_last_name: 'U', billing_address: 'A',
-    billing_city: 'C', billing_postal_code: '1', billing_country: 'RO',
-    shipping_first_name: 'T', shipping_last_name: 'U', shipping_address: 'A',
-    shipping_city: 'C', shipping_postal_code: '1', shipping_country: 'RO',
-    shipping_same_as_billing: true, cart_id: cartId,
-    items: [{ product_id: f.simpleProductId, variant_id: null, product_name: 'Carte', sku: 'BOOK-001', quantity: qty, price_net: 5000, vat_rate: 0.05, price_gross: 5250, currency: 'RON' }],
+    order_number: orderNumber,
+    user_id: null,
+    customer_type: 'individual',
+    customer_email: 't@e.com',
+    customer_name: 'T',
+    customer_phone: null,
+    currency: 'RON',
+    subtotal_net: 5000,
+    vat_total: 250,
+    shipping_cost: 0,
+    discount_amount: 0,
+    total: 5250,
+    shipping_type: 'physical',
+    billing_first_name: 'T',
+    billing_last_name: 'U',
+    billing_address: 'A',
+    billing_city: 'C',
+    billing_postal_code: '1',
+    billing_country: 'RO',
+    shipping_first_name: 'T',
+    shipping_last_name: 'U',
+    shipping_address: 'A',
+    shipping_city: 'C',
+    shipping_postal_code: '1',
+    shipping_country: 'RO',
+    shipping_same_as_billing: true,
+    cart_id: cartId,
+    items: [
+      {
+        product_id: f.simpleProductId,
+        variant_id: null,
+        product_name: 'Carte',
+        sku: 'BOOK-001',
+        quantity: qty,
+        price_net: 5000,
+        vat_rate: 0.05,
+        price_gross: 5250,
+        currency: 'RON',
+      },
+    ],
   });
   await db.update(orders).set({ status: 'delivered' }).where(eq(orders.id, order.id));
   return order;
@@ -62,13 +112,21 @@ test('(a) refund qty 1 of 2 → partially_refunded, stock +1, refund_amount += a
     const oi = await db.select().from(order_items).where(eq(order_items.order_id, order.id));
     const itemId = oi[0].id;
 
-    await recordLineItemRefund(db, order.id, {
-      refunds: [{ order_item_id: itemId, quantity: 1, amount: 5000, notes: '1 of 2' }],
-      notes: 'partial refund',
-    }, 'admin');
+    await recordLineItemRefund(
+      db,
+      order.id,
+      {
+        refunds: [{ order_item_id: itemId, quantity: 1, amount: 5000, notes: '1 of 2' }],
+        notes: 'partial refund',
+      },
+      'admin'
+    );
 
     // order_refunds row inserted.
-    const refunds = await db.select().from(order_refunds).where(eq(order_refunds.order_id, order.id));
+    const refunds = await db
+      .select()
+      .from(order_refunds)
+      .where(eq(order_refunds.order_id, order.id));
     assert.equal(refunds.length, 1);
     assert.equal(refunds[0].quantity, 1);
     assert.equal(refunds[0].order_item_id, itemId);
@@ -98,16 +156,29 @@ test('(b) refund remaining → refunded (terminal)', async () => {
     const itemId = oi[0].id;
 
     // First refund: 1 of 2 → partially_refunded, stock 98→99.
-    await recordLineItemRefund(db, order.id, {
-      refunds: [{ order_item_id: itemId, quantity: 1, amount: 5000 }],
-    }, 'admin');
+    await recordLineItemRefund(
+      db,
+      order.id,
+      {
+        refunds: [{ order_item_id: itemId, quantity: 1, amount: 5000 }],
+      },
+      'admin'
+    );
 
     // Second refund: remaining 1 → refunded, stock 99→100.
-    await recordLineItemRefund(db, order.id, {
-      refunds: [{ order_item_id: itemId, quantity: 1, amount: 5000 }],
-    }, 'admin');
+    await recordLineItemRefund(
+      db,
+      order.id,
+      {
+        refunds: [{ order_item_id: itemId, quantity: 1, amount: 5000 }],
+      },
+      'admin'
+    );
 
-    const refunds = await db.select().from(order_refunds).where(eq(order_refunds.order_id, order.id));
+    const refunds = await db
+      .select()
+      .from(order_refunds)
+      .where(eq(order_refunds.order_id, order.id));
     assert.equal(refunds.length, 2);
 
     const [p] = await db.select().from(products).where(eq(products.id, f.simpleProductId));
@@ -130,13 +201,22 @@ test('(c) refund qty 3 for item of qty 2 → throws RefundError, no write', asyn
     const itemId = oi[0].id;
 
     await assert.rejects(
-      () => recordLineItemRefund(db, order.id, {
-        refunds: [{ order_item_id: itemId, quantity: 3, amount: 9999 }],
-      }, 'admin'),
-      (err: any) => err instanceof RefundError,
+      () =>
+        recordLineItemRefund(
+          db,
+          order.id,
+          {
+            refunds: [{ order_item_id: itemId, quantity: 3, amount: 9999 }],
+          },
+          'admin'
+        ),
+      (err: any) => err instanceof RefundError
     );
 
-    const refunds = await db.select().from(order_refunds).where(eq(order_refunds.order_id, order.id));
+    const refunds = await db
+      .select()
+      .from(order_refunds)
+      .where(eq(order_refunds.order_id, order.id));
     assert.equal(refunds.length, 0, 'no refund row');
     const [p] = await db.select().from(products).where(eq(products.id, f.simpleProductId));
     assert.equal(p.stock, 98, 'stock unchanged');
@@ -157,19 +237,33 @@ test('(d) refund qty 2 for item already refunded 1 (remaining 1) → throws Refu
     const itemId = oi[0].id;
 
     // Refund 1 → partially_refunded.
-    await recordLineItemRefund(db, order.id, {
-      refunds: [{ order_item_id: itemId, quantity: 1, amount: 5000 }],
-    }, 'admin');
+    await recordLineItemRefund(
+      db,
+      order.id,
+      {
+        refunds: [{ order_item_id: itemId, quantity: 1, amount: 5000 }],
+      },
+      'admin'
+    );
 
     // Now try to refund 2 more (only 1 remaining) → reject.
     await assert.rejects(
-      () => recordLineItemRefund(db, order.id, {
-        refunds: [{ order_item_id: itemId, quantity: 2, amount: 9999 }],
-      }, 'admin'),
-      (err: any) => err instanceof RefundError,
+      () =>
+        recordLineItemRefund(
+          db,
+          order.id,
+          {
+            refunds: [{ order_item_id: itemId, quantity: 2, amount: 9999 }],
+          },
+          'admin'
+        ),
+      (err: any) => err instanceof RefundError
     );
 
-    const refunds = await db.select().from(order_refunds).where(eq(order_refunds.order_id, order.id));
+    const refunds = await db
+      .select()
+      .from(order_refunds)
+      .where(eq(order_refunds.order_id, order.id));
     assert.equal(refunds.length, 1, 'only the first refund row exists');
     const [p] = await db.select().from(products).where(eq(products.id, f.simpleProductId));
     assert.equal(p.stock, 99, 'stock unchanged by the rejected refund');
@@ -185,13 +279,22 @@ test('(e) bad order_item_id → throws RefundError', async () => {
     const order = await seedDeliveredOrder(db, f, 'ORD-RFE', 'cart-rfe', 2);
 
     await assert.rejects(
-      () => recordLineItemRefund(db, order.id, {
-        refunds: [{ order_item_id: 'does-not-belong', quantity: 1, amount: 100 }],
-      }, 'admin'),
-      (err: any) => err instanceof RefundError,
+      () =>
+        recordLineItemRefund(
+          db,
+          order.id,
+          {
+            refunds: [{ order_item_id: 'does-not-belong', quantity: 1, amount: 100 }],
+          },
+          'admin'
+        ),
+      (err: any) => err instanceof RefundError
     );
 
-    const refunds = await db.select().from(order_refunds).where(eq(order_refunds.order_id, order.id));
+    const refunds = await db
+      .select()
+      .from(order_refunds)
+      .where(eq(order_refunds.order_id, order.id));
     assert.equal(refunds.length, 0);
   } finally {
     await cleanup();
@@ -209,13 +312,22 @@ test('(f) order in cancelled status → throws RefundError, no write', async () 
     await db.update(orders).set({ status: 'cancelled' }).where(eq(orders.id, order.id));
 
     await assert.rejects(
-      () => recordLineItemRefund(db, order.id, {
-        refunds: [{ order_item_id: itemId, quantity: 1, amount: 100 }],
-      }, 'admin'),
-      (err: any) => err instanceof RefundError,
+      () =>
+        recordLineItemRefund(
+          db,
+          order.id,
+          {
+            refunds: [{ order_item_id: itemId, quantity: 1, amount: 100 }],
+          },
+          'admin'
+        ),
+      (err: any) => err instanceof RefundError
     );
 
-    const refunds = await db.select().from(order_refunds).where(eq(order_refunds.order_id, order.id));
+    const refunds = await db
+      .select()
+      .from(order_refunds)
+      .where(eq(order_refunds.order_id, order.id));
     assert.equal(refunds.length, 0, 'no refund row');
     const [p] = await db.select().from(products).where(eq(products.id, f.simpleProductId));
     assert.equal(p.stock, 98, 'stock unchanged');

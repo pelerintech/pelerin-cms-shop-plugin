@@ -45,7 +45,7 @@ describe('order [id].astro client <script> syntax', () => {
     assert.equal(
       exitCode,
       0,
-      `client <script> in [id].astro has a syntax error.\nesbuild output:\n${combined}`,
+      `client <script> in [id].astro has a syntax error.\nesbuild output:\n${combined}`
     );
   });
 });

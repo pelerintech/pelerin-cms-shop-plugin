@@ -14,11 +14,13 @@ const user = await sdk.auth.requireAdmin(Astro.request);
 ---
 
 <AdminLayout title="New Referral Code" currentPath="/admin/plugins/shop/referral-codes" user={user}>
-  <Breadcrumbs items={[
-    { label: 'Shop', href: '/admin/plugins/shop' },
-    { label: 'Referral Codes', href: '/admin/plugins/shop/referral-codes' },
-    { label: 'New Referral Code' },
-  ]} />
+  <Breadcrumbs
+    items={[
+      { label: 'Shop', href: '/admin/plugins/shop' },
+      { label: 'Referral Codes', href: '/admin/plugins/shop/referral-codes' },
+      { label: 'New Referral Code' },
+    ]}
+  />
 
   <div class="flex items-center justify-between col-span-12 mb-4">
     <div>
@@ -32,16 +34,39 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     <div class="card-body">
       <form id="referral-form" class="space-y-6">
         <div class="space-y-4">
-          <TextField name="code" label="Code" required placeholder="DR-IONESCU" style="text-transform: uppercase;" />
+          <TextField
+            name="code"
+            label="Code"
+            required
+            placeholder="DR-IONESCU"
+            style="text-transform: uppercase;"
+          />
           <TextField name="name" label="Partner Name" required placeholder="Dr. Ionescu Cabinet" />
-          <SelectField name="discount_type" label="Discount Type" placeholder="None" options={[
-            { value: 'fixed_amount', label: 'Fixed Amount' },
-            { value: 'percentage', label: 'Percentage' },
-          ]} />
+          <SelectField
+            name="discount_type"
+            label="Discount Type"
+            placeholder="None"
+            options={[
+              { value: 'fixed_amount', label: 'Fixed Amount' },
+              { value: 'percentage', label: 'Percentage' },
+            ]}
+          />
           <div id="discount-value-field" style="display:none;">
-            <TextField name="discount_value" label="Discount Value" type="number" step="0.01" min="0" placeholder="10" />
+            <TextField
+              name="discount_value"
+              label="Discount Value"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="10"
+            />
           </div>
-          <TextareaField name="notes" label="Notes" placeholder="Optional notes about this referral partner" rows={3} />
+          <TextareaField
+            name="notes"
+            label="Notes"
+            placeholder="Optional notes about this referral partner"
+            rows={3}
+          />
           <CheckboxField name="active" label="Active" checked />
         </div>
 
@@ -60,17 +85,18 @@ const user = await sdk.auth.requireAdmin(Astro.request);
   var API_URL = '/api/plugins/shop/referral-codes';
 
   // Toggle discount value visibility
-  document.getElementById('discount_type').addEventListener('change', function() {
+  document.getElementById('discount_type').addEventListener('change', function () {
     var valueField = document.getElementById('discount-value-field');
     if (this.value) {
       valueField.style.display = '';
     } else {
       valueField.style.display = 'none';
-      var dv = document.getElementById('discount_value'); if (dv) dv.value = '';
+      var dv = document.getElementById('discount_value');
+      if (dv) dv.value = '';
     }
   });
 
-  document.getElementById('referral-form').addEventListener('submit', async function(e) {
+  document.getElementById('referral-form').addEventListener('submit', async function (e) {
     e.preventDefault();
     var form = e.target;
     var formData = new FormData(form);
@@ -80,7 +106,11 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       code: formData.get('code') || '',
       name: formData.get('name') || '',
       discount_type: discountType,
-      discount_value: discountType ? (formData.get('discount_value') ? parseFloat(formData.get('discount_value')) : null) : null,
+      discount_value: discountType
+        ? formData.get('discount_value')
+          ? parseFloat(formData.get('discount_value'))
+          : null
+        : null,
       notes: formData.get('notes') || null,
       active: formData.get('active') === 'on',
     };
