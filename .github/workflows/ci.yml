@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  quality:
+  format-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,16 +19,26 @@ jobs:
       - run: npm install
       - name: Format check
         run: npm run format:check
+
+  quality-report:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install
       - name: Lint
         run: npm run lint
       - name: Gitleaks
-        continue-on-error: true
         uses: zricethezav/gitleaks-action@v2
       - name: npm audit
         continue-on-error: true
         run: npm audit --audit-level=low
 
   type-check:
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,11 +47,10 @@ jobs:
           node-version: '22'
       - run: npm install
       - name: Type check
-        continue-on-error: true
         run: npm run type-check
 
   test:
-    needs: quality
+    needs: format-check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

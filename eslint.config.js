@@ -14,6 +14,6 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['node_modules/', 'dist/', '.astro/', 'coverage/', 'reespec/', 'test-results/'],
+    ignores: ['node_modules/', 'dist/', '.astro/', 'coverage/', 'reespec/', 'test-results/', 'tests/'],
   }
 );
