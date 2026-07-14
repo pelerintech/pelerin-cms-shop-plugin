@@ -10,11 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Pin Node 22 explicitly. The plugin repo has no committed
+      # package-lock.json (per AGENTS.md §13), so use npm install, not npm ci.
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
-      - run: npm ci
+      - run: npm install
       - name: Format check
         run: npm run format:check
       - name: Lint
@@ -34,7 +36,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-      - run: npm ci
+      - run: npm install
       - name: Type check
         continue-on-error: true
         run: npm run type-check
@@ -48,7 +50,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-      - run: npm ci
+      - run: npm install
       - name: Run tests with coverage
         env:
           NODE_OPTIONS: '--experimental-test-coverage'
