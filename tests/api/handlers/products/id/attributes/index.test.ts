@@ -6,12 +6,10 @@ import { createTestDb, seedMinimal } from '../../../../../db/harness.ts';
 import { makeFakeSdk, makeCtx } from '../../../../helpers.ts';
 
 ensureLoader();
-const { runGet, runPost } = await import(
-  '../../../../../../src/api/shop/products/[id]/attributes/index.ts'
-);
+const { runGet, runPost } =
+  await import('../../../../../../src/api/shop/products/[id]/attributes/index.ts');
 
-const URL = (id: string) =>
-  `http://localhost/api/plugins/shop/products/${id}/attributes`;
+const URL = (id: string) => `http://localhost/api/plugins/shop/products/${id}/attributes`;
 
 test('GET auth-fail → 401', () =>
   matrix.adminAuthFail({ run: runGet, url: URL('x'), params: { id: 'x' } }));

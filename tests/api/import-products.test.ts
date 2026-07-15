@@ -16,29 +16,45 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { ensureLoader } from '../stubs/register.mjs';
-import {
-  makeFakeSdk,
-  poisonDb,
-  unauthorizedError,
-} from './helpers.ts';
+import { makeFakeSdk, poisonDb, unauthorizedError } from './helpers.ts';
 import { createTestDb, seedMinimal } from '../db/harness.ts';
 
 ensureLoader();
 const { runPost } = await import('../../src/api/shop/import/products.ts');
 
 /** Build a fake Astro ctx whose request carries a multipart FormData with a file. */
-function makeCtxWithFile(filename: string, content: string, url = 'http://localhost/api/plugins/shop/import/products'): any {
+function makeCtxWithFile(
+  filename: string,
+  content: string,
+  url = 'http://localhost/api/plugins/shop/import/products'
+): any {
   const form = new FormData();
   form.append('file', new File([content], filename, { type: 'text/csv' }));
   const request = new Request(url, { method: 'POST', body: form });
-  return { request, params: {}, url: new URL(url), site: new URL('http://localhost'), cookies: { get: () => undefined, set: () => {}, delete: () => {} }, redirect: () => new Response(null, { status: 302 }), locals: {} };
+  return {
+    request,
+    params: {},
+    url: new URL(url),
+    site: new URL('http://localhost'),
+    cookies: { get: () => undefined, set: () => {}, delete: () => {} },
+    redirect: () => new Response(null, { status: 302 }),
+    locals: {},
+  };
 }
 
 /** Build a fake ctx with no file field at all. */
 function makeCtxNoFile(url = 'http://localhost/api/plugins/shop/import/products'): any {
   const form = new FormData();
   const request = new Request(url, { method: 'POST', body: form });
-  return { request, params: {}, url: new URL(url), site: new URL('http://localhost'), cookies: { get: () => undefined, set: () => {}, delete: () => {} }, redirect: () => new Response(null, { status: 302 }), locals: {} };
+  return {
+    request,
+    params: {},
+    url: new URL(url),
+    site: new URL('http://localhost'),
+    cookies: { get: () => undefined, set: () => {}, delete: () => {} },
+    redirect: () => new Response(null, { status: 302 }),
+    locals: {},
+  };
 }
 
 function jsonBody(res: Response) {

@@ -5,8 +5,15 @@
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { inArray, eq, and, isNull, asc, desc, count, or, like } from 'drizzle-orm';
 import {
-  products, categories, product_prices, product_images, translations, product_variants,
-  product_attribute_assignments, product_attribute_values, cart_items,
+  products,
+  categories,
+  product_prices,
+  product_images,
+  translations,
+  product_variants,
+  product_attribute_assignments,
+  product_attribute_values,
+  cart_items,
 } from '../../db/schema.ts';
 import { getShopConfig } from './settings.ts';
 import { upsertTranslationWithSlugGuard } from './slug-resolution.ts';
@@ -47,7 +54,7 @@ export interface ListProductsResult {
 
 export async function listProducts(
   db: LibSQLDatabase,
-  opts: ListProductsOptions = {},
+  opts: ListProductsOptions = {}
 ): Promise<ListProductsResult> {
   const page = Math.max(1, opts.page ?? 1);
   const limit = Math.min(100, Math.max(1, opts.limit ?? 20));
@@ -67,23 +74,30 @@ export async function listProducts(
   const [countRow] = await db.select({ value: count() }).from(products).where(where);
   const total = countRow?.value ?? 0;
 
-  const paged = await db.select().from(products)
+  const paged = (await db
+    .select()
+    .from(products)
     .where(where)
     .orderBy(desc(products.created_at))
     .limit(limit)
-    .offset((page - 1) * limit) as ProductListRow[];
+    .offset((page - 1) * limit)) as ProductListRow[];
 
   // Enrich the page only (translations + derived has_variants).
-  const productIds = paged.map(p => p.id);
+  const productIds = paged.map((p) => p.id);
 
   // Derive has_variants from actual variant rows (batched), ignoring the DB
   // column (a vestige — set false on create, overridden at read).
   await applyDerivedHasVariants(db, paged);
 
   if (productIds.length > 0 && locale !== config.defaultLocale) {
-    const transRows = await db.select().from(translations).where(inArray(translations.entity_id, productIds));
+    const transRows = await db
+      .select()
+      .from(translations)
+      .where(inArray(translations.entity_id, productIds));
     const transMap = new Map(
-      transRows.filter(t => t.entity_type === 'product' && t.locale === locale).map(t => [t.entity_id, t]),
+      transRows
+        .filter((t) => t.entity_type === 'product' && t.locale === locale)
+        .map((t) => [t.entity_id, t])
     );
     for (const p of paged) {
       const t = transMap.get(p.id);
@@ -100,13 +114,19 @@ export async function listProducts(
 
 export interface ProductWithPrices extends ProductListRow {
   prices: { currency: string; price_net: number; price_gross: number }[];
-  variants: { id: string; sku: string | null; stock: number | null; active: boolean; prices: { currency: string; price_net: number }[] }[];
+  variants: {
+    id: string;
+    sku: string | null;
+    stock: number | null;
+    active: boolean;
+    prices: { currency: string; price_net: number }[];
+  }[];
 }
 
 export async function getProductWithPrices(
   db: LibSQLDatabase,
   productId: string,
-  locale: string,
+  locale: string
 ): Promise<ProductWithPrices | null> {
   const [product] = await db.select().from(products).where(eq(products.id, productId));
   if (!product) return null;
@@ -116,8 +136,11 @@ export async function getProductWithPrices(
   let slug = product.slug;
   const productConfig = await getShopConfig(db);
   if (locale !== productConfig.defaultLocale) {
-    const transRows = await db.select().from(translations).where(inArray(translations.entity_id, [productId]));
-    const t = transRows.find(t => t.entity_type === 'product' && t.locale === locale);
+    const transRows = await db
+      .select()
+      .from(translations)
+      .where(inArray(translations.entity_id, [productId]));
+    const t = transRows.find((t) => t.entity_type === 'product' && t.locale === locale);
     if (t) {
       name = t.name ?? name;
       description = t.description ?? description;
@@ -125,21 +148,28 @@ export async function getProductWithPrices(
     }
   }
 
-  const prices = await db.select().from(product_prices).where(eq(product_prices.product_id, productId));
+  const prices = await db
+    .select()
+    .from(product_prices)
+    .where(eq(product_prices.product_id, productId));
   const enrichedPrices = prices
-    .filter(p => p.variant_id === null)
-    .map(p => ({
+    .filter((p) => p.variant_id === null)
+    .map((p) => ({
       currency: p.currency,
       price_net: p.price_net,
       price_gross: Math.round(p.price_net * (1 + (product.vat_rate ?? 0)) * 100) / 100,
     }));
 
   // Fetch variants and their prices
-  const variantRows = await db.select().from(product_variants).where(eq(product_variants.product_id, productId));
-  const variantIds = variantRows.map(v => v.id);
-  const variantPrices = variantIds.length > 0
-    ? await db.select().from(product_prices).where(inArray(product_prices.variant_id, variantIds))
-    : [];
+  const variantRows = await db
+    .select()
+    .from(product_variants)
+    .where(eq(product_variants.product_id, productId));
+  const variantIds = variantRows.map((v) => v.id);
+  const variantPrices =
+    variantIds.length > 0
+      ? await db.select().from(product_prices).where(inArray(product_prices.variant_id, variantIds))
+      : [];
   const variantById = new Map<string, typeof variantPrices>();
   for (const vp of variantPrices) {
     if (!variantById.has(vp.variant_id)) {
@@ -147,12 +177,12 @@ export async function getProductWithPrices(
     }
     variantById.get(vp.variant_id)!.push(vp);
   }
-  const variants = variantRows.map(v => ({
+  const variants = variantRows.map((v) => ({
     id: v.id,
     sku: v.sku,
     stock: v.stock,
     active: v.active,
-    prices: (variantById.get(v.id) ?? []).map(vp => ({
+    prices: (variantById.get(v.id) ?? []).map((vp) => ({
       currency: vp.currency,
       price_net: vp.price_net,
     })),
@@ -161,12 +191,19 @@ export async function getProductWithPrices(
   // Derive has_variants from actual variant rows (ignore the DB column).
   await applyDerivedHasVariants(db, [product]);
 
-  return { ...product, name, description, slug, prices: enrichedPrices, variants } as ProductWithPrices;
+  return {
+    ...product,
+    name,
+    description,
+    slug,
+    prices: enrichedPrices,
+    variants,
+  } as ProductWithPrices;
 }
 
 export async function getProductById(
   db: LibSQLDatabase,
-  productId: string,
+  productId: string
 ): Promise<ProductListRow | null> {
   const [product] = await db.select().from(products).where(eq(products.id, productId));
   if (!product) return null;
@@ -178,7 +215,7 @@ export async function getProductById(
 /** Find a product by its SKU (case-sensitive). Returns null if not found. */
 export async function findProductBySku(
   db: LibSQLDatabase,
-  sku: string,
+  sku: string
 ): Promise<ProductListRow | null> {
   const [product] = await db.select().from(products).where(eq(products.sku, sku));
   if (!product) return null;
@@ -192,7 +229,7 @@ export async function findProductBySku(
  */
 async function countProductVariants(
   db: LibSQLDatabase,
-  productIds: string[],
+  productIds: string[]
 ): Promise<Map<string, number>> {
   if (productIds.length === 0) return new Map();
   const rows = await db
@@ -211,7 +248,7 @@ async function countProductVariants(
  * (batched query), overriding the DB column.
  */
 async function applyDerivedHasVariants(db: LibSQLDatabase, rows: any[]): Promise<void> {
-  const ids = rows.map(r => r.id);
+  const ids = rows.map((r) => r.id);
   if (ids.length === 0) return;
   const counts = await countProductVariants(db, ids);
   for (const r of rows) {
@@ -232,16 +269,28 @@ export interface CreateProductInput {
   slug: string;
 }
 
-export async function createProduct(db: LibSQLDatabase, input: CreateProductInput): Promise<string> {
+export async function createProduct(
+  db: LibSQLDatabase,
+  input: CreateProductInput
+): Promise<string> {
   const id = crypto.randomUUID();
   const now = new Date();
   // has_variants is always false on create — it's derived at read time
   // (true iff ≥1 variant row exists). The input value is ignored.
   await db.insert(products).values({
-    id, sku: input.sku ?? null, type: input.type, has_variants: false,
-    vat_rate: input.vat_rate ?? null, stock: input.stock ?? null, category_id: input.category_id ?? null,
-    active: input.active, name: input.name, description: input.description ?? null, slug: input.slug,
-    created_at: now, updated_at: now,
+    id,
+    sku: input.sku ?? null,
+    type: input.type,
+    has_variants: false,
+    vat_rate: input.vat_rate ?? null,
+    stock: input.stock ?? null,
+    category_id: input.category_id ?? null,
+    active: input.active,
+    name: input.name,
+    description: input.description ?? null,
+    slug: input.slug,
+    created_at: now,
+    updated_at: now,
   });
   return id;
 }
@@ -259,7 +308,11 @@ export interface UpdateProductInput {
   slug?: string;
 }
 
-export async function updateProduct(db: LibSQLDatabase, id: string, input: UpdateProductInput): Promise<void> {
+export async function updateProduct(
+  db: LibSQLDatabase,
+  id: string,
+  input: UpdateProductInput
+): Promise<void> {
   const updateData: Record<string, any> = { updated_at: new Date() };
   for (const [k, v] of Object.entries(input)) {
     if (v !== undefined) updateData[k] = v;
@@ -284,12 +337,15 @@ export async function updateProductWithTranslations(
   id: string,
   productInput: UpdateProductInput,
   rawBody: Record<string, any>,
-  knownLocaleCodes: Set<string>,
+  knownLocaleCodes: Set<string>
 ): Promise<void> {
   await updateProduct(db, id, productInput);
 
   const translationFields = ['name', 'slug', 'description'];
-  const localeData: Record<string, { name?: string | null; slug?: string | null; description?: string | null }> = {};
+  const localeData: Record<
+    string,
+    { name?: string | null; slug?: string | null; description?: string | null }
+  > = {};
 
   for (const [key, value] of Object.entries(rawBody)) {
     for (const field of translationFields) {
@@ -320,23 +376,36 @@ export async function deleteProduct(db: LibSQLDatabase, id: string): Promise<voi
   // NOT deleted (order history preserved; order_items.product_id may dangle).
   await db.transaction(async (tx) => {
     // Collect the product's variant ids once (used for variant-scoped deletes).
-    const variantRows = await tx.select({ id: product_variants.id })
+    const variantRows = await tx
+      .select({ id: product_variants.id })
       .from(product_variants)
       .where(eq(product_variants.product_id, id));
     const variantIds = variantRows.map((r) => r.id);
 
     // 1. attribute values — variant-level (by variant_id set) then product-level.
     if (variantIds.length) {
-      await tx.delete(product_attribute_values).where(
-        and(eq(product_attribute_values.entity_type, 'variant'), inArray(product_attribute_values.entity_id, variantIds)),
-      );
+      await tx
+        .delete(product_attribute_values)
+        .where(
+          and(
+            eq(product_attribute_values.entity_type, 'variant'),
+            inArray(product_attribute_values.entity_id, variantIds)
+          )
+        );
     }
-    await tx.delete(product_attribute_values).where(
-      and(eq(product_attribute_values.entity_type, 'product'), eq(product_attribute_values.entity_id, id)),
-    );
+    await tx
+      .delete(product_attribute_values)
+      .where(
+        and(
+          eq(product_attribute_values.entity_type, 'product'),
+          eq(product_attribute_values.entity_id, id)
+        )
+      );
 
     // 2. attribute assignments for the product.
-    await tx.delete(product_attribute_assignments).where(eq(product_attribute_assignments.product_id, id));
+    await tx
+      .delete(product_attribute_assignments)
+      .where(eq(product_attribute_assignments.product_id, id));
 
     // 3. prices — product-level + variant-level.
     await tx.delete(product_prices).where(eq(product_prices.product_id, id));
@@ -353,9 +422,9 @@ export async function deleteProduct(db: LibSQLDatabase, id: string): Promise<voi
     // 6. cart_items referencing the product or its variants (transient cart; a
     //    delisted product drops from carts). order_items are snapshots — untouched.
     if (variantIds.length) {
-      await tx.delete(cart_items).where(
-        or(eq(cart_items.product_id, id), inArray(cart_items.variant_id, variantIds)),
-      );
+      await tx
+        .delete(cart_items)
+        .where(or(eq(cart_items.product_id, id), inArray(cart_items.variant_id, variantIds)));
     } else {
       await tx.delete(cart_items).where(eq(cart_items.product_id, id));
     }
@@ -385,7 +454,7 @@ export interface ListCategoriesOptions {
 export async function listCategories(
   db: LibSQLDatabase,
   locale: string,
-  opts: ListCategoriesOptions = {},
+  opts: ListCategoriesOptions = {}
 ): Promise<CategoryRow[]> {
   const config = await getShopConfig(db);
 
@@ -397,16 +466,19 @@ export async function listCategories(
   }
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  let rows = await db.select().from(categories)
-    .where(where)
-    .orderBy(asc(categories.sort_order));
+  let rows = await db.select().from(categories).where(where).orderBy(asc(categories.sort_order));
 
   if (locale !== config.defaultLocale) {
-    const ids = rows.map(r => r.id);
+    const ids = rows.map((r) => r.id);
     if (ids.length > 0) {
-      const transRows = await db.select().from(translations).where(inArray(translations.entity_id, ids));
+      const transRows = await db
+        .select()
+        .from(translations)
+        .where(inArray(translations.entity_id, ids));
       const transMap = new Map(
-        transRows.filter(t => t.entity_type === 'category' && t.locale === locale).map(t => [t.entity_id, t]),
+        transRows
+          .filter((t) => t.entity_type === 'category' && t.locale === locale)
+          .map((t) => [t.entity_id, t])
       );
       for (const r of rows) {
         const t = transMap.get(r.id);
@@ -429,24 +501,46 @@ export async function getCategoryById(db: LibSQLDatabase, id: string): Promise<C
 /** Find a category by its default-locale slug. Returns null if not found. */
 export async function findCategoryBySlug(
   db: LibSQLDatabase,
-  slug: string,
+  slug: string
 ): Promise<CategoryRow | null> {
   const [cat] = await db.select().from(categories).where(eq(categories.slug, slug));
   return (cat as CategoryRow) ?? null;
 }
 
-export async function createCategory(db: LibSQLDatabase, input: { parent_id?: string | null; name: string; description?: string | null; slug: string; sort_order: number }): Promise<string> {
+export async function createCategory(
+  db: LibSQLDatabase,
+  input: {
+    parent_id?: string | null;
+    name: string;
+    description?: string | null;
+    slug: string;
+    sort_order: number;
+  }
+): Promise<string> {
   const id = crypto.randomUUID();
   const now = new Date();
   await db.insert(categories).values({
-    id, parent_id: input.parent_id ?? null, name: input.name, description: input.description ?? null,
-    slug: input.slug, sort_order: input.sort_order, created_at: now, updated_at: now,
+    id,
+    parent_id: input.parent_id ?? null,
+    name: input.name,
+    description: input.description ?? null,
+    slug: input.slug,
+    sort_order: input.sort_order,
+    created_at: now,
+    updated_at: now,
   });
   return id;
 }
 
-export async function updateCategory(db: LibSQLDatabase, id: string, input: Record<string, any>): Promise<void> {
-  await db.update(categories).set({ ...input, updated_at: new Date() }).where(eq(categories.id, id));
+export async function updateCategory(
+  db: LibSQLDatabase,
+  id: string,
+  input: Record<string, any>
+): Promise<void> {
+  await db
+    .update(categories)
+    .set({ ...input, updated_at: new Date() })
+    .where(eq(categories.id, id));
 }
 
 /**
@@ -464,12 +558,15 @@ export async function updateCategoryWithTranslations(
   id: string,
   categoryInput: Record<string, any>,
   rawBody: Record<string, any>,
-  knownLocaleCodes: Set<string>,
+  knownLocaleCodes: Set<string>
 ): Promise<void> {
   await updateCategory(db, id, categoryInput);
 
   const translationFields = ['name', 'slug', 'description'];
-  const localeData: Record<string, { name?: string | null; slug?: string | null; description?: string | null }> = {};
+  const localeData: Record<
+    string,
+    { name?: string | null; slug?: string | null; description?: string | null }
+  > = {};
 
   for (const [key, value] of Object.entries(rawBody)) {
     for (const field of translationFields) {
@@ -506,7 +603,11 @@ export {
 export class CategoryError extends Error {
   status: number;
   code: 'not_found' | 'has_children' | 'has_products';
-  constructor(message: string, code: 'not_found' | 'has_children' | 'has_products' = 'has_children', status = 409) {
+  constructor(
+    message: string,
+    code: 'not_found' | 'has_children' | 'has_products' = 'has_children',
+    status = 409
+  ) {
     super(message);
     this.code = code;
     this.status = status;
@@ -520,7 +621,11 @@ export async function deleteCategory(db: LibSQLDatabase, id: string): Promise<vo
   // refuse-and-let-admin-deal-with-it is the safer choice.
   const children = await db.select().from(categories).where(eq(categories.parent_id, id));
   if (children.length > 0) {
-    throw new CategoryError('Category has child categories; re-parent or delete them first', 'has_children', 409);
+    throw new CategoryError(
+      'Category has child categories; re-parent or delete them first',
+      'has_children',
+      409
+    );
   }
   const prods = await db.select().from(products).where(eq(products.category_id, id));
   if (prods.length > 0) {
@@ -539,21 +644,43 @@ export async function listPricesForVariant(db: LibSQLDatabase, variantId: string
   return await db.select().from(product_prices).where(eq(product_prices.variant_id, variantId));
 }
 
-export async function upsertPrice(db: LibSQLDatabase, input: { product_id?: string | null; variant_id?: string | null; currency: string; price_net: number }): Promise<void> {
+export async function upsertPrice(
+  db: LibSQLDatabase,
+  input: {
+    product_id?: string | null;
+    variant_id?: string | null;
+    currency: string;
+    price_net: number;
+  }
+): Promise<void> {
   // Check if price exists
   let existing: any[] = [];
   if (input.variant_id) {
-    existing = await db.select().from(product_prices).where(eq(product_prices.variant_id, input.variant_id));
+    existing = await db
+      .select()
+      .from(product_prices)
+      .where(eq(product_prices.variant_id, input.variant_id));
   } else if (input.product_id) {
-    existing = await db.select().from(product_prices).where(eq(product_prices.product_id, input.product_id));
+    existing = await db
+      .select()
+      .from(product_prices)
+      .where(eq(product_prices.product_id, input.product_id));
   }
-  const match = existing.find(p => p.currency === input.currency && p.variant_id === (input.variant_id ?? null));
+  const match = existing.find(
+    (p) => p.currency === input.currency && p.variant_id === (input.variant_id ?? null)
+  );
   if (match) {
-    await db.update(product_prices).set({ price_net: input.price_net }).where(eq(product_prices.id, match.id));
+    await db
+      .update(product_prices)
+      .set({ price_net: input.price_net })
+      .where(eq(product_prices.id, match.id));
   } else {
     await db.insert(product_prices).values({
-      id: crypto.randomUUID(), product_id: input.product_id ?? null, variant_id: input.variant_id ?? null,
-      currency: input.currency, price_net: input.price_net,
+      id: crypto.randomUUID(),
+      product_id: input.product_id ?? null,
+      variant_id: input.variant_id ?? null,
+      currency: input.currency,
+      price_net: input.price_net,
     });
   }
 }
@@ -564,9 +691,16 @@ export async function deletePrice(db: LibSQLDatabase, id: string): Promise<void>
 
 // ── Translations ──
 
-export async function listTranslations(db: LibSQLDatabase, entityType: string, entityId: string): Promise<any[]> {
-  const rows = await db.select().from(translations).where(inArray(translations.entity_id, [entityId]));
-  return rows.filter(t => t.entity_type === entityType);
+export async function listTranslations(
+  db: LibSQLDatabase,
+  entityType: string,
+  entityId: string
+): Promise<any[]> {
+  const rows = await db
+    .select()
+    .from(translations)
+    .where(inArray(translations.entity_id, [entityId]));
+  return rows.filter((t) => t.entity_type === entityType);
 }
 
 /** Fetch translations for multiple entity IDs of a given type.
@@ -574,48 +708,98 @@ export async function listTranslations(db: LibSQLDatabase, entityType: string, e
 export async function listTranslationsByEntityIds(
   db: LibSQLDatabase,
   entityType: string,
-  entityIds: string[],
+  entityIds: string[]
 ): Promise<any[]> {
   if (entityIds.length === 0) return [];
-  const rows = await db.select().from(translations).where(inArray(translations.entity_id, entityIds));
-  return rows.filter(t => t.entity_type === entityType);
+  const rows = await db
+    .select()
+    .from(translations)
+    .where(inArray(translations.entity_id, entityIds));
+  return rows.filter((t) => t.entity_type === entityType);
 }
 
-export async function getTranslation(db: LibSQLDatabase, entityType: string, entityId: string, locale: string): Promise<any | null> {
-  const rows = await db.select().from(translations).where(inArray(translations.entity_id, [entityId]));
-  return rows.find(t => t.entity_type === entityType && t.locale === locale) ?? null;
+export async function getTranslation(
+  db: LibSQLDatabase,
+  entityType: string,
+  entityId: string,
+  locale: string
+): Promise<any | null> {
+  const rows = await db
+    .select()
+    .from(translations)
+    .where(inArray(translations.entity_id, [entityId]));
+  return rows.find((t) => t.entity_type === entityType && t.locale === locale) ?? null;
 }
 
-export async function deleteTranslation(db: LibSQLDatabase, entityType: string, entityId: string, locale: string): Promise<void> {
-  const rows = await db.select().from(translations).where(inArray(translations.entity_id, [entityId]));
-  const t = rows.find(r => r.entity_type === entityType && r.locale === locale);
+export async function deleteTranslation(
+  db: LibSQLDatabase,
+  entityType: string,
+  entityId: string,
+  locale: string
+): Promise<void> {
+  const rows = await db
+    .select()
+    .from(translations)
+    .where(inArray(translations.entity_id, [entityId]));
+  const t = rows.find((r) => r.entity_type === entityType && r.locale === locale);
   if (t) await db.delete(translations).where(eq(translations.id, t.id));
 }
 
-export async function upsertTranslation(db: LibSQLDatabase, input: {
-  entity_type: string; entity_id: string; locale: string;
-  name?: string | null; description?: string | null; slug?: string | null; label?: string | null;
-}): Promise<void> {
+export async function upsertTranslation(
+  db: LibSQLDatabase,
+  input: {
+    entity_type: string;
+    entity_id: string;
+    locale: string;
+    name?: string | null;
+    description?: string | null;
+    slug?: string | null;
+    label?: string | null;
+  }
+): Promise<void> {
   // Find existing translation for this entity + locale
-  const rows = await db.select().from(translations).where(inArray(translations.entity_id, [input.entity_id]));
-  const existing = rows.find(t => t.entity_type === input.entity_type && t.locale === input.locale);
+  const rows = await db
+    .select()
+    .from(translations)
+    .where(inArray(translations.entity_id, [input.entity_id]));
+  const existing = rows.find(
+    (t) => t.entity_type === input.entity_type && t.locale === input.locale
+  );
   if (existing) {
-    await db.update(translations).set({
-      name: input.name ?? null, description: input.description ?? null,
-      slug: input.slug ?? null, label: input.label ?? null,
-    }).where(eq(translations.id, existing.id));
+    await db
+      .update(translations)
+      .set({
+        name: input.name ?? null,
+        description: input.description ?? null,
+        slug: input.slug ?? null,
+        label: input.label ?? null,
+      })
+      .where(eq(translations.id, existing.id));
   } else {
     await db.insert(translations).values({
-      id: crypto.randomUUID(), entity_type: input.entity_type, entity_id: input.entity_id, locale: input.locale,
-      name: input.name ?? null, description: input.description ?? null, slug: input.slug ?? null, label: input.label ?? null,
+      id: crypto.randomUUID(),
+      entity_type: input.entity_type,
+      entity_id: input.entity_id,
+      locale: input.locale,
+      name: input.name ?? null,
+      description: input.description ?? null,
+      slug: input.slug ?? null,
+      label: input.label ?? null,
     });
   }
 }
 
 // ── Product Images ──
 
-export async function listProductImage(db: LibSQLDatabase, sdk: { storage: { getUrl: (key: string) => string } }, productId: string): Promise<any[]> {
-  const rows = await db.select().from(product_images).where(eq(product_images.product_id, productId));
+export async function listProductImage(
+  db: LibSQLDatabase,
+  sdk: { storage: { getUrl: (key: string) => string } },
+  productId: string
+): Promise<any[]> {
+  const rows = await db
+    .select()
+    .from(product_images)
+    .where(eq(product_images.product_id, productId));
   rows.sort((a, b) => (a.sort_order < b.sort_order ? -1 : 1));
   // Resolve storage key → servable URL at the accessor layer (design D2).
   // The `url` column holds an opaque storage KEY; no raw key ever reaches a consumer.
@@ -625,23 +809,49 @@ export async function listProductImage(db: LibSQLDatabase, sdk: { storage: { get
   return rows;
 }
 
-export async function createProductImage(db: LibSQLDatabase, input: { product_id: string; variant_id?: string | null; storage_key: string; mime: string; size: number; width?: number | null; height?: number | null; original_filename?: string | null; alt?: string | null; sort_order: number }): Promise<string> {
+export async function createProductImage(
+  db: LibSQLDatabase,
+  input: {
+    product_id: string;
+    variant_id?: string | null;
+    storage_key: string;
+    mime: string;
+    size: number;
+    width?: number | null;
+    height?: number | null;
+    original_filename?: string | null;
+    alt?: string | null;
+    sort_order: number;
+  }
+): Promise<string> {
   const id = crypto.randomUUID();
   await db.insert(product_images).values({
-    id, product_id: input.product_id, variant_id: input.variant_id ?? null,
+    id,
+    product_id: input.product_id,
+    variant_id: input.variant_id ?? null,
     url: input.storage_key, // url column holds the storage KEY (design D2)
-    alt: input.alt ?? null, sort_order: input.sort_order,
-    mime: input.mime, size: input.size,
-    width: input.width ?? null, height: input.height ?? null,
+    alt: input.alt ?? null,
+    sort_order: input.sort_order,
+    mime: input.mime,
+    size: input.size,
+    width: input.width ?? null,
+    height: input.height ?? null,
     original_filename: input.original_filename ?? null,
   });
   return id;
 }
 
-export async function deleteProductImage(db: LibSQLDatabase, sdk: { storage: { delete: (key: string) => Promise<void> } }, id: string): Promise<void> {
+export async function deleteProductImage(
+  db: LibSQLDatabase,
+  sdk: { storage: { delete: (key: string) => Promise<void> } },
+  id: string
+): Promise<void> {
   // Bytes-first-then-row ordering (design D7): if the byte delete fails, the row
   // survives so the user can retry; orphan bytes (no key reference) are unrecoverable.
-  const rows = await db.select({ url: product_images.url }).from(product_images).where(eq(product_images.id, id));
+  const rows = await db
+    .select({ url: product_images.url })
+    .from(product_images)
+    .where(eq(product_images.id, id));
   if (rows.length === 0) return; // no row → no-op (idempotent; accessor tolerates missing row)
   await sdk.storage.delete(rows[0].url); // url column holds the storage KEY
   await db.delete(product_images).where(eq(product_images.id, id));
@@ -654,7 +864,10 @@ export async function reorderProductImages(db: LibSQLDatabase, imageIds: string[
   if (imageIds.length === 0) return;
   await db.transaction(async (tx) => {
     for (let i = 0; i < imageIds.length; i++) {
-      await tx.update(product_images).set({ sort_order: i }).where(eq(product_images.id, imageIds[i]));
+      await tx
+        .update(product_images)
+        .set({ sort_order: i })
+        .where(eq(product_images.id, imageIds[i]));
     }
   });
 }

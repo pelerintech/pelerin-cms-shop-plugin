@@ -8,7 +8,11 @@ const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
 ---
 
-<AdminLayout title="euPlatesc Settings" currentPath="/admin/plugins/shop/settings/payments/euplatesc" user={user}>
+<AdminLayout
+  title="euPlatesc Settings"
+  currentPath="/admin/plugins/shop/settings/payments/euplatesc"
+  user={user}
+>
   <div class="col-span-12 p-6">
     <h1 class="text-2xl font-bold mb-6">euPlatesc Payment Settings</h1>
 
@@ -28,7 +32,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
 
       <div class="form-control">
         <label class="label" for="euplatesc_secret_key">
-          <span class="label-text">Secret Key</span>
+          <span class="label-text">Merchant Key</span>
         </label>
         <input
           type="password"
@@ -40,32 +44,66 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       </div>
 
       <div class="form-control">
-        <label class="label cursor-pointer">
-          <span class="label-text">Test Mode</span>
-          <input
-            type="checkbox"
-            id="euplatesc_test_mode"
-            name="euplatesc_test_mode"
-            value="true"
-            class="checkbox"
-          />
+        <label class="label" for="euplatesc_ukey">
+          <span class="label-text">User Key (ukey)</span>
         </label>
-        <span class="label-text-alt text-gray-500">Enable test mode for sandbox transactions</span>
+        <input
+          type="text"
+          id="euplatesc_ukey"
+          name="euplatesc_ukey"
+          class="input input-bordered w-full"
+          placeholder="Your user key for WebServices"
+        />
+      </div>
+
+      <div class="form-control">
+        <label class="label" for="euplatesc_uapi_key">
+          <span class="label-text">UAPI Key</span>
+        </label>
+        <input
+          type="password"
+          id="euplatesc_uapi_key"
+          name="euplatesc_uapi_key"
+          class="input input-bordered w-full"
+          placeholder="••••••••"
+        />
       </div>
 
       <div class="form-control mt-6">
-        <button type="submit" class="btn btn-primary" id="save-btn">
-          Save Settings
-        </button>
+        <button type="submit" class="btn btn-primary" id="save-btn"> Save Settings </button>
       </div>
     </form>
 
     <div id="status-message" class="mt-4 hidden"></div>
+
+    <!-- Test / Diagnostic Section -->
+    <div class="mt-8 card bg-base-100 shadow-lg">
+      <div class="card-body">
+        <h2 class="card-title">Test / Diagnostic</h2>
+        <p class="text-sm text-base-content/60">
+          Verify your euPlatesc integration without creating a real order.
+        </p>
+
+        <div class="flex gap-2 mt-2">
+          <button type="button" class="btn btn-outline btn-sm" id="test-connection-btn">
+            Test Connection
+          </button>
+          <button type="button" class="btn btn-outline btn-sm" id="test-payment-btn">
+            Create Test Payment
+          </button>
+        </div>
+
+        <div id="test-result" class="mt-4 hidden"></div>
+      </div>
+    </div>
   </div>
 </AdminLayout>
 
 <script>
   const API_URL = '/api/plugins/shop/settings/payments/euplatesc';
+  const TEST_CONNECTION_URL = '/api/plugins/shop/settings/payments/euplatesc/test-connection';
+  const TEST_PAYMENT_URL = '/api/plugins/shop/settings/payments/euplatesc/test-payment';
+  const TEST_RESULT_URL = '/api/plugins/shop/settings/payments/euplatesc/test-result';
 
   async function loadSettings() {
     try {
@@ -73,14 +111,9 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       const json = await res.json();
       if (json.success && json.data) {
         for (const [key, value] of Object.entries(json.data)) {
-          if (key === 'euplatesc_test_mode') {
-            const checkbox = document.getElementById(key) as HTMLInputElement;
-            if (checkbox) checkbox.checked = value === 'true';
-          } else {
-            const input = document.getElementById(key) as HTMLInputElement;
-            if (input && value) {
-              input.value = value as string;
-            }
+          const input = document.getElementById(key);
+          if (input && value) {
+            (input as HTMLInputElement).value = value as string;
           }
         }
       }
@@ -94,13 +127,10 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
 
-    // For checkbox, only include if checked
     const body: Record<string, string> = {};
-    body.euplatesc_test_mode = String(formData.get('euplatesc_test_mode') === 'true');
-    const merchantId = formData.get('euplatesc_merchant_id');
-    const secretKey = formData.get('euplatesc_secret_key');
-    if (merchantId) body.euplatesc_merchant_id = merchantId as string;
-    if (secretKey) body.euplatesc_secret_key = secretKey as string;
+    for (const [key, value] of formData.entries()) {
+      if (value) body[key as string] = value as string;
+    }
 
     const statusEl = document.getElementById('status-message')!;
     const saveBtn = document.getElementById('save-btn') as HTMLButtonElement;
@@ -131,6 +161,90 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     } finally {
       saveBtn.disabled = false;
       saveBtn.textContent = 'Save Settings';
+    }
+  });
+
+  // Test Connection
+  document.getElementById('test-connection-btn')!.addEventListener('click', async () => {
+    const resultEl = document.getElementById('test-result')!;
+    resultEl.classList.remove('hidden');
+    resultEl.className = 'mt-4 alert alert-info';
+    resultEl.textContent = 'Testing connection...';
+
+    try {
+      const res = await fetch(TEST_CONNECTION_URL, { method: 'POST' });
+      const json = await res.json();
+
+      if (json.success) {
+        const data = json.data;
+        if (data.error) {
+          resultEl.className = 'mt-4 alert alert-error';
+          resultEl.textContent = `Connection failed: ${data.error}`;
+        } else {
+          resultEl.className = 'mt-4 alert alert-success';
+          resultEl.textContent = `Connection OK — ${data.name || 'Merchant'} (${data.status || 'unknown'})`;
+        }
+      } else {
+        resultEl.className = 'mt-4 alert alert-error';
+        resultEl.textContent = json.error || 'Test failed.';
+      }
+    } catch (err: any) {
+      resultEl.className = 'mt-4 alert alert-error';
+      resultEl.textContent = err.message || 'Network error.';
+    }
+  });
+
+  // Create Test Payment
+  document.getElementById('test-payment-btn')!.addEventListener('click', async () => {
+    const resultEl = document.getElementById('test-result')!;
+    resultEl.classList.remove('hidden');
+    resultEl.className = 'mt-4 alert alert-info';
+    resultEl.textContent = 'Creating test payment...';
+
+    try {
+      const res = await fetch(TEST_PAYMENT_URL, { method: 'POST' });
+      const json = await res.json();
+
+      if (json.success && json.data?.redirect_url) {
+        window.open(json.data.redirect_url, '_blank');
+        resultEl.className = 'mt-4 alert alert-success';
+        resultEl.textContent =
+          'Test payment created. Complete the payment in the new tab. Waiting for IPN...';
+
+        // Poll for IPN result
+        let attempts = 0;
+        const maxAttempts = 10;
+        const pollInterval = setInterval(async () => {
+          attempts++;
+          try {
+            const pollRes = await fetch(TEST_RESULT_URL);
+            const pollJson = await pollRes.json();
+            if (pollJson.success && pollJson.data) {
+              clearInterval(pollInterval);
+              const d = pollJson.data;
+              resultEl.className = 'mt-4 alert alert-success';
+              resultEl.textContent = `IPN received ✓ | action: ${d.action} (${d.action === '0' ? 'approved' : 'failed'}) | MAC valid: ${d.mac_valid} | ep_id: ${d.ep_id || 'N/A'} | amount: ${d.amount} ${d.curr}`;
+            } else if (attempts >= maxAttempts) {
+              clearInterval(pollInterval);
+              resultEl.className = 'mt-4 alert alert-warning';
+              resultEl.textContent =
+                'No IPN received after 30s. Check webhook URL reachability (ngrok/tunnel required for localhost).';
+            }
+          } catch {
+            if (attempts >= maxAttempts) {
+              clearInterval(pollInterval);
+              resultEl.className = 'mt-4 alert alert-warning';
+              resultEl.textContent = 'Timed out waiting for IPN.';
+            }
+          }
+        }, 3000);
+      } else {
+        resultEl.className = 'mt-4 alert alert-error';
+        resultEl.textContent = json.error || 'Failed to create test payment.';
+      }
+    } catch (err: any) {
+      resultEl.className = 'mt-4 alert alert-error';
+      resultEl.textContent = err.message || 'Network error.';
     }
   });
 

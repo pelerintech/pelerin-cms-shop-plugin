@@ -38,9 +38,7 @@ test('LocalesSchema accepts BCP-47 codes with subtag (e.g. en-US)', () => {
 });
 
 test('LocalesSchema accepts locale with 2-char code', () => {
-  const result = LocalesSchema.safeParse([
-    { code: 'fr', name: 'Français', isDefault: true },
-  ]);
+  const result = LocalesSchema.safeParse([{ code: 'fr', name: 'Français', isDefault: true }]);
   assert.ok(result.success, 'should accept 2-char code');
 });
 
@@ -90,23 +88,17 @@ test('LocalesSchema rejects multiple defaults', () => {
 // ----------------------------------------------------------------
 
 test('LocalesSchema rejects invalid code format (uppercase)', () => {
-  const result = LocalesSchema.safeParse([
-    { code: 'Romanian', name: 'Română', isDefault: true },
-  ]);
+  const result = LocalesSchema.safeParse([{ code: 'Romanian', name: 'Română', isDefault: true }]);
   assert.ok(!result.success, 'should reject invalid code format');
 });
 
 test('LocalesSchema rejects invalid code format (too short)', () => {
-  const result = LocalesSchema.safeParse([
-    { code: 'r', name: 'Română', isDefault: true },
-  ]);
+  const result = LocalesSchema.safeParse([{ code: 'r', name: 'Română', isDefault: true }]);
   assert.ok(!result.success, 'should reject code shorter than 2 chars');
 });
 
 test('LocalesSchema rejects invalid code format (with numbers)', () => {
-  const result = LocalesSchema.safeParse([
-    { code: 'r0', name: 'Română', isDefault: true },
-  ]);
+  const result = LocalesSchema.safeParse([{ code: 'r0', name: 'Română', isDefault: true }]);
   assert.ok(!result.success, 'should reject codes with numbers');
 });
 
@@ -115,7 +107,9 @@ test('LocalesSchema rejects invalid code format (with numbers)', () => {
 // ----------------------------------------------------------------
 
 test('CurrenciesSchema accepts valid single currency', () => {
-  const result = CurrenciesSchema.safeParse([{ code: 'RON', name: 'Leu românesc', isDefault: true }]);
+  const result = CurrenciesSchema.safeParse([
+    { code: 'RON', name: 'Leu românesc', isDefault: true },
+  ]);
   assert.ok(result.success, 'should accept valid single currency');
 });
 
@@ -180,9 +174,7 @@ test('CurrenciesSchema rejects invalid code (too long)', () => {
 });
 
 test('CurrenciesSchema rejects invalid code (too short)', () => {
-  const result = CurrenciesSchema.safeParse([
-    { code: 'RO', name: 'Romania', isDefault: true },
-  ]);
+  const result = CurrenciesSchema.safeParse([{ code: 'RO', name: 'Romania', isDefault: true }]);
   assert.ok(!result.success, 'should reject code shorter than 3 chars');
 });
 

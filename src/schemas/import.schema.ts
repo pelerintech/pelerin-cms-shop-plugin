@@ -34,18 +34,18 @@ function trimOptional(val: unknown): string | undefined {
 export const ProductImportRowSchema = z.object({
   sku: z.preprocess(
     (v) => (typeof v === 'string' ? v.trim() : v),
-    z.string().min(1, 'sku is required'),
+    z.string().min(1, 'sku is required')
   ),
   name_ro: z.preprocess(
     (v) => (typeof v === 'string' ? v.trim() : v),
-    z.string().min(1, 'name_ro is required'),
+    z.string().min(1, 'name_ro is required')
   ),
   name_en: z.preprocess(trimOptional, z.string().min(1).optional()),
   description_ro: z.preprocess(trimOptional, z.string().optional()),
   description_en: z.preprocess(trimOptional, z.string().optional()),
   type: z.preprocess(
     (v) => (typeof v === 'string' ? v.trim() : v),
-    z.enum(['physical', 'digital'], { message: 'type must be "physical" or "digital"' }),
+    z.enum(['physical', 'digital'], { message: 'type must be "physical" or "digital"' })
   ),
   category_slug: z.preprocess(trimOptional, z.string().min(1).optional()),
   vat_rate: z.preprocess(trimOptional, z.coerce.number().min(0).max(1).optional()),
@@ -65,15 +65,15 @@ export type ProductImportRow = z.infer<typeof ProductImportRowSchema>;
 export const PriceImportRowSchema = z.object({
   sku: z.preprocess(
     (v) => (typeof v === 'string' ? v.trim() : v),
-    z.string().min(1, 'sku is required'),
+    z.string().min(1, 'sku is required')
   ),
   currency: z.preprocess(
     (v) => (typeof v === 'string' ? v.trim() : v),
-    z.string().min(1, 'currency is required'),
+    z.string().min(1, 'currency is required')
   ),
   price_net: z.preprocess(
     (v) => (typeof v === 'string' ? v.trim() : v),
-    z.coerce.number().positive('price_net must be a positive number'),
+    z.coerce.number().positive('price_net must be a positive number')
   ),
 });
 

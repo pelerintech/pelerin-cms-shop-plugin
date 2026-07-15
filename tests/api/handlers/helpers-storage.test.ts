@@ -25,7 +25,9 @@ test('makeFakeSdk default storage.upload resolves {url,key,width,height} and rec
 });
 
 test('makeFakeSdk({ storage: { uploadResult } }) returns upload that resolves the provided result', async () => {
-  const sdk = makeFakeSdk({ storage: { uploadResult: { url: '/custom/x', key: 'k', width: 7, height: 8 } } });
+  const sdk = makeFakeSdk({
+    storage: { uploadResult: { url: '/custom/x', key: 'k', width: 7, height: 8 } },
+  });
   const result = await sdk.storage.upload(Buffer.from('z'), 'k', 'image/jpeg');
   assert.strictEqual(result.url, '/custom/x');
   assert.strictEqual(result.width, 7);
@@ -59,12 +61,21 @@ test('makeCtx({ formData }) yields a request whose formData() gives a File with 
   assert.deepStrictEqual(Array.from(new Uint8Array(ab)), [...Buffer.from('PNGBYTES')]);
   // Content-Type must be multipart/form-data with a boundary (platform-set), NOT manual
   const ct = ctx.request.headers.get('content-type') || '';
-  assert.match(ct, /^multipart\/form-data;\s*boundary=/, 'content-type must be multipart/form-data with boundary');
+  assert.match(
+    ct,
+    /^multipart\/form-data;\s*boundary=/,
+    'content-type must be multipart/form-data with boundary'
+  );
 });
 
 test('makeCtx formData supports extra string fields', async () => {
   const ctx = makeCtx({
-    formData: { file: Buffer.from('a'), fileName: 'y.png', fileType: 'image/png', fields: { alt: 'desc', sort_order: '2' } },
+    formData: {
+      file: Buffer.from('a'),
+      fileName: 'y.png',
+      fileType: 'image/png',
+      fields: { alt: 'desc', sort_order: '2' },
+    },
   });
   const fd = await ctx.request.formData();
   assert.strictEqual(fd.get('alt'), 'desc');

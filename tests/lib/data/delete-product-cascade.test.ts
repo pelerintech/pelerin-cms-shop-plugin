@@ -14,8 +14,15 @@ import { eq, inArray, and, or } from 'drizzle-orm';
 import { createTestDb, seedMinimal, insertFixture, type TestDb } from '../../db/harness.ts';
 import { deleteProduct } from '../../../src/lib/data/products.ts';
 import {
-  products, product_variants, product_prices, product_images,
-  product_attribute_assignments, product_attribute_values, cart_items, order_items, orders,
+  products,
+  product_variants,
+  product_prices,
+  product_images,
+  product_attribute_assignments,
+  product_attribute_values,
+  cart_items,
+  order_items,
+  orders,
 } from '../../../src/db/schema.ts';
 
 const now = () => new Date();
@@ -45,43 +52,99 @@ test('deleteProduct cascade: setup — product with variants, prices, images, as
   // exist via fixtures (brand). Add a cart_item referencing the product.
   cartItemId = rid();
   await insertFixture(db, 'cart_items', {
-    id: cartItemId, cart_id: (await db.select().from(cart_items).limit(1))[0]?.cart_id ?? rid(),
-    product_id: pid, variant_id: null, quantity: 1,
+    id: cartItemId,
+    cart_id: (await db.select().from(cart_items).limit(1))[0]?.cart_id ?? rid(),
+    product_id: pid,
+    variant_id: null,
+    quantity: 1,
   });
   // To avoid FK-like constraint issues, give the cart_item a real cart.
   const cartId = rid();
   await insertFixture(db, 'carts', {
-    id: cartId, session_id: 'sess-cascade', user_id: null, applied_voucher_code: null,
-    applied_referral_code: null, converted_at: null, expires_at: new Date(now().getTime() + 86400000),
-    created_at: now(), updated_at: now(),
+    id: cartId,
+    session_id: 'sess-cascade',
+    user_id: null,
+    applied_voucher_code: null,
+    applied_referral_code: null,
+    converted_at: null,
+    expires_at: new Date(now().getTime() + 86400000),
+    created_at: now(),
+    updated_at: now(),
   });
   await db.delete(cart_items).where(eq(cart_items.id, cartItemId));
   await insertFixture(db, 'cart_items', {
-    id: cartItemId, cart_id: cartId, product_id: pid, variant_id: v1, quantity: 2,
+    id: cartItemId,
+    cart_id: cartId,
+    product_id: pid,
+    variant_id: v1,
+    quantity: 2,
   });
 
   // An order with an order_item snapshot referencing the product (must NOT be deleted).
   orderId = rid();
   await insertFixture(db, 'orders', {
-    id: orderId, order_number: 'ORD-CASCADE-1', user_id: null, customer_type: 'individual',
-    customer_email: 'c@e.com', customer_name: 'C', customer_phone: null, status: 'paid',
-    currency: 'RON', subtotal_net: 100, vat_total: 19, shipping_cost: 0, discount_amount: 0,
-    total: 119, shipping_type: 'physical', shipping_method: null, voucher_code: null,
-    referral_code: null, billing_first_name: 'C', billing_last_name: 'D', billing_address: 'A',
-    billing_city: 'C', billing_postal_code: '1', billing_country: 'RO', billing_county: null,
-    billing_phone: null, billing_company: null, billing_vat_number: null,
-    shipping_first_name: 'C', shipping_last_name: 'D', shipping_address: 'A', shipping_city: 'C',
-    shipping_postal_code: '1', shipping_country: 'RO', shipping_county: null, shipping_phone: null,
-    shipping_company: null, shipping_vat_number: null, shipping_same_as_billing: true,
-    payment_provider: null, payment_intent_id: null, transaction_id: null,
-    refund_amount: null, refund_notes: null, refunded_at: null, notes: null,
-    created_at: now(), updated_at: now(),
+    id: orderId,
+    order_number: 'ORD-CASCADE-1',
+    user_id: null,
+    customer_type: 'individual',
+    customer_email: 'c@e.com',
+    customer_name: 'C',
+    customer_phone: null,
+    status: 'paid',
+    currency: 'RON',
+    subtotal_net: 100,
+    vat_total: 19,
+    shipping_cost: 0,
+    discount_amount: 0,
+    total: 119,
+    shipping_type: 'physical',
+    shipping_method: null,
+    voucher_code: null,
+    referral_code: null,
+    billing_first_name: 'C',
+    billing_last_name: 'D',
+    billing_address: 'A',
+    billing_city: 'C',
+    billing_postal_code: '1',
+    billing_country: 'RO',
+    billing_county: null,
+    billing_phone: null,
+    billing_company: null,
+    billing_vat_number: null,
+    shipping_first_name: 'C',
+    shipping_last_name: 'D',
+    shipping_address: 'A',
+    shipping_city: 'C',
+    shipping_postal_code: '1',
+    shipping_country: 'RO',
+    shipping_county: null,
+    shipping_phone: null,
+    shipping_company: null,
+    shipping_vat_number: null,
+    shipping_same_as_billing: true,
+    payment_provider: null,
+    payment_intent_id: null,
+    transaction_id: null,
+    refund_amount: null,
+    refund_notes: null,
+    refunded_at: null,
+    notes: null,
+    created_at: now(),
+    updated_at: now(),
   });
   orderItemId = rid();
   await insertFixture(db, 'order_items', {
-    id: orderItemId, order_id: orderId, product_id: pid, variant_id: v1,
-    product_name: 'Snapshot', sku: 'SNAP', quantity: 1, price_net: 100, vat_rate: 0.19,
-    price_gross: 119, currency: 'RON',
+    id: orderItemId,
+    order_id: orderId,
+    product_id: pid,
+    variant_id: v1,
+    product_name: 'Snapshot',
+    sku: 'SNAP',
+    quantity: 1,
+    price_net: 100,
+    vat_rate: 0.19,
+    price_gross: 119,
+    currency: 'RON',
   });
   assert.ok(pid);
 });
@@ -95,12 +158,21 @@ test('deleteProduct removes the product and ALL child rows in one transaction', 
   assert.ok(!p, 'product row must be deleted');
 
   // variants gone
-  const variants = await db.select().from(product_variants).where(eq(product_variants.product_id, pid));
+  const variants = await db
+    .select()
+    .from(product_variants)
+    .where(eq(product_variants.product_id, pid));
   assert.strictEqual(variants.length, 0, 'all product_variants deleted');
 
   // prices gone (product-level + variant-level)
-  const pricesByProduct = await db.select().from(product_prices).where(eq(product_prices.product_id, pid));
-  const pricesByVariant = await db.select().from(product_prices).where(inArray(product_prices.variant_id, [v1, v2]));
+  const pricesByProduct = await db
+    .select()
+    .from(product_prices)
+    .where(eq(product_prices.product_id, pid));
+  const pricesByVariant = await db
+    .select()
+    .from(product_prices)
+    .where(inArray(product_prices.variant_id, [v1, v2]));
   assert.strictEqual(pricesByProduct.length, 0, 'product-level prices deleted');
   assert.strictEqual(pricesByVariant.length, 0, 'variant-level prices deleted');
 
@@ -109,19 +181,39 @@ test('deleteProduct removes the product and ALL child rows in one transaction', 
   assert.strictEqual(images.length, 0, 'product_images deleted');
 
   // assignments gone
-  const assignments = await db.select().from(product_attribute_assignments).where(eq(product_attribute_assignments.product_id, pid));
+  const assignments = await db
+    .select()
+    .from(product_attribute_assignments)
+    .where(eq(product_attribute_assignments.product_id, pid));
   assert.strictEqual(assignments.length, 0, 'product_attribute_assignments deleted');
 
   // attribute values gone (product-level + variant-level)
-  const valsByProduct = await db.select().from(product_attribute_values).where(and(eq(product_attribute_values.entity_type, 'product'), eq(product_attribute_values.entity_id, pid)));
-  const valsByVariant = await db.select().from(product_attribute_values).where(and(eq(product_attribute_values.entity_type, 'variant'), inArray(product_attribute_values.entity_id, [v1, v2])));
+  const valsByProduct = await db
+    .select()
+    .from(product_attribute_values)
+    .where(
+      and(
+        eq(product_attribute_values.entity_type, 'product'),
+        eq(product_attribute_values.entity_id, pid)
+      )
+    );
+  const valsByVariant = await db
+    .select()
+    .from(product_attribute_values)
+    .where(
+      and(
+        eq(product_attribute_values.entity_type, 'variant'),
+        inArray(product_attribute_values.entity_id, [v1, v2])
+      )
+    );
   assert.strictEqual(valsByProduct.length, 0, 'product-level attribute values deleted');
   assert.strictEqual(valsByVariant.length, 0, 'variant-level attribute values deleted');
 
   // cart_items referencing the product or its variants gone
-  const cartItems = await db.select().from(cart_items).where(
-    or(eq(cart_items.product_id, pid), inArray(cart_items.variant_id, [v1, v2])),
-  );
+  const cartItems = await db
+    .select()
+    .from(cart_items)
+    .where(or(eq(cart_items.product_id, pid), inArray(cart_items.variant_id, [v1, v2])));
   assert.strictEqual(cartItems.length, 0, 'cart_items referencing the product/variants deleted');
 });
 
@@ -139,9 +231,19 @@ test('deleteProduct on a product with no children is a no-op-safe delete', async
   const { db } = await createTestDb();
   const bareId = rid();
   await insertFixture(db, 'products', {
-    id: bareId, sku: 'BARE-NOCHILD', type: 'physical', has_variants: false, vat_rate: 0.19,
-    stock: 5, category_id: null, active: true, name: 'Bare', description: '', slug: 'bare-nochild',
-    created_at: now(), updated_at: now(),
+    id: bareId,
+    sku: 'BARE-NOCHILD',
+    type: 'physical',
+    has_variants: false,
+    vat_rate: 0.19,
+    stock: 5,
+    category_id: null,
+    active: true,
+    name: 'Bare',
+    description: '',
+    slug: 'bare-nochild',
+    created_at: now(),
+    updated_at: now(),
   });
   await deleteProduct(db, bareId);
   const [p] = await db.select().from(products).where(eq(products.id, bareId));
@@ -172,15 +274,21 @@ test('deleteProduct is atomic — a mid-cascade throw rolls back ALL deletes', a
   await assert.rejects(
     () => deleteProduct(db, prodId),
     /forced-mid-cascade-failure/,
-    'deleteProduct should propagate the mid-cascade failure',
+    'deleteProduct should propagate the mid-cascade failure'
   );
 
   // Restore and verify NOTHING was deleted (rollback).
   db.transaction = realTx;
   const [p] = await db.select().from(products).where(eq(products.id, prodId));
   assert.ok(p, 'product row survives the rolled-back cascade');
-  const variants = await db.select().from(product_variants).where(eq(product_variants.product_id, prodId));
+  const variants = await db
+    .select()
+    .from(product_variants)
+    .where(eq(product_variants.product_id, prodId));
   assert.ok(variants.length > 0, 'variants survive the rolled-back cascade (atomic)');
-  const prices = await db.select().from(product_prices).where(eq(product_prices.product_id, prodId));
+  const prices = await db
+    .select()
+    .from(product_prices)
+    .where(eq(product_prices.product_id, prodId));
   assert.ok(prices.length >= 0, 'prices queryable after rollback');
 });

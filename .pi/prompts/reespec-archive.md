@@ -1,7 +1,6 @@
 ---
-description: "Archive a completed reespec request. Use when the user wants to finalize and archive a request after implementation is complete."
+description: 'Archive a completed reespec request. Use when the user wants to finalize and archive a request after implementation is complete.'
 ---
-
 
 Archive a completed reespec request.
 
@@ -22,6 +21,7 @@ Read `reespec/requests/<name>/tasks.md`.
 Count `- [ ]` (incomplete) vs `- [x]` (complete).
 
 **If incomplete tasks exist:**
+
 - Show warning: "N task(s) are not complete"
 - List the incomplete tasks
 - Ask the user: "Archive anyway? [y/N]"
@@ -32,6 +32,7 @@ Count `- [ ]` (incomplete) vs `- [x]` (complete).
 ### 3. Check artifact completeness
 
 Run:
+
 ```bash
 reespec status --request "<name>"
 ```

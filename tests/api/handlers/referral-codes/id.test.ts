@@ -3,9 +3,8 @@ import { ensureLoader } from '../../../stubs/register.mjs';
 import { matrix, assert, createTestDb, seedMinimal, makeFakeSdk, makeCtx } from '../_matrix.ts';
 
 ensureLoader();
-const { runGet, runPut, runDelete } = await import(
-  '../../../../src/api/shop/referral-codes/[id].ts'
-);
+const { runGet, runPut, runDelete } =
+  await import('../../../../src/api/shop/referral-codes/[id].ts');
 
 const base = 'http://localhost/api/plugins/shop/referral-codes';
 

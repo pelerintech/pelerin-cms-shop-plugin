@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createTestDb, seedMinimal, categories, products, translations as harnessTranslations } from '../../db/harness.ts';
+import {
+  createTestDb,
+  seedMinimal,
+  categories,
+  products,
+  translations as harnessTranslations,
+} from '../../db/harness.ts';
 import {
   listCategories,
   resolveCategoryBySlug,
@@ -13,7 +19,7 @@ test('listCategories(db, "en") overlays localized slug (books, not carti)', asyn
   try {
     const f = await seedMinimal(db);
     const cats = await listCategories(db, 'en');
-    const cat = cats.find(c => c.id === f.categoryBooksId);
+    const cat = cats.find((c) => c.id === f.categoryBooksId);
     assert.ok(cat, 'should find the books category');
     assert.equal(cat.slug, 'books', `expected localized slug 'books', got '${cat.slug}'`);
   } finally {
@@ -28,20 +34,35 @@ test('resolveProductBySlug(db, "programming-book", "en") → throws SlugCollisio
     // Insert a second product with the same en translation slug 'programming-book'.
     const secondProdId = crypto.randomUUID();
     await db.insert(products).values({
-      id: secondProdId, sku: 'BOOK-002', type: 'physical', has_variants: false,
-      vat_rate: 0.05, stock: 10, category_id: f.categoryBooksId, active: true,
-      name: 'Second Book', description: null, slug: 'second-book',
-      created_at: new Date(), updated_at: new Date(),
+      id: secondProdId,
+      sku: 'BOOK-002',
+      type: 'physical',
+      has_variants: false,
+      vat_rate: 0.05,
+      stock: 10,
+      category_id: f.categoryBooksId,
+      active: true,
+      name: 'Second Book',
+      description: null,
+      slug: 'second-book',
+      created_at: new Date(),
+      updated_at: new Date(),
     });
     await db.insert(harnessTranslations).values({
-      id: crypto.randomUUID(), entity_type: 'product', entity_id: secondProdId,
-      locale: 'en', name: 'Second Book EN', description: null, slug: 'programming-book', label: null,
+      id: crypto.randomUUID(),
+      entity_type: 'product',
+      entity_id: secondProdId,
+      locale: 'en',
+      name: 'Second Book EN',
+      description: null,
+      slug: 'programming-book',
+      label: null,
     });
     // Now resolving 'programming-book' in 'en' should throw.
     await assert.rejects(
       () => resolveProductBySlug(db, 'programming-book', 'en'),
       (err: any) => err instanceof SlugCollisionError,
-      'should throw SlugCollisionError',
+      'should throw SlugCollisionError'
     );
   } finally {
     await cleanup();
@@ -80,8 +101,16 @@ test('resolveProductBySlug(db, "programming-book", "en") → { product, source: 
     assert.ok(result, 'should resolve');
     assert.equal(result!.product.id, f.simpleProductId, 'should return the simple product');
     assert.equal(result!.source, 'translation', 'source should be "translation"');
-    assert.equal(result!.product.name, 'Programming Book', 'name should be localized from translation');
-    assert.equal(result!.product.description, 'An excellent book', 'description should be localized from translation');
+    assert.equal(
+      result!.product.name,
+      'Programming Book',
+      'name should be localized from translation'
+    );
+    assert.equal(
+      result!.product.description,
+      'An excellent book',
+      'description should be localized from translation'
+    );
   } finally {
     await cleanup();
   }
@@ -94,18 +123,30 @@ test('resolveCategoryBySlug(db, "books", "en") → throws SlugCollisionError on 
     // Insert a second category with the same en translation slug 'books'.
     const secondCatId = crypto.randomUUID();
     await db.insert(categories).values({
-      id: secondCatId, parent_id: null, name: 'Second Cat', description: null,
-      slug: 'second-cat', sort_order: 99, created_at: null, updated_at: null,
+      id: secondCatId,
+      parent_id: null,
+      name: 'Second Cat',
+      description: null,
+      slug: 'second-cat',
+      sort_order: 99,
+      created_at: null,
+      updated_at: null,
     });
     await db.insert(harnessTranslations).values({
-      id: crypto.randomUUID(), entity_type: 'category', entity_id: secondCatId,
-      locale: 'en', name: 'Second Category', description: null, slug: 'books', label: null,
+      id: crypto.randomUUID(),
+      entity_type: 'category',
+      entity_id: secondCatId,
+      locale: 'en',
+      name: 'Second Category',
+      description: null,
+      slug: 'books',
+      label: null,
     });
     // Now resolving 'books' in 'en' should throw because two categories share it.
     await assert.rejects(
       () => resolveCategoryBySlug(db, 'books', 'en'),
       (err: any) => err instanceof SlugCollisionError,
-      'should throw SlugCollisionError',
+      'should throw SlugCollisionError'
     );
   } finally {
     await cleanup();
@@ -133,12 +174,10 @@ test('resolveCategoryBySlug(db, "carti", "en") → fallback to default slug', as
     const { translations } = await import('../../db/harness.ts');
     const { eq, and, isNotNull } = await import('drizzle-orm');
     // Set the en translation slug to null for the books category
-    await db.update(translations).set({ slug: null }).where(
-      and(
-        eq(translations.entity_id, f.categoryBooksId),
-        eq(translations.locale, 'en'),
-      ),
-    );
+    await db
+      .update(translations)
+      .set({ slug: null })
+      .where(and(eq(translations.entity_id, f.categoryBooksId), eq(translations.locale, 'en')));
     // Now resolve 'carti' in locale 'en' — should fall back to default slug.
     const result = await resolveCategoryBySlug(db, 'carti', 'en');
     assert.ok(result, 'should resolve via fallback');
@@ -158,7 +197,11 @@ test('resolveCategoryBySlug(db, "books", "en") → { category, source: "translat
     assert.equal(result!.category.id, f.categoryBooksId, 'should return the books category');
     assert.equal(result!.source, 'translation', 'source should be "translation"');
     assert.equal(result!.category.name, 'Books', 'name should be localized from translation');
-    assert.equal(result!.category.description, 'Specialty books', 'description should be localized from translation');
+    assert.equal(
+      result!.category.description,
+      'Specialty books',
+      'description should be localized from translation'
+    );
   } finally {
     await cleanup();
   }

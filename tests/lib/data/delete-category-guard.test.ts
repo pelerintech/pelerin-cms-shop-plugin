@@ -20,8 +20,14 @@ const rid = () => crypto.randomUUID();
 
 async function makeCategory(db: any, id: string, parentId: string | null, slug: string) {
   await insertFixture(db, 'categories', {
-    id, parent_id: parentId, name: id, description: null, slug, sort_order: 0,
-    created_at: now(), updated_at: now(),
+    id,
+    parent_id: parentId,
+    name: id,
+    description: null,
+    slug,
+    sort_order: 0,
+    created_at: now(),
+    updated_at: now(),
   });
 }
 
@@ -36,11 +42,13 @@ test('deleteCategory refuses when the category has child categories (409, not de
     await assert.rejects(
       () => deleteCategory(db, parent),
       (err: any) => {
-        assert.ok(err instanceof CategoryError || /child categor/i.test(err.message),
-          `expected CategoryError about child categories, got: ${err.message}`);
+        assert.ok(
+          err instanceof CategoryError || /child categor/i.test(err.message),
+          `expected CategoryError about child categories, got: ${err.message}`
+        );
         assert.strictEqual(err.status, 409, 'CategoryError must carry status 409');
         return true;
-      },
+      }
     );
 
     // parent NOT deleted
@@ -59,18 +67,31 @@ test('deleteCategory refuses when the category has products (409, not deleted)',
     // Assign a product to the category.
     const prodId = rid();
     await insertFixture(db, 'products', {
-      id: prodId, sku: 'PROD-CAT-' + prodId.slice(0, 6), type: 'physical', has_variants: false,
-      vat_rate: 0.19, stock: 3, category_id: cat, active: true, name: 'P', description: '',
-      slug: 'prod-cat-' + prodId.slice(0, 6), created_at: now(), updated_at: now(),
+      id: prodId,
+      sku: 'PROD-CAT-' + prodId.slice(0, 6),
+      type: 'physical',
+      has_variants: false,
+      vat_rate: 0.19,
+      stock: 3,
+      category_id: cat,
+      active: true,
+      name: 'P',
+      description: '',
+      slug: 'prod-cat-' + prodId.slice(0, 6),
+      created_at: now(),
+      updated_at: now(),
     });
 
     await assert.rejects(
       () => deleteCategory(db, cat),
       (err: any) => {
-        assert.ok(/product/i.test(err.message), `expected message about products, got: ${err.message}`);
+        assert.ok(
+          /product/i.test(err.message),
+          `expected message about products, got: ${err.message}`
+        );
         assert.strictEqual(err.status, 409);
         return true;
-      },
+      }
     );
 
     const [row] = await db.select().from(categories).where(eq(categories.id, cat));

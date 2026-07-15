@@ -12,7 +12,7 @@ export async function transitionOrder(
   orderId: string,
   toStatus: string,
   note?: string | null,
-  changedBy?: string | null,
+  changedBy?: string | null
 ): Promise<void> {
   await transitionOrderStatus(db, orderId, toStatus, note, changedBy);
 }

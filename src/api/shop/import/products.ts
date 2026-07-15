@@ -4,7 +4,10 @@ import { parseCSV } from '../../../lib/csv-parser';
 import { importProducts } from '../../../lib/import-products';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
-export const POST: APIRoute = (context) => { const sdk = createPluginContext(); return runPost({ db: sdk.db, sdk, ctx: context }); }
+export const POST: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runPost({ db: sdk.db, sdk, ctx: context });
+};
 
 /**
  * POST /api/plugins/shop/import/products
@@ -21,25 +24,25 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     const file = formData.get('file');
 
     if (!(file instanceof File) || !file.name.toLowerCase().endsWith('.csv')) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Please upload a CSV file' }),
-        { status: 422, headers: { 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ success: false, error: 'Please upload a CSV file' }), {
+        status: 422,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     const text = await file.text();
     const rows = parseCSV(text);
     const result = await importProducts(db, rows);
 
-    return new Response(
-      JSON.stringify({ success: true, data: result }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } },
-    );
+    return new Response(JSON.stringify({ success: true, data: result }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (err: any) {
     const status = err.status ?? 500;
-    return new Response(
-      JSON.stringify({ success: false, error: err.message || 'Server Error' }),
-      { status, headers: { 'Content-Type': 'application/json' } },
-    );
+    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }

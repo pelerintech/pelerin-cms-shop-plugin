@@ -5,9 +5,7 @@ import { matrix, createTestDb, seedMinimal, makeFakeSdk, makeCtx } from '../_mat
 import { insertFixture } from '../../../db/harness.ts';
 
 ensureLoader();
-const { runGet, runPut, runDelete } = await import(
-  '../../../../src/api/shop/attributes/[id].ts'
-);
+const { runGet, runPut, runDelete } = await import('../../../../src/api/shop/attributes/[id].ts');
 
 const base = 'http://localhost/api/plugins/shop/attributes';
 
@@ -116,7 +114,10 @@ test('DELETE [id] happy-path (no assignments) → 200', async () => {
     // Insert an attribute with no assignments so delete succeeds
     const freeId = crypto.randomUUID();
     await insertFixture(db, 'product_attributes', {
-      id: freeId, name: 'Free', type: 'text', sort_order: 50,
+      id: freeId,
+      name: 'Free',
+      type: 'text',
+      sort_order: 50,
     });
     const sdk = makeFakeSdk();
     const ctx = makeCtx({ url: `${base}/${freeId}`, method: 'DELETE', params: { id: freeId } });
@@ -134,7 +135,11 @@ test('DELETE [id] conflict (has assignments) → 409', async () => {
   try {
     const f = await seedMinimal(db);
     const sdk = makeFakeSdk();
-    const ctx = makeCtx({ url: `${base}/${f.attrColorId}`, method: 'DELETE', params: { id: f.attrColorId } });
+    const ctx = makeCtx({
+      url: `${base}/${f.attrColorId}`,
+      method: 'DELETE',
+      params: { id: f.attrColorId },
+    });
     const res = await runDelete({ db, sdk, ctx });
     assert.equal(res.status, 409);
     const b = await res.json();

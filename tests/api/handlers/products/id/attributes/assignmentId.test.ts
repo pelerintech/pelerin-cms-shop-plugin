@@ -6,9 +6,8 @@ import { createTestDb, seedMinimal } from '../../../../../db/harness.ts';
 import { makeFakeSdk, makeCtx } from '../../../../helpers.ts';
 
 ensureLoader();
-const { runDelete } = await import(
-  '../../../../../../src/api/shop/products/[id]/attributes/[assignmentId].ts'
-);
+const { runDelete } =
+  await import('../../../../../../src/api/shop/products/[id]/attributes/[assignmentId].ts');
 
 const URL = (id: string, aid: string) =>
   `http://localhost/api/plugins/shop/products/${id}/attributes/${aid}`;

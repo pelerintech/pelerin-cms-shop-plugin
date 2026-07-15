@@ -1,0 +1,12 @@
+title = "Pelerin RO Shop gitleaks config"
+
+[allowlist]
+description = "Known safe files and false positive paths"
+paths = [
+  "node_modules/",
+  "dist/",
+  ".astro/",
+  "plugins/",
+  "package-lock.json",
+  ".env.example",
+]

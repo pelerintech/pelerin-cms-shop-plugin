@@ -6,12 +6,12 @@ import { makeFakeSdk, makeCtx } from '../../../helpers.ts';
 import { createTestDb, seedMinimal } from '../../../../db/harness.ts';
 
 ensureLoader();
-const { runGet, runPost, runPut, runDelete } = await import('../../../../../src/api/shop/products/[id]/prices.ts');
+const { runGet, runPost, runPut, runDelete } =
+  await import('../../../../../src/api/shop/products/[id]/prices.ts');
 
 const base = 'http://localhost/api/plugins/shop/products/x/prices';
 
-test('GET auth-fail → 401', () =>
-  matrix.adminAuthFail({ run: runGet, url: base }));
+test('GET auth-fail → 401', () => matrix.adminAuthFail({ run: runGet, url: base }));
 
 test('GET happy-path → 200, data is array', async () => {
   const { db, cleanup } = await createTestDb();
@@ -32,8 +32,7 @@ test('GET happy-path → 200, data is array', async () => {
 test('GET error-wrap → 500', () =>
   matrix.errorWrap({ run: runGet, url: base, params: { id: 'x' } }));
 
-test('POST auth-fail → 401', () =>
-  matrix.adminAuthFail({ run: runPost, url: base, body: {} }));
+test('POST auth-fail → 401', () => matrix.adminAuthFail({ run: runPost, url: base, body: {} }));
 
 // POST has no Zod validation → skip validation-fail
 test('POST happy-path → 201, data echoes body', async () => {
@@ -54,10 +53,14 @@ test('POST happy-path → 201, data echoes body', async () => {
 });
 
 test('POST error-wrap → 500', () =>
-  matrix.errorWrap({ run: runPost, url: base, body: { variant_id: 'x', currency: 'RON', price_net: 10 }, params: { id: 'x' } }));
+  matrix.errorWrap({
+    run: runPost,
+    url: base,
+    body: { variant_id: 'x', currency: 'RON', price_net: 10 },
+    params: { id: 'x' },
+  }));
 
-test('PUT auth-fail → 401', () =>
-  matrix.adminAuthFail({ run: runPut, url: base, body: {} }));
+test('PUT auth-fail → 401', () => matrix.adminAuthFail({ run: runPut, url: base, body: {} }));
 
 test('PUT validation-fail → 422', () =>
   matrix.validationFail({
@@ -84,10 +87,14 @@ test('PUT happy-path → 200, data is array', async () => {
 });
 
 test('PUT error-wrap → 500', () =>
-  matrix.errorWrap({ run: runPut, url: base, body: { product_id: 'x', currency: 'RON', price_net: 10 }, params: { id: 'x' } }));
+  matrix.errorWrap({
+    run: runPut,
+    url: base,
+    body: { product_id: 'x', currency: 'RON', price_net: 10 },
+    params: { id: 'x' },
+  }));
 
-test('DELETE auth-fail → 401', () =>
-  matrix.adminAuthFail({ run: runDelete, url: base }));
+test('DELETE auth-fail → 401', () => matrix.adminAuthFail({ run: runDelete, url: base }));
 
 test('DELETE happy-path → 200 (no id param)', async () => {
   const { db, cleanup } = await createTestDb();

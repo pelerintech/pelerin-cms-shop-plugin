@@ -5,7 +5,10 @@ import { readFileSync } from 'node:fs';
 const contents = readFileSync(new URL('../../src/db/seed.ts', import.meta.url), 'utf-8');
 
 test('seed logs plugin name', () => {
-  assert.ok(contents.includes('[Plugin:pelerin_ro_shop] Seeding...'), 'seed should log plugin name');
+  assert.ok(
+    contents.includes('[Plugin:pelerin_ro_shop] Seeding...'),
+    'seed should log plugin name'
+  );
 });
 
 test('seed inserts locales as JSON in shop_settings', () => {
@@ -21,7 +24,10 @@ test('seed inserts currencies as JSON in shop_settings', () => {
 });
 
 test('seed inserts order_number_prefix setting', () => {
-  assert.ok(contents.includes('order_number_prefix'), 'seed should insert order_number_prefix setting');
+  assert.ok(
+    contents.includes('order_number_prefix'),
+    'seed should insert order_number_prefix setting'
+  );
 });
 
 test('no shop_locales or shop_currencies references in seed', () => {

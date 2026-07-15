@@ -1,13 +1,6 @@
 import { test } from 'node:test';
 import { ensureLoader } from '../../../../stubs/register.mjs';
-import {
-  matrix,
-  createTestDb,
-  seedMinimal,
-  makeFakeSdk,
-  makeCtx,
-  assert,
-} from '../../_matrix.ts';
+import { matrix, createTestDb, seedMinimal, makeFakeSdk, makeCtx, assert } from '../../_matrix.ts';
 import { insertFixture } from '../../../../db/harness.ts';
 
 ensureLoader();
@@ -19,12 +12,22 @@ async function seedCartWithItem(db: any, f: any, sessionId = 'sess-co', cartId =
   const now = new Date();
   const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   await insertFixture(db, 'carts', {
-    id: cartId, session_id: sessionId, user_id: null,
-    applied_voucher_code: null, applied_referral_code: null,
-    converted_at: null, expires_at: expires, created_at: now, updated_at: now,
+    id: cartId,
+    session_id: sessionId,
+    user_id: null,
+    applied_voucher_code: null,
+    applied_referral_code: null,
+    converted_at: null,
+    expires_at: expires,
+    created_at: now,
+    updated_at: now,
   });
   await insertFixture(db, 'cart_items', {
-    id: 'ci-co', cart_id: cartId, product_id: f.simpleProductId, variant_id: null, quantity: 2,
+    id: 'ci-co',
+    cart_id: cartId,
+    product_id: f.simpleProductId,
+    variant_id: null,
+    quantity: 2,
   });
   return { sessionId, cartId };
 }
@@ -62,7 +65,8 @@ test('POST validation-fail → 422 (missing required fields)', async () => {
     const { sessionId } = await seedCartWithItem(db, f);
     const sdk = makeFakeSdk({ user: null });
     const ctx = makeCtx({
-      url: URL, method: 'POST',
+      url: URL,
+      method: 'POST',
       body: { customer_type: 'individual' },
       headers: { cookie: `pelerin_shop_cart=${sessionId}` },
     });
@@ -84,7 +88,9 @@ test('POST happy-path → 201, order created', async () => {
     const { sessionId } = await seedCartWithItem(db, f);
     const sdk = makeFakeSdk({ user: null });
     const ctx = makeCtx({
-      url: URL, method: 'POST', body: validCheckoutBody(),
+      url: URL,
+      method: 'POST',
+      body: validCheckoutBody(),
       headers: { cookie: `pelerin_shop_cart=${sessionId}` },
     });
     const res = await runPost({ db, sdk, ctx });

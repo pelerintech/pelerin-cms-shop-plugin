@@ -38,7 +38,9 @@ test('admin can log in and reach the shop products list', async ({ page }) => {
   await expect(page.locator(EDIT_LINK).first()).toBeVisible();
 });
 
-test('product edit page shows the redesigned vocabulary and no has_variants checkbox', async ({ page }) => {
+test('product edit page shows the redesigned vocabulary and no has_variants checkbox', async ({
+  page,
+}) => {
   await adminLogin(page);
   await page.goto('/admin/plugins/shop/products');
   const href = await page.locator(EDIT_LINK).first().getAttribute('href');
@@ -47,8 +49,12 @@ test('product edit page shows the redesigned vocabulary and no has_variants chec
 
   // Redesigned vocabulary (r15 Task 18). The role select options are JS-free
   // server HTML, so they are present immediately.
-  await expect(page.locator('#assign-role-select option[value="dimension"]')).toHaveText(/Varies by/i);
-  await expect(page.locator('#assign-role-select option[value="field"]')).toHaveText(/Product info/i);
+  await expect(page.locator('#assign-role-select option[value="dimension"]')).toHaveText(
+    /Varies by/i
+  );
+  await expect(page.locator('#assign-role-select option[value="field"]')).toHaveText(
+    /Product info/i
+  );
   // has_variants checkbox removed (r15 Task 17).
   await expect(page.locator('input[name="has_variants"]')).toHaveCount(0);
 });
@@ -100,7 +106,9 @@ test('variant edit modal opens with per-currency price inputs', async ({ page })
   await expect(modal.locator('[data-variant-price]').first()).toBeVisible({ timeout: 10_000 });
 });
 
-test('assigning a "Varies by" attribute to a fresh product enables Manage Variants', async ({ page }) => {
+test('assigning a "Varies by" attribute to a fresh product enables Manage Variants', async ({
+  page,
+}) => {
   await adminLogin(page);
 
   // Create a throwaway product so the assignment flow is deterministic.

@@ -96,7 +96,13 @@ test('POST: body with id/unknown columns cannot inject (only schema fields passe
     // Body includes a bogus `id` and `created_at` — these must NOT be persisted.
     const ctx = makeCtx({
       url: base(f.variantProductId),
-      body: { variant_id: f.variantBlack128Id, currency: 'GBP', price_net: 50, id: 'INJECTED', created_at: 'evil' },
+      body: {
+        variant_id: f.variantBlack128Id,
+        currency: 'GBP',
+        price_net: 50,
+        id: 'INJECTED',
+        created_at: 'evil',
+      },
       method: 'POST',
       params: { id: f.variantProductId },
     });

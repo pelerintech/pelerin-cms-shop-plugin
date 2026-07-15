@@ -19,7 +19,7 @@ const id = Astro.params.id;
 // Fetch locales from settings via accessor
 const shopConfig = await getShopConfig(sdk.db);
 const defaultLocale = shopConfig.defaultLocale;
-const otherLocales = shopConfig.locales.filter(l => !l.isDefault);
+const otherLocales = shopConfig.locales.filter((l) => !l.isDefault);
 
 // Fetch attribute via accessor
 const attribute = await getAttribute(sdk.db, id, defaultLocale);
@@ -40,8 +40,12 @@ if (attribute.type === 'select') {
 // Fetch option translations via accessor
 const optionTransMap = new Map<string, Map<string, any>>();
 if (options.length > 0) {
-  const optIds = options.map(o => o.id);
-  const optTransRows = await listTranslationsByEntityIds(sdk.db, 'product_attribute_option', optIds);
+  const optIds = options.map((o) => o.id);
+  const optTransRows = await listTranslationsByEntityIds(
+    sdk.db,
+    'product_attribute_option',
+    optIds
+  );
   for (const row of optTransRows) {
     if (!optionTransMap.has(row.entity_id)) optionTransMap.set(row.entity_id, new Map());
     optionTransMap.get(row.entity_id)!.set(row.locale, row);
@@ -57,13 +61,19 @@ const typeOptions = [
 ];
 ---
 
-<AdminLayout title="Edit Attribute" currentPath="/admin/plugins/shop/settings/attributes" user={user}>
-  <Breadcrumbs items={[
-    { label: 'Shop', href: '/admin/plugins/shop' },
-    { label: 'Settings', href: '/admin/plugins/shop/settings' },
-    { label: 'Attributes', href: '/admin/plugins/shop/settings/attributes' },
-    { label: attribute.name },
-  ]} />
+<AdminLayout
+  title="Edit Attribute"
+  currentPath="/admin/plugins/shop/settings/attributes"
+  user={user}
+>
+  <Breadcrumbs
+    items={[
+      { label: 'Shop', href: '/admin/plugins/shop' },
+      { label: 'Settings', href: '/admin/plugins/shop/settings' },
+      { label: 'Attributes', href: '/admin/plugins/shop/settings/attributes' },
+      { label: attribute.name },
+    ]}
+  />
 
   <div class="flex items-center justify-between col-span-12 mb-4">
     <div>
@@ -76,14 +86,13 @@ const typeOptions = [
   <!-- Attribute Details -->
   <div class="card bg-base-100 shadow-lg col-span-12">
     <div class="card-body">
-      <form id="attribute-form" class="space-y-6" data-default-locale={defaultLocale} data-locale-codes={JSON.stringify(otherLocales.map(l => l.code))}>
-
-        <SelectField
-          name="type"
-          label="Type"
-          options={typeOptions}
-          value={attribute.type}
-        />
+      <form
+        id="attribute-form"
+        class="space-y-6"
+        data-default-locale={defaultLocale}
+        data-locale-codes={JSON.stringify(otherLocales.map((l) => l.code))}
+      >
+        <SelectField name="type" label="Type" options={typeOptions} value={attribute.type} />
         <p class="text-base-content/60 text-sm -mt-4 mb-4">Type cannot be changed after creation</p>
 
         <div class="divider">Name</div>
@@ -95,13 +104,15 @@ const typeOptions = [
           required
         />
 
-        {otherLocales.map(locale => (
-          <TextField
-            name={`name_${locale.code}`}
-            label={`Name (${locale.code.toUpperCase()})`}
-            value={(transByLocale.get(locale.code) as any)?.name || ''}
-          />
-        ))}
+        {
+          otherLocales.map((locale) => (
+            <TextField
+              name={`name_${locale.code}`}
+              label={`Name (${locale.code.toUpperCase()})`}
+              value={(transByLocale.get(locale.code) as any)?.name || ''}
+            />
+          ))
+        }
 
         <TextField
           name="sort_order"
@@ -123,58 +134,91 @@ const typeOptions = [
   </div>
 
   <!-- Options (select-type only) -->
-  {attribute.type === 'select' && (
-    <div class="card bg-base-100 shadow-lg col-span-12 mt-6">
-      <div class="card-body">
-        <h2 class="card-title mb-4">Options</h2>
+  {
+    attribute.type === 'select' && (
+      <div class="card bg-base-100 shadow-lg col-span-12 mt-6">
+        <div class="card-body">
+          <h2 class="card-title mb-4">Options</h2>
 
-        <div id="options-list" class="space-y-2 mb-6">
-          {options.map(opt => {
-            const defaultTrans = optionTransMap.get(opt.id)?.get(defaultLocale);
-            return (
-              <div class="flex items-center gap-4 p-3 bg-base-200 rounded" data-option-id={opt.id}>
-                <span class="font-mono text-sm flex-1">{opt.value}</span>
-                <span class="flex-1">{(defaultTrans as any)?.label || opt.value}</span>
-                <span class="text-sm text-base-content/60 w-16 text-center">#{opt.sort_order}</span>
-                <div class="join">
-                  <button class="btn btn-sm join-item" data-edit-option={opt.id}>Edit</button>
-                  <button class="btn btn-sm btn-error join-item" data-delete-option={opt.id}>Delete</button>
+          <div id="options-list" class="space-y-2 mb-6">
+            {options.map((opt) => {
+              const defaultTrans = optionTransMap.get(opt.id)?.get(defaultLocale);
+              return (
+                <div
+                  class="flex items-center gap-4 p-3 bg-base-200 rounded"
+                  data-option-id={opt.id}
+                >
+                  <span class="font-mono text-sm flex-1">{opt.value}</span>
+                  <span class="flex-1">{(defaultTrans as any)?.label || opt.value}</span>
+                  <span class="text-sm text-base-content/60 w-16 text-center">
+                    #{opt.sort_order}
+                  </span>
+                  <div class="join">
+                    <button class="btn btn-sm join-item" data-edit-option={opt.id}>
+                      Edit
+                    </button>
+                    <button class="btn btn-sm btn-error join-item" data-delete-option={opt.id}>
+                      Delete
+                    </button>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div class="divider">Add Option</div>
-
-        <form id="add-option-form" class="flex gap-2 items-end">
-          <div class="form-control flex-1">
-            <label class="label"><span class="label-text font-semibold">Value</span></label>
-            <input type="text" name="value" class="input input-bordered" placeholder="e.g. red, blue" required />
+              );
+            })}
           </div>
-          <div class="form-control flex-1">
-            <label class="label"><span class="label-text font-semibold">Label ({defaultLocale.toUpperCase()})</span></label>
-            <input type="text" name="label" class="input input-bordered" placeholder="e.g. Red" required />
-          </div>
-          {otherLocales.map(locale => (
-            <div class="form-control w-40">
-              <label class="label"><span class="label-text">Label ({locale.code.toUpperCase()})</span></label>
-              <input type="text" name={`label_${locale.code}`} class="input input-bordered" />
+
+          <div class="divider">Add Option</div>
+
+          <form id="add-option-form" class="flex gap-2 items-end">
+            <div class="form-control flex-1">
+              <label class="label">
+                <span class="label-text font-semibold">Value</span>
+              </label>
+              <input
+                type="text"
+                name="value"
+                class="input input-bordered"
+                placeholder="e.g. red, blue"
+                required
+              />
             </div>
-          ))}
-          <div class="form-control w-24">
-            <label class="label"><span class="label-text">Sort</span></label>
-            <input type="number" name="sort_order" class="input input-bordered" value="0" />
-          </div>
-          <button type="submit" class="btn btn-primary">Add</button>
-        </form>
+            <div class="form-control flex-1">
+              <label class="label">
+                <span class="label-text font-semibold">Label ({defaultLocale.toUpperCase()})</span>
+              </label>
+              <input
+                type="text"
+                name="label"
+                class="input input-bordered"
+                placeholder="e.g. Red"
+                required
+              />
+            </div>
+            {otherLocales.map((locale) => (
+              <div class="form-control w-40">
+                <label class="label">
+                  <span class="label-text">Label ({locale.code.toUpperCase()})</span>
+                </label>
+                <input type="text" name={`label_${locale.code}`} class="input input-bordered" />
+              </div>
+            ))}
+            <div class="form-control w-24">
+              <label class="label">
+                <span class="label-text">Sort</span>
+              </label>
+              <input type="number" name="sort_order" class="input input-bordered" value="0" />
+            </div>
+            <button type="submit" class="btn btn-primary">
+              Add
+            </button>
+          </form>
 
-        <div id="option-error" class="alert alert-error mt-4 hidden">
-          <span id="option-error-text"></span>
+          <div id="option-error" class="alert alert-error mt-4 hidden">
+            <span id="option-error-text" />
+          </div>
         </div>
       </div>
-    </div>
-  )}
+    )
+  }
 </AdminLayout>
 
 <script is:inline>
@@ -252,15 +296,19 @@ const typeOptions = [
   }
 
   // Delete option
-  document.querySelectorAll('[data-delete-option]').forEach(btn => {
+  document.querySelectorAll('[data-delete-option]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const optionId = btn.dataset.deleteOption;
-      if (!confirm('Delete this option? This will fail if it is used in product assignments.')) return;
+      if (!confirm('Delete this option? This will fail if it is used in product assignments.'))
+        return;
 
-      const response = await fetch(`/api/plugins/shop/attributes/${attributeId}/options/${optionId}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const response = await fetch(
+        `/api/plugins/shop/attributes/${attributeId}/options/${optionId}`,
+        {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
 
       const data = await response.json();
 

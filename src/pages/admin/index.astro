@@ -8,14 +8,54 @@ const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
 
 const sections = [
-  { label: 'Products', href: '/admin/plugins/shop/products', icon: '📦', description: 'Manage products, variants, and pricing' },
-  { label: 'Orders', href: '/admin/plugins/shop/orders', icon: '📋', description: 'View and manage customer orders' },
-  { label: 'Vouchers', href: '/admin/plugins/shop/vouchers', icon: '🎟️', description: 'Discount codes and promotions' },
-  { label: 'Referral Codes', href: '/admin/plugins/shop/referral-codes', icon: '🔗', description: 'Affiliate and partner codes' },
-  { label: 'Categories', href: '/admin/plugins/shop/categories', icon: '🏷️', description: 'Product categories and organization' },
-  { label: 'Carts', href: '/admin/plugins/shop/carts', icon: '🛒', description: 'Active and abandoned shopping carts' },
-  { label: 'Payments', href: '/admin/plugins/shop/settings/payments', icon: '💳', description: 'Stripe and EuPlatesc configuration' },
-  { label: 'Settings', href: '/admin/plugins/shop/settings/general', icon: '⚙️', description: 'General shop configuration' },
+  {
+    label: 'Products',
+    href: '/admin/plugins/shop/products',
+    icon: '📦',
+    description: 'Manage products, variants, and pricing',
+  },
+  {
+    label: 'Orders',
+    href: '/admin/plugins/shop/orders',
+    icon: '📋',
+    description: 'View and manage customer orders',
+  },
+  {
+    label: 'Vouchers',
+    href: '/admin/plugins/shop/vouchers',
+    icon: '🎟️',
+    description: 'Discount codes and promotions',
+  },
+  {
+    label: 'Referral Codes',
+    href: '/admin/plugins/shop/referral-codes',
+    icon: '🔗',
+    description: 'Affiliate and partner codes',
+  },
+  {
+    label: 'Categories',
+    href: '/admin/plugins/shop/categories',
+    icon: '🏷️',
+    description: 'Product categories and organization',
+  },
+  {
+    label: 'Carts',
+    href: '/admin/plugins/shop/carts',
+    icon: '🛒',
+    description: 'Active and abandoned shopping carts',
+  },
+  {
+    label: 'Payments',
+    href: '/admin/plugins/shop/settings/payments',
+    icon: '💳',
+    description: 'Stripe and EuPlatesc configuration',
+  },
+  {
+    label: 'Settings',
+    href: '/admin/plugins/shop/settings/general',
+    icon: '⚙️',
+    description: 'General shop configuration',
+  },
 ];
 ---
 
@@ -24,17 +64,19 @@ const sections = [
     <h1 class="text-2xl font-bold mb-6">Shop Dashboard</h1>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {sections.map((section) => (
-        <a href={section.href} class="card bg-base-100 shadow hover:shadow-lg transition-shadow">
-          <div class="card-body p-5">
-            <div class="flex items-center gap-3 mb-2">
-              <span class="text-2xl">{section.icon}</span>
-              <h2 class="card-title text-lg">{section.label}</h2>
+      {
+        sections.map((section) => (
+          <a href={section.href} class="card bg-base-100 shadow hover:shadow-lg transition-shadow">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-2">
+                <span class="text-2xl">{section.icon}</span>
+                <h2 class="card-title text-lg">{section.label}</h2>
+              </div>
+              <p class="text-sm text-base-content/60">{section.description}</p>
             </div>
-            <p class="text-sm text-base-content/60">{section.description}</p>
-          </div>
-        </a>
-      ))}
+          </a>
+        ))
+      }
     </div>
   </div>
 </AdminLayout>

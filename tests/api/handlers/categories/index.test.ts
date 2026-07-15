@@ -18,7 +18,7 @@ test('GET happy-path → 200, data is array', () =>
     run: runGet,
     url,
     expectedStatus: 200,
-    check: b => assert.ok(Array.isArray(b.data), 'data should be an array'),
+    check: (b) => assert.ok(Array.isArray(b.data), 'data should be an array'),
   }));
 
 test('GET error-wrap → 500', () => matrix.errorWrap({ run: runGet, url }));
@@ -39,7 +39,7 @@ test('POST happy-path: valid body → 201, data.id exists', () =>
     body: { name: 'New Cat', slug: 'new-cat-uniq', sort_order: 10 },
     method: 'POST',
     expectedStatus: 201,
-    check: b => assert.ok(b.data?.id, 'data.id should exist'),
+    check: (b) => assert.ok(b.data?.id, 'data.id should exist'),
   }));
 
 test('POST error-wrap → 500', () =>
@@ -66,13 +66,15 @@ test('POST without locale fields → 201, no translation rows created', async ()
     assert.ok(b.data?.id, 'data.id should exist');
 
     // Verify NO translation rows were created
-    const transRows = await db.select().from(translations).where(
-      and(
-        eq(translations.entity_id, b.data.id),
-        eq(translations.entity_type, 'category'),
-      ),
+    const transRows = await db
+      .select()
+      .from(translations)
+      .where(and(eq(translations.entity_id, b.data.id), eq(translations.entity_type, 'category')));
+    assert.equal(
+      transRows.length,
+      0,
+      'No translation rows should exist when no locale fields sent'
     );
-    assert.equal(transRows.length, 0, 'No translation rows should exist when no locale fields sent');
   } finally {
     await cleanup();
   }
@@ -103,13 +105,11 @@ test('POST with translation fields → 201, translation row created', async () =
     assert.ok(b.data?.id, 'data.id should exist');
 
     // Verify translation row was created
-    const transRows = await db.select().from(translations).where(
-      and(
-        eq(translations.entity_id, b.data.id),
-        eq(translations.entity_type, 'category'),
-      ),
-    );
-    const enTrans = transRows.find(t => t.locale === 'en');
+    const transRows = await db
+      .select()
+      .from(translations)
+      .where(and(eq(translations.entity_id, b.data.id), eq(translations.entity_type, 'category')));
+    const enTrans = transRows.find((t) => t.locale === 'en');
     assert.ok(enTrans, 'EN translation should exist');
     assert.equal(enTrans.name, 'New Cat EN');
     assert.equal(enTrans.slug, 'new-cat-en');
@@ -147,12 +147,15 @@ test('GET with search param filters categories by name/slug', async () => {
     assert.ok(Array.isArray(b.data), 'data should be an array');
 
     // All returned categories should match "elec" in name or slug
-    const allMatch = b.data.every((c: any) =>
-      c.name.toLowerCase().includes('elec') || c.slug.toLowerCase().includes('elec'),
+    const allMatch = b.data.every(
+      (c: any) => c.name.toLowerCase().includes('elec') || c.slug.toLowerCase().includes('elec')
     );
     assert.ok(allMatch, 'all returned categories should match search term');
     assert.ok(b.data.length > 0, 'should return at least one matching category');
-    assert.ok(b.data.some((c: any) => c.name === 'Electronics'), 'should include Electronics');
+    assert.ok(
+      b.data.some((c: any) => c.name === 'Electronics'),
+      'should include Electronics'
+    );
   } finally {
     await cleanup();
   }

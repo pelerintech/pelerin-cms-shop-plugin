@@ -26,12 +26,12 @@ const allCats = await listCategories(sdk.db, defaultLocale);
 let filteredCats = allCats;
 if (filterName) {
   const search = filterName.toLowerCase();
-  filteredCats = filteredCats.filter(c => c.name.toLowerCase().includes(search));
+  filteredCats = filteredCats.filter((c) => c.name.toLowerCase().includes(search));
 }
 if (filterParent === '__none__') {
-  filteredCats = filteredCats.filter(c => !c.parent_id);
+  filteredCats = filteredCats.filter((c) => !c.parent_id);
 } else if (filterParent) {
-  filteredCats = filteredCats.filter(c => c.parent_id === filterParent);
+  filteredCats = filteredCats.filter((c) => c.parent_id === filterParent);
 }
 
 // Paginate client-side
@@ -44,7 +44,7 @@ const categoryList = filteredCats.slice(offset, offset + limit);
 const parentNameMap = new Map<string, string>();
 for (const cat of allCats) {
   if (cat.parent_id) {
-    const parent = allCats.find(p => p.id === cat.parent_id);
+    const parent = allCats.find((p) => p.id === cat.parent_id);
     if (parent) parentNameMap.set(cat.id, parent.name);
   }
 }
@@ -61,90 +61,123 @@ for (const cat of allCats) {
     <form method="GET" class="flex gap-4 mb-6 flex-wrap items-end">
       <div class="form-control">
         <label class="label"><span class="label-text">Name</span></label>
-        <input type="text" name="name" value={filterName} placeholder="Search..." class="input input-bordered w-full" />
+        <input
+          type="text"
+          name="name"
+          value={filterName}
+          placeholder="Search..."
+          class="input input-bordered w-full"
+        />
       </div>
       <div class="form-control">
         <label class="label"><span class="label-text">Parent</span></label>
         <select name="parent" class="select select-bordered">
           <option value="">All</option>
           <option value="__none__" selected={filterParent === '__none__'}>None (top-level)</option>
-          {allCats.map(c => (
-            <option value={c.id} selected={filterParent === c.id}>{c.name}</option>
-          ))}
+          {
+            allCats.map((c) => (
+              <option value={c.id} selected={filterParent === c.id}>
+                {c.name}
+              </option>
+            ))
+          }
         </select>
       </div>
       <div class="form-control">
         <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
         <button type="submit" class="btn btn-outline">Filter</button>
       </div>
-      {(filterName || filterParent) && (
-        <div class="form-control">
-          <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
-          <a href="/admin/plugins/shop/categories" class="btn btn-ghost">Clear</a>
-        </div>
-      )}
+      {
+        (filterName || filterParent) && (
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text opacity-0">&nbsp;</span>
+            </label>
+            <a href="/admin/plugins/shop/categories" class="btn btn-ghost">
+              Clear
+            </a>
+          </div>
+        )
+      }
     </form>
 
     <!-- Category Table -->
-    {categoryList.length === 0 ? (
-      <p class="text-base-content/60">No categories found.</p>
-    ) : (
-      <div class="overflow-x-auto">
-        <table class="table table-zebra w-full">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Slug</th>
-              <th>Parent</th>
-              <th>Created</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {categoryList.map(c => (
+    {
+      categoryList.length === 0 ? (
+        <p class="text-base-content/60">No categories found.</p>
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="table table-zebra w-full">
+            <thead>
               <tr>
-                <td class="font-medium">{c.name}</td>
-                <td><code class="text-xs">/{c.slug}</code></td>
-                <td>{parentNameMap.get(c.id) || '-'}</td>
-                <td>{c.created_at ? new Date(c.created_at).toLocaleDateString() : '-'}</td>
-                <td>
-                  <div class="flex gap-2">
-                    <a href={`/admin/plugins/shop/categories/${c.id}?from_page=${page}`} class="btn btn-ghost btn-xs">Edit</a>
-                    <button class="btn btn-error btn-xs delete-category" data-id={c.id} data-name={c.name}>Delete</button>
-                  </div>
-                </td>
+                <th>Name</th>
+                <th>Slug</th>
+                <th>Parent</th>
+                <th>Created</th>
+                <th />
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )}
+            </thead>
+            <tbody>
+              {categoryList.map((c) => (
+                <tr>
+                  <td class="font-medium">{c.name}</td>
+                  <td>
+                    <code class="text-xs">/{c.slug}</code>
+                  </td>
+                  <td>{parentNameMap.get(c.id) || '-'}</td>
+                  <td>{c.created_at ? new Date(c.created_at).toLocaleDateString() : '-'}</td>
+                  <td>
+                    <div class="flex gap-2">
+                      <a
+                        href={`/admin/plugins/shop/categories/${c.id}?from_page=${page}`}
+                        class="btn btn-ghost btn-xs"
+                      >
+                        Edit
+                      </a>
+                      <button
+                        class="btn btn-error btn-xs delete-category"
+                        data-id={c.id}
+                        data-name={c.name}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
 
     <!-- Pagination -->
-    {totalPages > 1 && (
-      <div class="join mt-4">
-        {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => {
-          const params = new URLSearchParams();
-          if (filterName) params.set('name', filterName);
-          if (filterParent) params.set('parent', filterParent);
-          params.set('page', String(p));
-          return (
-            <a
-              href={`/admin/plugins/shop/categories?${params.toString()}`}
-              class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
-            >
-              {p}
-            </a>
-          );
-        })}
-      </div>
-    )}
+    {
+      totalPages > 1 && (
+        <div class="join mt-4">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
+            const params = new URLSearchParams();
+            if (filterName) params.set('name', filterName);
+            if (filterParent) params.set('parent', filterParent);
+            params.set('page', String(p));
+            return (
+              <a
+                href={`/admin/plugins/shop/categories?${params.toString()}`}
+                class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
+              >
+                {p}
+              </a>
+            );
+          })}
+        </div>
+      )
+    }
   </div>
 </AdminLayout>
 
 <script>
   // Delete category
-  document.querySelectorAll('.delete-category').forEach(btn => {
+  document.querySelectorAll('.delete-category').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const catId = (btn as HTMLElement).dataset.id!;
       const catName = (btn as HTMLElement).dataset.name!;

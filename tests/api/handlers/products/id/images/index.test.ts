@@ -6,12 +6,9 @@ import { createTestDb, seedMinimal, insertFixture } from '../../../../../db/harn
 import { makeFakeSdk, makeCtx, poisonDb } from '../../../../helpers.ts';
 
 ensureLoader();
-const { runGet } = await import(
-  '../../../../../../src/api/shop/products/[id]/images/index.ts'
-);
+const { runGet } = await import('../../../../../../src/api/shop/products/[id]/images/index.ts');
 
-const URL = (id: string) =>
-  `http://localhost/api/plugins/shop/products/${id}/images`;
+const URL = (id: string) => `http://localhost/api/plugins/shop/products/${id}/images`;
 
 test('GET auth-fail → 401', () =>
   matrix.adminAuthFail({ run: runGet, url: URL('x'), params: { id: 'x' } }));
@@ -37,8 +34,32 @@ test('GET resolves image keys → URLs (no raw key leaked)', async () => {
   try {
     const f = await seedMinimal(db);
     // Seed image rows whose `url` column holds RAW storage keys
-    await insertFixture(db, 'product_images', { id: 'img-r1', product_id: f.simpleProductId, variant_id: null, url: 'products/p1/r1.jpg', alt: null, sort_order: 1, mime: 'image/jpeg', size: 10, width: null, height: null, original_filename: 'r1.jpg' });
-    await insertFixture(db, 'product_images', { id: 'img-r2', product_id: f.simpleProductId, variant_id: null, url: 'products/p1/r2.jpg', alt: null, sort_order: 0, mime: 'image/jpeg', size: 20, width: null, height: null, original_filename: 'r2.jpg' });
+    await insertFixture(db, 'product_images', {
+      id: 'img-r1',
+      product_id: f.simpleProductId,
+      variant_id: null,
+      url: 'products/p1/r1.jpg',
+      alt: null,
+      sort_order: 1,
+      mime: 'image/jpeg',
+      size: 10,
+      width: null,
+      height: null,
+      original_filename: 'r1.jpg',
+    });
+    await insertFixture(db, 'product_images', {
+      id: 'img-r2',
+      product_id: f.simpleProductId,
+      variant_id: null,
+      url: 'products/p1/r2.jpg',
+      alt: null,
+      sort_order: 0,
+      mime: 'image/jpeg',
+      size: 20,
+      width: null,
+      height: null,
+      original_filename: 'r2.jpg',
+    });
     const sdk = makeFakeSdk();
     const ctx = makeCtx({ url: URL(f.simpleProductId), params: { id: f.simpleProductId } });
     const res = await runGet({ db, sdk, ctx });

@@ -11,12 +11,18 @@ const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
 ---
 
-<AdminLayout title="General Settings" currentPath="/admin/plugins/shop/settings/general" user={user}>
-  <Breadcrumbs items={[
-    { label: 'Shop', href: '/admin/plugins/shop' },
-    { label: 'Settings', href: '/admin/plugins/shop/settings' },
-    { label: 'General' },
-  ]} />
+<AdminLayout
+  title="General Settings"
+  currentPath="/admin/plugins/shop/settings/general"
+  user={user}
+>
+  <Breadcrumbs
+    items={[
+      { label: 'Shop', href: '/admin/plugins/shop' },
+      { label: 'Settings', href: '/admin/plugins/shop/settings' },
+      { label: 'General' },
+    ]}
+  />
 
   <div class="flex items-center justify-between col-span-12 mb-4">
     <div>
@@ -35,7 +41,14 @@ const user = await sdk.auth.requireAdmin(Astro.request);
           <TextField name="shop_name" label="Shop Name" placeholder="My Shop" />
           <TextField name="order_number_prefix" label="Order Number Prefix" placeholder="ORD" />
           <CheckboxField name="order_number_year" label="Include Year in Order Number" />
-          <TextField name="order_number_padding" label="Order Number Padding" type="number" min="1" max="10" value="5" />
+          <TextField
+            name="order_number_padding"
+            label="Order Number Padding"
+            type="number"
+            min="1"
+            max="10"
+            value="5"
+          />
         </div>
 
         <div id="form-error" class="alert alert-error hidden"></div>
@@ -70,8 +83,12 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       <div id="locales-error" class="alert alert-error hidden mt-2"></div>
       <div id="locales-success" class="alert alert-success hidden mt-2"></div>
       <div class="flex justify-end gap-2 pt-4 border-t border-base-200">
-        <button type="button" class="btn btn-outline btn-sm" id="add-locale-btn">+ Add Locale</button>
-        <button type="button" class="btn btn-primary btn-sm" id="save-locales-btn">Save Locales</button>
+        <button type="button" class="btn btn-outline btn-sm" id="add-locale-btn"
+          >+ Add Locale</button
+        >
+        <button type="button" class="btn btn-primary btn-sm" id="save-locales-btn"
+          >Save Locales</button
+        >
       </div>
     </div>
   </div>
@@ -98,8 +115,12 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       <div id="currencies-error" class="alert alert-error hidden mt-2"></div>
       <div id="currencies-success" class="alert alert-success hidden mt-2"></div>
       <div class="flex justify-end gap-2 pt-4 border-t border-base-200">
-        <button type="button" class="btn btn-outline btn-sm" id="add-currency-btn">+ Add Currency</button>
-        <button type="button" class="btn btn-primary btn-sm" id="save-currencies-btn">Save Currencies</button>
+        <button type="button" class="btn btn-outline btn-sm" id="add-currency-btn"
+          >+ Add Currency</button
+        >
+        <button type="button" class="btn btn-primary btn-sm" id="save-currencies-btn"
+          >Save Currencies</button
+        >
       </div>
     </div>
   </div>
@@ -135,12 +156,12 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     }
   }
 
-  document.getElementById('settings-form').addEventListener('submit', async function(e) {
+  document.getElementById('settings-form').addEventListener('submit', async function (e) {
     e.preventDefault();
     var form = e.target;
     var formData = new FormData(form);
     var body = {};
-    formData.forEach(function(value, key) {
+    formData.forEach(function (value, key) {
       if (value) body[key] = value;
     });
     if (form.order_number_year.checked) {
@@ -158,12 +179,18 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     successEl.classList.add('hidden');
 
     try {
-      var res = await fetch(API_URL, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      var res = await fetch(API_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
       var json = await res.json();
       if (json.success) {
         successEl.classList.remove('hidden');
         successEl.textContent = 'Settings saved.';
-        setTimeout(function() { successEl.classList.add('hidden'); }, 3000);
+        setTimeout(function () {
+          successEl.classList.add('hidden');
+        }, 3000);
         await loadSettings();
       } else {
         errorEl.classList.remove('hidden');
@@ -190,21 +217,27 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       var item = localesData[i];
       var tr = document.createElement('tr');
       tr.innerHTML =
-        '<td><input type="text" value="' + escapeHtml(item.code) + '" class="input input-bordered input-sm w-24 locale-code" readonly /></td>' +
-        '<td><input type="text" value="' + escapeHtml(item.name) + '" class="input input-bordered input-sm w-48 locale-name" /></td>' +
-        '<td><input type="radio" name="locale-default" class="radio radio-sm" ' + (item.isDefault ? 'checked' : '') + ' /></td>' +
+        '<td><input type="text" value="' +
+        escapeHtml(item.code) +
+        '" class="input input-bordered input-sm w-24 locale-code" readonly /></td>' +
+        '<td><input type="text" value="' +
+        escapeHtml(item.name) +
+        '" class="input input-bordered input-sm w-48 locale-name" /></td>' +
+        '<td><input type="radio" name="locale-default" class="radio radio-sm" ' +
+        (item.isDefault ? 'checked' : '') +
+        ' /></td>' +
         '<td><button type="button" class="btn btn-ghost btn-sm text-error locale-delete">Delete</button></td>';
       tbody.appendChild(tr);
     }
     // Wire up delete buttons
-    tbody.querySelectorAll('.locale-delete').forEach(function(btn) {
-      btn.addEventListener('click', function() {
+    tbody.querySelectorAll('.locale-delete').forEach(function (btn) {
+      btn.addEventListener('click', function () {
         btn.closest('tr').remove();
       });
     });
   }
 
-  document.getElementById('add-locale-btn').addEventListener('click', function() {
+  document.getElementById('add-locale-btn').addEventListener('click', function () {
     var tbody = document.getElementById('locales-body');
     var tr = document.createElement('tr');
     tr.innerHTML =
@@ -216,12 +249,12 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     var codeInput = tr.querySelector('.locale-code');
     codeInput.readOnly = false;
     tbody.appendChild(tr);
-    tr.querySelector('.locale-delete').addEventListener('click', function() {
+    tr.querySelector('.locale-delete').addEventListener('click', function () {
       tr.remove();
     });
   });
 
-  document.getElementById('save-locales-btn').addEventListener('click', async function() {
+  document.getElementById('save-locales-btn').addEventListener('click', async function () {
     var rows = document.querySelectorAll('#locales-body tr');
     var locales = [];
     for (var i = 0; i < rows.length; i++) {
@@ -242,12 +275,18 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     successEl.classList.add('hidden');
 
     try {
-      var res = await fetch(LOCALES_API, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ locales: locales }) });
+      var res = await fetch(LOCALES_API, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locales: locales }),
+      });
       var json = await res.json();
       if (json.success) {
         successEl.classList.remove('hidden');
         successEl.textContent = 'Locales saved. Reloading...';
-        setTimeout(function() { location.reload(); }, 800);
+        setTimeout(function () {
+          location.reload();
+        }, 800);
       } else {
         errorEl.classList.remove('hidden');
         errorEl.textContent = json.error || 'Failed to save locales.';
@@ -285,20 +324,26 @@ const user = await sdk.auth.requireAdmin(Astro.request);
       var item = currenciesData[i];
       var tr = document.createElement('tr');
       tr.innerHTML =
-        '<td><input type="text" value="' + escapeHtml(item.code) + '" class="input input-bordered input-sm w-24 currency-code" readonly /></td>' +
-        '<td><input type="text" value="' + escapeHtml(item.name) + '" class="input input-bordered input-sm w-48 currency-name" /></td>' +
-        '<td><input type="radio" name="currency-default" class="radio radio-sm" ' + (item.isDefault ? 'checked' : '') + ' /></td>' +
+        '<td><input type="text" value="' +
+        escapeHtml(item.code) +
+        '" class="input input-bordered input-sm w-24 currency-code" readonly /></td>' +
+        '<td><input type="text" value="' +
+        escapeHtml(item.name) +
+        '" class="input input-bordered input-sm w-48 currency-name" /></td>' +
+        '<td><input type="radio" name="currency-default" class="radio radio-sm" ' +
+        (item.isDefault ? 'checked' : '') +
+        ' /></td>' +
         '<td><button type="button" class="btn btn-ghost btn-sm text-error currency-delete">Delete</button></td>';
       tbody.appendChild(tr);
     }
-    tbody.querySelectorAll('.currency-delete').forEach(function(btn) {
-      btn.addEventListener('click', function() {
+    tbody.querySelectorAll('.currency-delete').forEach(function (btn) {
+      btn.addEventListener('click', function () {
         btn.closest('tr').remove();
       });
     });
   }
 
-  document.getElementById('add-currency-btn').addEventListener('click', function() {
+  document.getElementById('add-currency-btn').addEventListener('click', function () {
     var tbody = document.getElementById('currencies-body');
     var tr = document.createElement('tr');
     tr.innerHTML =
@@ -309,12 +354,12 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     var codeInput = tr.querySelector('.currency-code');
     codeInput.readOnly = false;
     tbody.appendChild(tr);
-    tr.querySelector('.currency-delete').addEventListener('click', function() {
+    tr.querySelector('.currency-delete').addEventListener('click', function () {
       tr.remove();
     });
   });
 
-  document.getElementById('save-currencies-btn').addEventListener('click', async function() {
+  document.getElementById('save-currencies-btn').addEventListener('click', async function () {
     var rows = document.querySelectorAll('#currencies-body tr');
     var currencies = [];
     for (var i = 0; i < rows.length; i++) {
@@ -335,12 +380,18 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     successEl.classList.add('hidden');
 
     try {
-      var res = await fetch(CURRENCIES_API, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currencies: currencies }) });
+      var res = await fetch(CURRENCIES_API, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currencies: currencies }),
+      });
       var json = await res.json();
       if (json.success) {
         successEl.classList.remove('hidden');
         successEl.textContent = 'Currencies saved. Reloading...';
-        setTimeout(function() { location.reload(); }, 800);
+        setTimeout(function () {
+          location.reload();
+        }, 800);
       } else {
         errorEl.classList.remove('hidden');
         errorEl.textContent = json.error || 'Failed to save currencies.';

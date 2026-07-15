@@ -4,9 +4,8 @@ import { ensureLoader } from '../../../../../stubs/register.mjs';
 import { matrix, createTestDb, seedMinimal, makeFakeSdk, makeCtx } from '../../../_matrix.ts';
 
 ensureLoader();
-const { runGet, runPost } = await import(
-  '../../../../../../src/api/shop/attributes/[id]/options/index.ts'
-);
+const { runGet, runPost } =
+  await import('../../../../../../src/api/shop/attributes/[id]/options/index.ts');
 
 const base = (id: string) => `http://localhost/api/plugins/shop/attributes/${id}/options`;
 

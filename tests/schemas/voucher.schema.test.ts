@@ -1,9 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import {
-  CreateVoucherSchema,
-  UpdateVoucherSchema,
-} from '../../src/schemas/voucher.schema.ts';
+import { CreateVoucherSchema, UpdateVoucherSchema } from '../../src/schemas/voucher.schema.ts';
 
 test('fixed_amount without value is rejected', () => {
   const result = CreateVoucherSchema.safeParse({

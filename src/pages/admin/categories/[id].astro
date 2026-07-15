@@ -19,7 +19,7 @@ const fromPage = new URL(Astro.request.url).searchParams.get('from_page') || '1'
 const shopConfig = await getShopConfig(sdk.db);
 const locales = shopConfig.locales;
 const defaultLocale = shopConfig.defaultLocale;
-const otherLocales = locales.filter(l => !l.isDefault);
+const otherLocales = locales.filter((l) => !l.isDefault);
 const hasLocales = locales.length > 0;
 
 // Fetch category via accessor
@@ -38,15 +38,26 @@ for (const t of transRows as any[]) {
 }
 
 // Check for slug collisions across configured locales
-const slugCollisions = await findSlugCollisions(sdk.db, 'category', id, locales.map((l: any) => l.code));
+const slugCollisions = await findSlugCollisions(
+  sdk.db,
+  'category',
+  id,
+  locales.map((l: any) => l.code)
+);
 ---
 
-<AdminLayout title={`Edit: ${category.name}`} currentPath="/admin/plugins/shop/categories" user={user}>
-  <Breadcrumbs items={[
-    { label: 'Shop', href: '/admin/plugins/shop' },
-    { label: 'Categories', href: '/admin/plugins/shop/categories' },
-    { label: `Edit: ${category.name}` },
-  ]} />
+<AdminLayout
+  title={`Edit: ${category.name}`}
+  currentPath="/admin/plugins/shop/categories"
+  user={user}
+>
+  <Breadcrumbs
+    items={[
+      { label: 'Shop', href: '/admin/plugins/shop' },
+      { label: 'Categories', href: '/admin/plugins/shop/categories' },
+      { label: `Edit: ${category.name}` },
+    ]}
+  />
 
   <div class="flex items-center justify-between col-span-12 mb-4">
     <div>
@@ -58,13 +69,26 @@ const slugCollisions = await findSlugCollisions(sdk.db, 'category', id, locales.
 
   <div class="card bg-base-100 shadow-lg col-span-12">
     <div class="card-body">
-      {!hasLocales && (
-        <div class="alert alert-warning mb-4">
-          <span>No locales configured. Go to <a href="/admin/plugins/shop/settings/general" class="font-bold">Settings → General → Locales</a> to add locales, then reload this page.</span>
-        </div>
-      )}
+      {
+        !hasLocales && (
+          <div class="alert alert-warning mb-4">
+            <span>
+              No locales configured. Go to{' '}
+              <a href="/admin/plugins/shop/settings/general" class="font-bold">
+                Settings → General → Locales
+              </a>{' '}
+              to add locales, then reload this page.
+            </span>
+          </div>
+        )
+      }
 
-      <form id="category-form" class="space-y-6" data-default-locale={defaultLocale} data-locale-codes={JSON.stringify(otherLocales.map(l => l.code))}>
+      <form
+        id="category-form"
+        class="space-y-6"
+        data-default-locale={defaultLocale}
+        data-locale-codes={JSON.stringify(otherLocales.map((l) => l.code))}
+      >
         <div class="space-y-4">
           <SearchSelect
             name="parent_id"
@@ -75,51 +99,96 @@ const slugCollisions = await findSlugCollisions(sdk.db, 'category', id, locales.
             excludeId={id}
             placeholder="Search for a parent category..."
           />
-          <TextField name="sort_order" label="Sort Order" type="number" value={String(category.sort_order)} placeholder="0" />
+          <TextField
+            name="sort_order"
+            label="Sort Order"
+            type="number"
+            value={String(category.sort_order)}
+            placeholder="0"
+          />
         </div>
 
         <!-- Section: Content (locales from settings) -->
         <div class="card bg-base-200/50">
           <div class="card-body pb-4">
-            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">Content</h4>
+            <h4 class="font-semibold text-sm uppercase tracking-wide text-base-content/70 mb-4">
+              Content
+            </h4>
             <div class="space-y-6">
-
               <!-- Default locale -->
               <div>
                 <h5 class="font-medium text-sm mb-3">{defaultLocale.toUpperCase()} (default)</h5>
                 <div class="space-y-4">
-                  <TextField name="name" label={`Name (${defaultLocale.toUpperCase()})`} value={category.name} required />
-                  <TextField name="slug" label={`Slug (${defaultLocale.toUpperCase()})`} value={category.slug} required />
-                  <TextareaField name="description" label={`Description (${defaultLocale.toUpperCase()})`} value={category.description || ''} placeholder="Optional description" rows={3} />
+                  <TextField
+                    name="name"
+                    label={`Name (${defaultLocale.toUpperCase()})`}
+                    value={category.name}
+                    required
+                  />
+                  <TextField
+                    name="slug"
+                    label={`Slug (${defaultLocale.toUpperCase()})`}
+                    value={category.slug}
+                    required
+                  />
+                  <TextareaField
+                    name="description"
+                    label={`Description (${defaultLocale.toUpperCase()})`}
+                    value={category.description || ''}
+                    placeholder="Optional description"
+                    rows={3}
+                  />
                 </div>
               </div>
 
               <!-- Other locales -->
-              {otherLocales.map(locale => {
-                const t = translationByLocale[locale.code];
-                return (
-                  <div class="border-t border-base-300 pt-4">
-                    <h5 class="font-medium text-sm mb-3">{locale.name} ({locale.code.toUpperCase()})</h5>
-                    <div class="space-y-4">
-                      <TextField name={`name_${locale.code}`} label={`Name (${locale.code.toUpperCase()})`} value={t?.name || ''} />
-                      <TextField name={`slug_${locale.code}`} label={`Slug (${locale.code.toUpperCase()})`} value={t?.slug || ''} />
-                      <TextareaField name={`description_${locale.code}`} label={`Description (${locale.code.toUpperCase()})`} value={t?.description || ''} placeholder="Optional description" rows={3} />
+              {
+                otherLocales.map((locale) => {
+                  const t = translationByLocale[locale.code];
+                  return (
+                    <div class="border-t border-base-300 pt-4">
+                      <h5 class="font-medium text-sm mb-3">
+                        {locale.name} ({locale.code.toUpperCase()})
+                      </h5>
+                      <div class="space-y-4">
+                        <TextField
+                          name={`name_${locale.code}`}
+                          label={`Name (${locale.code.toUpperCase()})`}
+                          value={t?.name || ''}
+                        />
+                        <TextField
+                          name={`slug_${locale.code}`}
+                          label={`Slug (${locale.code.toUpperCase()})`}
+                          value={t?.slug || ''}
+                        />
+                        <TextareaField
+                          name={`description_${locale.code}`}
+                          label={`Description (${locale.code.toUpperCase()})`}
+                          value={t?.description || ''}
+                          placeholder="Optional description"
+                          rows={3}
+                        />
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-
+                  );
+                })
+              }
             </div>
           </div>
         </div>
 
         <div id="form-error" class="alert alert-error hidden"></div>
 
-        {slugCollisions.length > 0 && (
-          <div class="alert alert-warning">
-            <span>Slug collision detected in: {slugCollisions.join(', ')}. Another entity already uses this slug in the listed locale(s). Saving may fail with a validation error.</span>
-          </div>
-        )}
+        {
+          slugCollisions.length > 0 && (
+            <div class="alert alert-warning">
+              <span>
+                Slug collision detected in: {slugCollisions.join(', ')}. Another entity already uses
+                this slug in the listed locale(s). Saving may fail with a validation error.
+              </span>
+            </div>
+          )
+        }
 
         <div class="flex justify-end gap-2 pt-4 border-t border-base-200">
           <button type="submit" class="btn btn-primary">Save Changes</button>

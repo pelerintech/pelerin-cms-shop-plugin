@@ -1,16 +1,12 @@
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import {
-  getCartBySession,
-  createCart,
-  linkCartToUser,
-} from './data/cart.ts';
+import { getCartBySession, createCart, linkCartToUser } from './data/cart.ts';
 
 /**
  * Parse a specific cookie from a cookie header string.
  */
 function parseCookie(cookieHeader: string | null, name: string): string | null {
   if (!cookieHeader) return null;
-  const cookies = cookieHeader.split(';').map(c => c.trim());
+  const cookies = cookieHeader.split(';').map((c) => c.trim());
   for (const cookie of cookies) {
     const [key, ...rest] = cookie.split('=');
     if (key === name && rest.length > 0) {
@@ -36,7 +32,7 @@ export interface CartSession {
 export async function getOrCreateCart(
   db: LibSQLDatabase,
   sdk: any,
-  request: Request,
+  request: Request
 ): Promise<CartSession> {
   const cookieHeader = request.headers.get('cookie');
   const sessionId = parseCookie(cookieHeader, 'pelerin_shop_cart');

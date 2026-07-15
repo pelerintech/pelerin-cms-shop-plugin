@@ -13,12 +13,7 @@ interface Props {
   maxFileSize?: number;
 }
 
-const {
-  productId,
-  existingFiles = [],
-  maxItems = 10,
-  maxFileSize = 5242880,
-} = Astro.props;
+const { productId, existingFiles = [], maxItems = 10, maxFileSize = 5242880 } = Astro.props;
 
 const fieldName = `product-images-${productId || 'new'}`;
 ---
@@ -42,8 +37,19 @@ const fieldName = `product-images-${productId || 'new'}`;
 
     <div class="flex flex-col items-center gap-3">
       <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-6 w-6 text-primary"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+          ></path>
         </svg>
       </div>
 
@@ -75,13 +81,26 @@ const fieldName = `product-images-${productId || 'new'}`;
                 class="btn btn-circle btn-xs absolute top-1 right-1 bg-error text-error-content hover:bg-error/80 remove-existing"
                 data-id={file.id}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-3 w-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </figure>
             <div class="card-body p-2">
-              <div class="text-xs font-medium truncate">{file.alt || file.url?.split('/').pop()}</div>
+              <div class="text-xs font-medium truncate">
+                {file.alt || file.url?.split('/').pop()}
+              </div>
             </div>
           </div>
         </div>
@@ -106,19 +125,33 @@ const fieldName = `product-images-${productId || 'new'}`;
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    function getDropzone() { return document.querySelector(`#${fName}-dropzone`); }
-    function getInput() { return document.querySelector(`#${fName}`); }
-    function getPreviewContainer() { return document.querySelector(`#${fName}-preview-grid`); }
-    function getErrorContainer() { return document.querySelector(`#${fName}-error`); }
+    function getDropzone() {
+      return document.querySelector(`#${fName}-dropzone`);
+    }
+    function getInput() {
+      return document.querySelector(`#${fName}`);
+    }
+    function getPreviewContainer() {
+      return document.querySelector(`#${fName}-preview-grid`);
+    }
+    function getErrorContainer() {
+      return document.querySelector(`#${fName}-error`);
+    }
 
     function showError(message) {
       const el = getErrorContainer();
-      if (el) { el.textContent = message; el.classList.remove('hidden'); }
+      if (el) {
+        el.textContent = message;
+        el.classList.remove('hidden');
+      }
     }
 
     function hideError() {
       const el = getErrorContainer();
-      if (el) { el.textContent = ''; el.classList.add('hidden'); }
+      if (el) {
+        el.textContent = '';
+        el.classList.add('hidden');
+      }
     }
 
     async function uploadFiles(files) {
@@ -144,7 +177,10 @@ const fieldName = `product-images-${productId || 'new'}`;
         fd.append('file', file);
 
         try {
-          const res = await fetch(`/api/plugins/shop/products/${productId}/images`, { method: 'POST', body: fd });
+          const res = await fetch(`/api/plugins/shop/products/${productId}/images`, {
+            method: 'POST',
+            body: fd,
+          });
           const result = await res.json();
 
           if (!result.success) {
@@ -181,10 +217,12 @@ const fieldName = `product-images-${productId || 'new'}`;
     function removeExistingFile(id) {
       if (confirm('Delete this image?')) {
         fetch(`/api/plugins/shop/products/${productId}/images/${id}`, { method: 'DELETE' })
-          .then(res => res.json())
-          .then(result => {
+          .then((res) => res.json())
+          .then((result) => {
             if (result.success) {
-              const fileItem = getPreviewContainer().querySelector(`.existing-file[data-id="${id}"]`);
+              const fileItem = getPreviewContainer().querySelector(
+                `.existing-file[data-id="${id}"]`
+              );
               if (fileItem) fileItem.remove();
             }
           });
@@ -224,7 +262,10 @@ const fieldName = `product-images-${productId || 'new'}`;
 
       input.addEventListener('change', () => {
         const files = Array.from(input.files);
-        if (files.length > 0) { uploadFiles(files); input.value = ''; }
+        if (files.length > 0) {
+          uploadFiles(files);
+          input.value = '';
+        }
       });
 
       document.addEventListener('click', (e) => {
@@ -243,5 +284,7 @@ const fieldName = `product-images-${productId || 'new'}`;
 </script>
 
 <style>
-  .dropzone { transition: all 0.2s ease; }
+  .dropzone {
+    transition: all 0.2s ease;
+  }
 </style>

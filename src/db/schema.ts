@@ -53,18 +53,22 @@ export const shop_settings = sqliteTable('shop_settings', {
   value: text('value').notNull(),
 });
 
-export const categories = sqliteTable('categories', {
-  id: text('id').primaryKey(),
-  parent_id: text('parent_id'),
-  name: text('name').notNull(),
-  description: text('description'),
-  slug: text('slug').notNull().unique(),
-  sort_order: integer('sort_order').notNull(),
-  created_at: dateType('created_at'),
-  updated_at: dateType('updated_at'),
-}, (table) => ({
-  categories_parent_id_idx: index('categories_parent_id_idx').on(table.parent_id),
-}));
+export const categories = sqliteTable(
+  'categories',
+  {
+    id: text('id').primaryKey(),
+    parent_id: text('parent_id'),
+    name: text('name').notNull(),
+    description: text('description'),
+    slug: text('slug').notNull().unique(),
+    sort_order: integer('sort_order').notNull(),
+    created_at: dateType('created_at'),
+    updated_at: dateType('updated_at'),
+  },
+  (table) => ({
+    categories_parent_id_idx: index('categories_parent_id_idx').on(table.parent_id),
+  })
+);
 
 export const products = sqliteTable('products', {
   id: text('id').primaryKey(),
@@ -82,31 +86,39 @@ export const products = sqliteTable('products', {
   updated_at: dateType('updated_at'),
 });
 
-export const product_images = sqliteTable('product_images', {
-  id: text('id').primaryKey(),
-  product_id: text('product_id').notNull(),
-  variant_id: text('variant_id'),
-  url: text('url').notNull(), // holds a storage KEY (not a URL); resolved to URL at the accessor layer (design D2)
-  alt: text('alt'),
-  sort_order: integer('sort_order').notNull(),
-  mime: text('mime').notNull(),
-  size: integer('size').notNull(),
-  width: integer('width'),
-  height: integer('height'),
-  original_filename: text('original_filename'),
-}, (table) => ({
-  product_images_product_id_idx: index('product_images_product_id_idx').on(table.product_id),
-}));
+export const product_images = sqliteTable(
+  'product_images',
+  {
+    id: text('id').primaryKey(),
+    product_id: text('product_id').notNull(),
+    variant_id: text('variant_id'),
+    url: text('url').notNull(), // holds a storage KEY (not a URL); resolved to URL at the accessor layer (design D2)
+    alt: text('alt'),
+    sort_order: integer('sort_order').notNull(),
+    mime: text('mime').notNull(),
+    size: integer('size').notNull(),
+    width: integer('width'),
+    height: integer('height'),
+    original_filename: text('original_filename'),
+  },
+  (table) => ({
+    product_images_product_id_idx: index('product_images_product_id_idx').on(table.product_id),
+  })
+);
 
-export const product_variants = sqliteTable('product_variants', {
-  id: text('id').primaryKey(),
-  product_id: text('product_id').notNull(),
-  sku: text('sku'),
-  stock: integer('stock'),
-  active: integer('active', { mode: 'boolean' }).notNull(),
-}, (table) => ({
-  product_variants_product_id_idx: index('product_variants_product_id_idx').on(table.product_id),
-}));
+export const product_variants = sqliteTable(
+  'product_variants',
+  {
+    id: text('id').primaryKey(),
+    product_id: text('product_id').notNull(),
+    sku: text('sku'),
+    stock: integer('stock'),
+    active: integer('active', { mode: 'boolean' }).notNull(),
+  },
+  (table) => ({
+    product_variants_product_id_idx: index('product_variants_product_id_idx').on(table.product_id),
+  })
+);
 
 export const product_attributes = sqliteTable('product_attributes', {
   id: text('id').primaryKey(),
@@ -122,55 +134,83 @@ export const product_attribute_options = sqliteTable('product_attribute_options'
   sort_order: integer('sort_order').notNull(),
 });
 
-export const product_attribute_assignments = sqliteTable('product_attribute_assignments', {
-  id: text('id').primaryKey(),
-  product_id: text('product_id').notNull(),
-  attribute_id: text('attribute_id').notNull(),
-  role: text('role').notNull(),
-  sort_order: integer('sort_order').notNull(),
-  offered_option_ids: text('offered_option_ids').notNull(),
-}, (table) => ({
-  product_attribute_assignments_attribute_id_idx: index('product_attribute_assignments_attribute_id_idx').on(table.attribute_id),
-}));
+export const product_attribute_assignments = sqliteTable(
+  'product_attribute_assignments',
+  {
+    id: text('id').primaryKey(),
+    product_id: text('product_id').notNull(),
+    attribute_id: text('attribute_id').notNull(),
+    role: text('role').notNull(),
+    sort_order: integer('sort_order').notNull(),
+    offered_option_ids: text('offered_option_ids').notNull(),
+  },
+  (table) => ({
+    product_attribute_assignments_attribute_id_idx: index(
+      'product_attribute_assignments_attribute_id_idx'
+    ).on(table.attribute_id),
+  })
+);
 
-export const product_attribute_values = sqliteTable('product_attribute_values', {
-  id: text('id').primaryKey(),
-  entity_type: text('entity_type').notNull(),
-  entity_id: text('entity_id').notNull(),
-  assignment_id: text('assignment_id').notNull(),
-  option_id: text('option_id'),
-  value_text: text('value_text'),
-  value_number: integer('value_number'),
-  value_boolean: integer('value_boolean', { mode: 'boolean' }),
-}, (table) => ({
-  product_attribute_values_assignment_id_idx: index('product_attribute_values_assignment_id_idx').on(table.assignment_id),
-  product_attribute_values_option_id_idx: index('product_attribute_values_option_id_idx').on(table.option_id),
-  product_attribute_values_entity_id_idx: index('product_attribute_values_entity_id_idx').on(table.entity_id),
-}));
+export const product_attribute_values = sqliteTable(
+  'product_attribute_values',
+  {
+    id: text('id').primaryKey(),
+    entity_type: text('entity_type').notNull(),
+    entity_id: text('entity_id').notNull(),
+    assignment_id: text('assignment_id').notNull(),
+    option_id: text('option_id'),
+    value_text: text('value_text'),
+    value_number: integer('value_number'),
+    value_boolean: integer('value_boolean', { mode: 'boolean' }),
+  },
+  (table) => ({
+    product_attribute_values_assignment_id_idx: index(
+      'product_attribute_values_assignment_id_idx'
+    ).on(table.assignment_id),
+    product_attribute_values_option_id_idx: index('product_attribute_values_option_id_idx').on(
+      table.option_id
+    ),
+    product_attribute_values_entity_id_idx: index('product_attribute_values_entity_id_idx').on(
+      table.entity_id
+    ),
+  })
+);
 
-export const product_prices = sqliteTable('product_prices', {
-  id: text('id').primaryKey(),
-  product_id: text('product_id'),
-  variant_id: text('variant_id'),
-  currency: text('currency').notNull(),
-  price_net: integer('price_net').notNull(),
-}, (table) => ({
-  product_prices_product_id_idx: index('product_prices_product_id_idx').on(table.product_id),
-  product_prices_variant_id_idx: index('product_prices_variant_id_idx').on(table.variant_id),
-}));
+export const product_prices = sqliteTable(
+  'product_prices',
+  {
+    id: text('id').primaryKey(),
+    product_id: text('product_id'),
+    variant_id: text('variant_id'),
+    currency: text('currency').notNull(),
+    price_net: integer('price_net').notNull(),
+  },
+  (table) => ({
+    product_prices_product_id_idx: index('product_prices_product_id_idx').on(table.product_id),
+    product_prices_variant_id_idx: index('product_prices_variant_id_idx').on(table.variant_id),
+  })
+);
 
-export const translations = sqliteTable('translations', {
-  id: text('id').primaryKey(),
-  entity_type: text('entity_type').notNull(),
-  entity_id: text('entity_id').notNull(),
-  locale: text('locale').notNull(),
-  name: text('name'),
-  description: text('description'),
-  slug: text('slug'),
-  label: text('label'),
-}, (table) => ({
-  translations_entity_locale_idx: index('translations_entity_locale_idx').on(table.entity_type, table.entity_id, table.locale),
-}));
+export const translations = sqliteTable(
+  'translations',
+  {
+    id: text('id').primaryKey(),
+    entity_type: text('entity_type').notNull(),
+    entity_id: text('entity_id').notNull(),
+    locale: text('locale').notNull(),
+    name: text('name'),
+    description: text('description'),
+    slug: text('slug'),
+    label: text('label'),
+  },
+  (table) => ({
+    translations_entity_locale_idx: index('translations_entity_locale_idx').on(
+      table.entity_type,
+      table.entity_id,
+      table.locale
+    ),
+  })
+);
 
 export const carts = sqliteTable('carts', {
   id: text('id').primaryKey(),
@@ -184,17 +224,21 @@ export const carts = sqliteTable('carts', {
   updated_at: dateType('updated_at').notNull(),
 });
 
-export const cart_items = sqliteTable('cart_items', {
-  id: text('id').primaryKey(),
-  cart_id: text('cart_id').notNull(),
-  product_id: text('product_id').notNull(),
-  variant_id: text('variant_id'),
-  quantity: integer('quantity').notNull(),
-}, (table) => ({
-  cart_items_cart_id_idx: index('cart_items_cart_id_idx').on(table.cart_id),
-  cart_items_product_id_idx: index('cart_items_product_id_idx').on(table.product_id),
-  cart_items_variant_id_idx: index('cart_items_variant_id_idx').on(table.variant_id),
-}));
+export const cart_items = sqliteTable(
+  'cart_items',
+  {
+    id: text('id').primaryKey(),
+    cart_id: text('cart_id').notNull(),
+    product_id: text('product_id').notNull(),
+    variant_id: text('variant_id'),
+    quantity: integer('quantity').notNull(),
+  },
+  (table) => ({
+    cart_items_cart_id_idx: index('cart_items_cart_id_idx').on(table.cart_id),
+    cart_items_product_id_idx: index('cart_items_product_id_idx').on(table.product_id),
+    cart_items_variant_id_idx: index('cart_items_variant_id_idx').on(table.variant_id),
+  })
+);
 
 export const orders = sqliteTable('orders', {
   id: text('id').primaryKey(),
@@ -249,49 +293,65 @@ export const orders = sqliteTable('orders', {
   updated_at: dateType('updated_at').notNull(),
 });
 
-export const order_items = sqliteTable('order_items', {
-  id: text('id').primaryKey(),
-  order_id: text('order_id').notNull(),
-  product_id: text('product_id'),
-  variant_id: text('variant_id'),
-  product_name: text('product_name').notNull(),
-  sku: text('sku'),
-  quantity: integer('quantity').notNull(),
-  price_net: integer('price_net').notNull(),
-  vat_rate: integer('vat_rate'),
-  price_gross: integer('price_gross').notNull(),
-  currency: text('currency').notNull(),
-}, (table) => ({
-  order_items_order_id_idx: index('order_items_order_id_idx').on(table.order_id),
-  order_items_product_id_idx: index('order_items_product_id_idx').on(table.product_id),
-  order_items_variant_id_idx: index('order_items_variant_id_idx').on(table.variant_id),
-}));
+export const order_items = sqliteTable(
+  'order_items',
+  {
+    id: text('id').primaryKey(),
+    order_id: text('order_id').notNull(),
+    product_id: text('product_id'),
+    variant_id: text('variant_id'),
+    product_name: text('product_name').notNull(),
+    sku: text('sku'),
+    quantity: integer('quantity').notNull(),
+    price_net: integer('price_net').notNull(),
+    vat_rate: integer('vat_rate'),
+    price_gross: integer('price_gross').notNull(),
+    currency: text('currency').notNull(),
+  },
+  (table) => ({
+    order_items_order_id_idx: index('order_items_order_id_idx').on(table.order_id),
+    order_items_product_id_idx: index('order_items_product_id_idx').on(table.product_id),
+    order_items_variant_id_idx: index('order_items_variant_id_idx').on(table.variant_id),
+  })
+);
 
-export const order_status_history = sqliteTable('order_status_history', {
-  id: text('id').primaryKey(),
-  order_id: text('order_id').notNull(),
-  from_status: text('from_status'),
-  to_status: text('to_status').notNull(),
-  note: text('note'),
-  changed_by: text('changed_by'),
-  created_at: dateType('created_at').notNull(),
-}, (table) => ({
-  order_status_history_order_id_idx: index('order_status_history_order_id_idx').on(table.order_id),
-}));
+export const order_status_history = sqliteTable(
+  'order_status_history',
+  {
+    id: text('id').primaryKey(),
+    order_id: text('order_id').notNull(),
+    from_status: text('from_status'),
+    to_status: text('to_status').notNull(),
+    note: text('note'),
+    changed_by: text('changed_by'),
+    created_at: dateType('created_at').notNull(),
+  },
+  (table) => ({
+    order_status_history_order_id_idx: index('order_status_history_order_id_idx').on(
+      table.order_id
+    ),
+  })
+);
 
-export const order_refunds = sqliteTable('order_refunds', {
-  id: text('id').primaryKey(),
-  order_id: text('order_id').notNull(),
-  order_item_id: text('order_item_id').notNull(),
-  quantity: integer('quantity').notNull(),
-  amount: integer('amount'),
-  notes: text('notes'),
-  created_at: dateType('created_at').notNull(),
-  created_by: text('created_by'),
-}, (table) => ({
-  order_refunds_order_id_idx: index('order_refunds_order_id_idx').on(table.order_id),
-  order_refunds_order_item_id_idx: index('order_refunds_order_item_id_idx').on(table.order_item_id),
-}));
+export const order_refunds = sqliteTable(
+  'order_refunds',
+  {
+    id: text('id').primaryKey(),
+    order_id: text('order_id').notNull(),
+    order_item_id: text('order_item_id').notNull(),
+    quantity: integer('quantity').notNull(),
+    amount: integer('amount'),
+    notes: text('notes'),
+    created_at: dateType('created_at').notNull(),
+    created_by: text('created_by'),
+  },
+  (table) => ({
+    order_refunds_order_id_idx: index('order_refunds_order_id_idx').on(table.order_id),
+    order_refunds_order_item_id_idx: index('order_refunds_order_item_id_idx').on(
+      table.order_item_id
+    ),
+  })
+);
 
 export const vouchers = sqliteTable('vouchers', {
   id: text('id').primaryKey(),

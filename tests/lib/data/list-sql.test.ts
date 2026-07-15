@@ -29,25 +29,54 @@ const futureExpiry = () => new Date(now().getTime() + 30 * 86400000);
 
 async function makeCart(db: any, f: any, cartId: string, productId: string) {
   await insertFixture(db, 'carts', {
-    id: cartId, session_id: 'sess-' + cartId, user_id: null, applied_voucher_code: null,
-    applied_referral_code: null, converted_at: null, expires_at: futureExpiry(),
-    created_at: now(), updated_at: now(),
+    id: cartId,
+    session_id: 'sess-' + cartId,
+    user_id: null,
+    applied_voucher_code: null,
+    applied_referral_code: null,
+    converted_at: null,
+    expires_at: futureExpiry(),
+    created_at: now(),
+    updated_at: now(),
   });
   await insertFixture(db, 'cart_items', {
-    id: 'ci-' + cartId, cart_id: cartId, product_id: productId, variant_id: null, quantity: 1,
+    id: 'ci-' + cartId,
+    cart_id: cartId,
+    product_id: productId,
+    variant_id: null,
+    quantity: 1,
   });
 }
 
 function orderInput(cartId: string, num: string, total = 5250) {
   return {
-    order_number: num, user_id: null, customer_type: 'individual', customer_email: 't@e.com',
-    customer_name: 'T', customer_phone: null, currency: 'RON', subtotal_net: 5000, vat_total: 250,
-    shipping_cost: 0, discount_amount: 0, total, shipping_type: 'physical',
-    billing_first_name: 'T', billing_last_name: 'U', billing_address: 'A', billing_city: 'C',
-    billing_postal_code: '1', billing_country: 'RO',
-    shipping_first_name: 'T', shipping_last_name: 'U', shipping_address: 'A',
-    shipping_city: 'C', shipping_postal_code: '1', shipping_country: 'RO',
-    shipping_same_as_billing: true, cart_id: cartId,
+    order_number: num,
+    user_id: null,
+    customer_type: 'individual',
+    customer_email: 't@e.com',
+    customer_name: 'T',
+    customer_phone: null,
+    currency: 'RON',
+    subtotal_net: 5000,
+    vat_total: 250,
+    shipping_cost: 0,
+    discount_amount: 0,
+    total,
+    shipping_type: 'physical',
+    billing_first_name: 'T',
+    billing_last_name: 'U',
+    billing_address: 'A',
+    billing_city: 'C',
+    billing_postal_code: '1',
+    billing_country: 'RO',
+    shipping_first_name: 'T',
+    shipping_last_name: 'U',
+    shipping_address: 'A',
+    shipping_city: 'C',
+    shipping_postal_code: '1',
+    shipping_country: 'RO',
+    shipping_same_as_billing: true,
+    cart_id: cartId,
     items: [],
   } as any;
 }
@@ -88,12 +117,18 @@ test('listOrders date-range: date-only `to` includes the whole day (off-by-one f
     await makeCart(db, f, cartId, f.simpleProductId);
     const order = await createOrder(db, orderInput(cartId, 'ORD-DATE-1'));
     // Overwrite created_at to 2026-06-24T15:00:00Z (createOrder sets ~now).
-    await db.update(orders).set({ created_at: new Date('2026-06-24T15:00:00.000Z') }).where(eq(orders.id, order.id));
+    await db
+      .update(orders)
+      .set({ created_at: new Date('2026-06-24T15:00:00.000Z') })
+      .where(eq(orders.id, order.id));
 
     // to='2026-06-24' (date-only) must INCLUDE the 15:00 order (treated as 23:59:59.999Z).
     const result = await listOrders(db, { to: '2026-06-24', limit: 50 });
     const found = result.orders.find((o: any) => o.id === order.id);
-    assert.ok(found, 'an order created at 2026-06-24T15:00Z must be included when to="2026-06-24" (date-only inclusive)');
+    assert.ok(
+      found,
+      'an order created at 2026-06-24T15:00Z must be included when to="2026-06-24" (date-only inclusive)'
+    );
 
     // to='2026-06-23' must EXCLUDE it.
     const before = await listOrders(db, { to: '2026-06-23', limit: 50 });
@@ -136,15 +171,29 @@ test('listProducts pushes pagination + category filter to SQL', async () => {
     // Add several products to the Books category so pagination is exercisable.
     for (let i = 0; i < 4; i++) {
       await insertFixture(db, 'products', {
-        id: rid(), sku: 'BOOK-EXTRA-' + i, type: 'physical', has_variants: false, vat_rate: 0.05,
-        stock: 10, category_id: f.categoryBooksId, active: true, name: 'Book ' + i,
-        description: '', slug: 'book-extra-' + i, created_at: now(), updated_at: now(),
+        id: rid(),
+        sku: 'BOOK-EXTRA-' + i,
+        type: 'physical',
+        has_variants: false,
+        vat_rate: 0.05,
+        stock: 10,
+        category_id: f.categoryBooksId,
+        active: true,
+        name: 'Book ' + i,
+        description: '',
+        slug: 'book-extra-' + i,
+        created_at: now(),
+        updated_at: now(),
       });
     }
     const page1 = await listProducts(db, { page: 1, limit: 2, category_id: f.categoryBooksId });
     const page2 = await listProducts(db, { page: 2, limit: 2, category_id: f.categoryBooksId });
     // Books now has the seeded simple product + 4 extras = 5.
-    assert.strictEqual(page1.total, 5, 'total reflects the category filter (SQL WHERE category_id)');
+    assert.strictEqual(
+      page1.total,
+      5,
+      'total reflects the category filter (SQL WHERE category_id)'
+    );
     assert.strictEqual(page1.products.length, 2);
     assert.strictEqual(page2.products.length, 2);
     // All returned products are in the Books category.
@@ -181,13 +230,22 @@ test('listCarts pushes userId + abandonedSince filters to SQL (array shape prese
     // Add a cart for a specific user.
     const userId = rid();
     await insertFixture(db, 'carts', {
-      id: rid(), session_id: 'sess-u', user_id: userId, applied_voucher_code: null,
-      applied_referral_code: null, converted_at: null, expires_at: futureExpiry(),
-      created_at: now(), updated_at: now(),
+      id: rid(),
+      session_id: 'sess-u',
+      user_id: userId,
+      applied_voucher_code: null,
+      applied_referral_code: null,
+      converted_at: null,
+      expires_at: futureExpiry(),
+      created_at: now(),
+      updated_at: now(),
     });
     const userCarts = await listCarts(db, { userId });
     assert.ok(userCarts.length >= 1);
-    assert.ok(userCarts.every((c: any) => c.user_id === userId), 'userId filter pushed to SQL');
+    assert.ok(
+      userCarts.every((c: any) => c.user_id === userId),
+      'userId filter pushed to SQL'
+    );
     // Ordered DESC by updated_at
     for (let i = 1; i < userCarts.length; i++) {
       assert.ok(userCarts[i - 1].updated_at >= userCarts[i].updated_at, 'DESC by updated_at');
@@ -237,9 +295,19 @@ test('listReferrals returns all referrals DESC by created_at (array shape preser
 async function seedManyVouchers(db: any, n: number) {
   for (let i = 0; i < n; i++) {
     await insertFixture(db, 'vouchers', {
-      id: rid(), code: 'PAGED-V-' + i, type: 'fixed_amount', value: 10, min_order_value: null,
-      max_uses: null, uses_count: 0, valid_from: null, valid_until: null,
-      single_use_per_customer: false, active: i % 2 === 0, created_at: now(), updated_at: now(),
+      id: rid(),
+      code: 'PAGED-V-' + i,
+      type: 'fixed_amount',
+      value: 10,
+      min_order_value: null,
+      max_uses: null,
+      uses_count: 0,
+      valid_from: null,
+      valid_until: null,
+      single_use_per_customer: false,
+      active: i % 2 === 0,
+      created_at: now(),
+      updated_at: now(),
     });
   }
 }
@@ -247,8 +315,15 @@ async function seedManyVouchers(db: any, n: number) {
 async function seedManyReferrals(db: any, n: number) {
   for (let i = 0; i < n; i++) {
     await insertFixture(db, 'referral_codes', {
-      id: rid(), code: 'PAGED-R-' + i, name: 'R ' + i, discount_type: 'percentage',
-      discount_value: 5, active: i % 2 === 0, notes: null, created_at: now(), updated_at: now(),
+      id: rid(),
+      code: 'PAGED-R-' + i,
+      name: 'R ' + i,
+      discount_type: 'percentage',
+      discount_value: 5,
+      active: i % 2 === 0,
+      notes: null,
+      created_at: now(),
+      updated_at: now(),
     });
   }
 }
@@ -269,7 +344,11 @@ test('listVouchers paginated pushes LIMIT/OFFSET + COUNT to SQL (no full-table l
     assert.ok((p1 as any).total >= 5, 'total reflects all matching rows');
     // No overlap between pages (SQL OFFSET working).
     const p1Ids = new Set((p1 as any).rows.map((r: any) => r.id));
-    assert.strictEqual((p2 as any).rows.filter((r: any) => p1Ids.has(r.id)).length, 0, 'pages must not overlap');
+    assert.strictEqual(
+      (p2 as any).rows.filter((r: any) => p1Ids.has(r.id)).length,
+      0,
+      'pages must not overlap'
+    );
   } finally {
     await cleanup();
   }
@@ -283,11 +362,25 @@ test('listVouchers paginated active filter pushes WHERE to SQL; total reflects f
     const active = await listVouchers(db, { page: 1, limit: 50, active: true });
     const inactive = await listVouchers(db, { page: 1, limit: 50, active: false });
     const all = await listVouchers(db, { page: 1, limit: 50 });
-    assert.ok((active as any).rows.every((r: any) => r.active === true), 'active filter pushed to SQL');
-    assert.ok((inactive as any).rows.every((r: any) => r.active === false), 'inactive filter pushed to SQL');
-    assert.strictEqual((active as any).total, (active as any).rows.length, 'total matches rows when limit covers all');
+    assert.ok(
+      (active as any).rows.every((r: any) => r.active === true),
+      'active filter pushed to SQL'
+    );
+    assert.ok(
+      (inactive as any).rows.every((r: any) => r.active === false),
+      'inactive filter pushed to SQL'
+    );
+    assert.strictEqual(
+      (active as any).total,
+      (active as any).rows.length,
+      'total matches rows when limit covers all'
+    );
     // active + inactive totals must cover every voucher (seeded + inserted).
-    assert.strictEqual((active as any).total + (inactive as any).total, (all as any).total, 'active+inactive totals cover all vouchers');
+    assert.strictEqual(
+      (active as any).total + (inactive as any).total,
+      (all as any).total,
+      'active+inactive totals cover all vouchers'
+    );
     assert.ok((active as any).total >= 3, 'at least the 3 inserted active vouchers');
     assert.ok((inactive as any).total >= 3, 'at least the 3 inserted inactive vouchers');
   } finally {
@@ -309,7 +402,11 @@ test('listReferrals paginated pushes LIMIT/OFFSET + COUNT to SQL (no full-table 
     assert.strictEqual((p1 as any).total, (p2 as any).total);
     assert.ok((p1 as any).total >= 5);
     const p1Ids = new Set((p1 as any).rows.map((r: any) => r.id));
-    assert.strictEqual((p2 as any).rows.filter((r: any) => p1Ids.has(r.id)).length, 0, 'no overlap');
+    assert.strictEqual(
+      (p2 as any).rows.filter((r: any) => p1Ids.has(r.id)).length,
+      0,
+      'no overlap'
+    );
   } finally {
     await cleanup();
   }
@@ -337,9 +434,15 @@ test('listCarts paginated pushes LIMIT/OFFSET + COUNT to SQL (no full-table load
     const userId = rid();
     for (let i = 0; i < 5; i++) {
       await insertFixture(db, 'carts', {
-        id: rid(), session_id: 'sess-' + i, user_id: userId, applied_voucher_code: null,
-        applied_referral_code: null, converted_at: null, expires_at: futureExpiry(),
-        created_at: now(), updated_at: now(),
+        id: rid(),
+        session_id: 'sess-' + i,
+        user_id: userId,
+        applied_voucher_code: null,
+        applied_referral_code: null,
+        converted_at: null,
+        expires_at: futureExpiry(),
+        created_at: now(),
+        updated_at: now(),
       });
     }
     const p1 = await listCarts(db, { userId, page: 1, limit: 2 });
@@ -349,9 +452,16 @@ test('listCarts paginated pushes LIMIT/OFFSET + COUNT to SQL (no full-table load
     assert.strictEqual((p2 as any).rows.length, 2);
     assert.strictEqual((p1 as any).total, 5, 'total is the COUNT(*) with the userId WHERE');
     assert.strictEqual((p2 as any).total, 5);
-    assert.ok((p1 as any).rows.every((c: any) => c.user_id === userId), 'userId filter pushed to SQL');
+    assert.ok(
+      (p1 as any).rows.every((c: any) => c.user_id === userId),
+      'userId filter pushed to SQL'
+    );
     const p1Ids = new Set((p1 as any).rows.map((c: any) => c.id));
-    assert.strictEqual((p2 as any).rows.filter((c: any) => p1Ids.has(c.id)).length, 0, 'no overlap');
+    assert.strictEqual(
+      (p2 as any).rows.filter((c: any) => p1Ids.has(c.id)).length,
+      0,
+      'no overlap'
+    );
   } finally {
     await cleanup();
   }

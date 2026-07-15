@@ -14,12 +14,9 @@ import { product_images } from '../../../../db/harness.ts';
 import { eq } from 'drizzle-orm';
 
 ensureLoader();
-const { runPost } = await import(
-  '../../../../../src/api/shop/products/[id]/images/index.ts'
-);
+const { runPost } = await import('../../../../../src/api/shop/products/[id]/images/index.ts');
 
-const URL = (id: string) =>
-  `http://localhost/api/plugins/shop/products/${id}/images`;
+const URL = (id: string) => `http://localhost/api/plugins/shop/products/${id}/images`;
 
 test('POST multipart happy-path → 201, row inserted with key+metadata, storage.upload called with (buf,key,mime), data.url resolved', async () => {
   const { db, cleanup } = await createTestDb();
@@ -28,7 +25,11 @@ test('POST multipart happy-path → 201, row inserted with key+metadata, storage
     const sdk = makeFakeSdk();
     const ctx = makeCtx({
       url: URL(f.simpleProductId),
-      formData: { file: Buffer.from([0x89, 0x50, 0x4e, 0x47]), fileName: 'img.png', fileType: 'image/png' },
+      formData: {
+        file: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+        fileName: 'img.png',
+        fileType: 'image/png',
+      },
       params: { id: f.simpleProductId },
     });
     const res = await runPost({ db, sdk, ctx });

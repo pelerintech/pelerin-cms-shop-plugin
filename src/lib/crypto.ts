@@ -14,19 +14,16 @@ function deriveKey(secret: string): Buffer {
 
 function getEncryptionKey(): Buffer {
   const dedicated =
-    (import.meta as any).env?.WEBHOOK_ENCRYPTION_KEY ??
-    process.env.WEBHOOK_ENCRYPTION_KEY;
+    (import.meta as any).env?.WEBHOOK_ENCRYPTION_KEY ?? process.env.WEBHOOK_ENCRYPTION_KEY;
 
   if (dedicated) return deriveKey(dedicated);
 
-  const fallback =
-    (import.meta as any).env?.BETTER_AUTH_SECRET ??
-    process.env.BETTER_AUTH_SECRET;
+  const fallback = (import.meta as any).env?.BETTER_AUTH_SECRET ?? process.env.BETTER_AUTH_SECRET;
 
   if (fallback) return deriveKey(fallback);
 
   throw new Error(
-    '[crypto] No encryption key available. Set WEBHOOK_ENCRYPTION_KEY or BETTER_AUTH_SECRET.',
+    '[crypto] No encryption key available. Set WEBHOOK_ENCRYPTION_KEY or BETTER_AUTH_SECRET.'
   );
 }
 

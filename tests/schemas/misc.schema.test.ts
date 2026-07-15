@@ -14,7 +14,7 @@ test('price schema rejects negative price_net', () => {
   });
   assert.strictEqual(result.success, false, 'negative price_net must be rejected');
   if (!result.success) {
-    const priceError = result.error.issues.find(i => i.path.includes('price_net'));
+    const priceError = result.error.issues.find((i) => i.path.includes('price_net'));
     assert.ok(priceError, 'error must be on price_net field');
   }
 });

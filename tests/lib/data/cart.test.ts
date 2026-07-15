@@ -15,9 +15,15 @@ async function makeCart(db: any, id = 'cart-1'): Promise<string> {
   const now = new Date();
   const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   await insertFixture(db, 'carts', {
-    id, session_id: 'sess-' + id, user_id: null, applied_voucher_code: null,
-    applied_referral_code: null, converted_at: null, expires_at: expires,
-    created_at: now, updated_at: now,
+    id,
+    session_id: 'sess-' + id,
+    user_id: null,
+    applied_voucher_code: null,
+    applied_referral_code: null,
+    converted_at: null,
+    expires_at: expires,
+    created_at: now,
+    updated_at: now,
   });
   return id;
 }
@@ -52,7 +58,11 @@ test('getCartWithItems returns cart + enriched items with product name and price
     const cartId = await makeCart(db);
     // Add the simple product to the cart
     await insertFixture(db, 'cart_items', {
-      id: 'ci-1', cart_id: cartId, product_id: f.simpleProductId, variant_id: null, quantity: 2,
+      id: 'ci-1',
+      cart_id: cartId,
+      product_id: f.simpleProductId,
+      variant_id: null,
+      quantity: 2,
     });
 
     const result = await getCartWithItems(db, cartId, 'RON');
@@ -107,7 +117,11 @@ test('addCartItem inserts a new item', async () => {
   try {
     const f = await seedMinimal(db);
     const cartId = await makeCart(db);
-    const item = await addCartItem(db, cartId, { product_id: f.simpleProductId, variant_id: null, quantity: 1 });
+    const item = await addCartItem(db, cartId, {
+      product_id: f.simpleProductId,
+      variant_id: null,
+      quantity: 1,
+    });
     assert.ok(item.id, 'must return the created item id');
     assert.strictEqual(item.quantity, 1);
     // Verify it's in the DB
@@ -141,14 +155,24 @@ test('addCartItem rejects out-of-stock with a clear error', async () => {
     // Set stock to 1 by updating the product — use insertFixture with a fresh low-stock product
     const lowStockId = crypto.randomUUID();
     await insertFixture(db, 'products', {
-      id: lowStockId, sku: 'LOW-1', type: 'physical', has_variants: false, vat_rate: 0.05, stock: 1,
-      category_id: null, active: true, name: 'Low Stock', description: null, slug: 'low-stock',
-      created_at: new Date(), updated_at: new Date(),
+      id: lowStockId,
+      sku: 'LOW-1',
+      type: 'physical',
+      has_variants: false,
+      vat_rate: 0.05,
+      stock: 1,
+      category_id: null,
+      active: true,
+      name: 'Low Stock',
+      description: null,
+      slug: 'low-stock',
+      created_at: new Date(),
+      updated_at: new Date(),
     });
     await addCartItem(db, cartId, { product_id: lowStockId, variant_id: null, quantity: 1 });
     await assert.rejects(
       () => addCartItem(db, cartId, { product_id: lowStockId, variant_id: null, quantity: 1 }),
-      /stock|Insufficient/i,
+      /stock|Insufficient/i
     );
   } finally {
     await cleanup();
@@ -160,7 +184,11 @@ test('updateCartItem updates quantity', async () => {
   try {
     const f = await seedMinimal(db);
     const cartId = await makeCart(db);
-    const item = await addCartItem(db, cartId, { product_id: f.simpleProductId, variant_id: null, quantity: 2 });
+    const item = await addCartItem(db, cartId, {
+      product_id: f.simpleProductId,
+      variant_id: null,
+      quantity: 2,
+    });
     await updateCartItem(db, cartId, item.id, 5);
     const result = await getCartWithItems(db, cartId, 'RON');
     assert.strictEqual(result!.items[0].quantity, 5);
@@ -174,7 +202,11 @@ test('updateCartItem with quantity 0 removes the item', async () => {
   try {
     const f = await seedMinimal(db);
     const cartId = await makeCart(db);
-    const item = await addCartItem(db, cartId, { product_id: f.simpleProductId, variant_id: null, quantity: 2 });
+    const item = await addCartItem(db, cartId, {
+      product_id: f.simpleProductId,
+      variant_id: null,
+      quantity: 2,
+    });
     await updateCartItem(db, cartId, item.id, 0);
     const result = await getCartWithItems(db, cartId, 'RON');
     assert.strictEqual(result!.items.length, 0, 'item must be removed when quantity is 0');
@@ -188,7 +220,11 @@ test('deleteCartItem removes an item', async () => {
   try {
     const f = await seedMinimal(db);
     const cartId = await makeCart(db);
-    const item = await addCartItem(db, cartId, { product_id: f.simpleProductId, variant_id: null, quantity: 1 });
+    const item = await addCartItem(db, cartId, {
+      product_id: f.simpleProductId,
+      variant_id: null,
+      quantity: 1,
+    });
     await deleteCartItem(db, cartId, item.id);
     const result = await getCartWithItems(db, cartId, 'RON');
     assert.strictEqual(result!.items.length, 0);
@@ -204,17 +240,33 @@ test('addCartItem requires a variant when the product has actual variant rows, e
     // A product whose has_variants COLUMN lies (false) but which has a real variant row.
     const productId = crypto.randomUUID();
     await insertFixture(db, 'products', {
-      id: productId, sku: 'P', type: 'physical', has_variants: false, vat_rate: 0.19,
-      stock: 10, category_id: null, active: true, name: 'P', description: '', slug: 'p',
-      created_at: now, updated_at: now,
+      id: productId,
+      sku: 'P',
+      type: 'physical',
+      has_variants: false,
+      vat_rate: 0.19,
+      stock: 10,
+      category_id: null,
+      active: true,
+      name: 'P',
+      description: '',
+      slug: 'p',
+      created_at: now,
+      updated_at: now,
     });
-    await insertFixture(db, 'product_variants', { id: crypto.randomUUID(), product_id: productId, sku: 'V', stock: 5, active: true });
+    await insertFixture(db, 'product_variants', {
+      id: crypto.randomUUID(),
+      product_id: productId,
+      sku: 'V',
+      stock: 5,
+      active: true,
+    });
 
     const cartId = await makeCart(db);
     await assert.rejects(
       () => addCartItem(db, cartId, { product_id: productId, variant_id: null, quantity: 1 }),
       (err: any) => err.code === 'variant_required',
-      'product with actual variant rows must require a variant_id (column is ignored)',
+      'product with actual variant rows must require a variant_id (column is ignored)'
     );
   } finally {
     await cleanup();

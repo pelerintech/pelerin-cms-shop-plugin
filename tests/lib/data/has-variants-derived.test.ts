@@ -20,9 +20,19 @@ async function seedProduct(db: any, productId: string, colHasVariants: boolean) 
   slugCounter++;
   skuCounter++;
   await insertFixture(db, 'products', {
-    id: productId, sku: `P${skuCounter}`, type: 'physical', has_variants: colHasVariants, vat_rate: 0.19,
-    stock: 10, category_id: null, active: true, name: 'P', description: '', slug: `p-${slugCounter}`,
-    created_at: NOW, updated_at: NOW,
+    id: productId,
+    sku: `P${skuCounter}`,
+    type: 'physical',
+    has_variants: colHasVariants,
+    vat_rate: 0.19,
+    stock: 10,
+    category_id: null,
+    active: true,
+    name: 'P',
+    description: '',
+    slug: `p-${slugCounter}`,
+    created_at: NOW,
+    updated_at: NOW,
   });
 }
 
@@ -37,9 +47,19 @@ test('getProductById derives has_variants=true from actual variant rows, not the
     assert.strictEqual(p!.has_variants, false, 'no variants → false even if column said false');
 
     // Add a variant → derived true (column still false).
-    await insertFixture(db, 'product_variants', { id: rid(), product_id: productId, sku: 'V1', stock: 1, active: true });
+    await insertFixture(db, 'product_variants', {
+      id: rid(),
+      product_id: productId,
+      sku: 'V1',
+      stock: 1,
+      active: true,
+    });
     p = await getProductById(db, productId);
-    assert.strictEqual(p!.has_variants, true, 'has a variant row → true, ignoring the false column');
+    assert.strictEqual(
+      p!.has_variants,
+      true,
+      'has a variant row → true, ignoring the false column'
+    );
 
     // Delete the variant → derived false again.
     await db.delete(product_variants).where(eq(product_variants.product_id, productId));
@@ -58,7 +78,11 @@ test('getProductById derives false when column says true but no variant rows exi
     await seedProduct(db, productId, true);
     const p = await getProductById(db, productId);
     assert.ok(p);
-    assert.strictEqual(p!.has_variants, false, 'column true but no variants → derived false (column ignored at read)');
+    assert.strictEqual(
+      p!.has_variants,
+      false,
+      'column true but no variants → derived false (column ignored at read)'
+    );
   } finally {
     await cleanup();
   }
@@ -71,11 +95,17 @@ test('listProducts derives has_variants per product from actual variant rows', a
     const withoutVariants = rid();
     await seedProduct(db, withVariants, false);
     await seedProduct(db, withoutVariants, false);
-    await insertFixture(db, 'product_variants', { id: rid(), product_id: withVariants, sku: 'V', stock: 1, active: true });
+    await insertFixture(db, 'product_variants', {
+      id: rid(),
+      product_id: withVariants,
+      sku: 'V',
+      stock: 1,
+      active: true,
+    });
 
     const result = await listProducts(db, { limit: 100 });
-    const a = result.products.find(p => p.id === withVariants);
-    const b = result.products.find(p => p.id === withoutVariants);
+    const a = result.products.find((p) => p.id === withVariants);
+    const b = result.products.find((p) => p.id === withoutVariants);
     assert.ok(a && b);
     assert.strictEqual(a!.has_variants, true);
     assert.strictEqual(b!.has_variants, false);

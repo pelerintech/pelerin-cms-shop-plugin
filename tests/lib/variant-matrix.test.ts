@@ -35,8 +35,8 @@ describe('computeMatrix — single dimension', () => {
       assert.equal(r.existing_variant_id, undefined);
     }
     assert.deepEqual(
-      rows.map(r => r.auto_sku),
-      ['tshirt-red', 'tshirt-green', 'tshirt-blue'],
+      rows.map((r) => r.auto_sku),
+      ['tshirt-red', 'tshirt-green', 'tshirt-blue']
     );
     assert.deepEqual(rows[0].option_ids, ['red']);
     assert.deepEqual(rows[0].labels, ['Red']);
@@ -57,8 +57,15 @@ describe('computeMatrix — two dimensions + existing', () => {
     const rows = computeMatrix([colorDim, sizeDim], [], 'tshirt');
     assert.equal(rows.length, 6);
     assert.deepEqual(
-      rows.map(r => r.auto_sku),
-      ['tshirt-red-s', 'tshirt-red-m', 'tshirt-green-s', 'tshirt-green-m', 'tshirt-blue-s', 'tshirt-blue-m'],
+      rows.map((r) => r.auto_sku),
+      [
+        'tshirt-red-s',
+        'tshirt-red-m',
+        'tshirt-green-s',
+        'tshirt-green-m',
+        'tshirt-blue-s',
+        'tshirt-blue-m',
+      ]
     );
     // each row carries one option_id per dimension, in dimension order
     assert.deepEqual(rows[0].option_ids, ['red', 's']);
@@ -68,11 +75,11 @@ describe('computeMatrix — two dimensions + existing', () => {
   it('marks the existing Red-S variant as exists=true with its id; others false', () => {
     const existing: ExistingVariant[] = [{ id: 'v-red-s', option_ids: ['red', 's'] }];
     const rows = computeMatrix([colorDim, sizeDim], existing, 'tshirt');
-    const redS = rows.find(r => r.option_ids[0] === 'red' && r.option_ids[1] === 's');
+    const redS = rows.find((r) => r.option_ids[0] === 'red' && r.option_ids[1] === 's');
     assert.ok(redS, 'Red-S row should exist');
     assert.equal(redS!.exists, true);
     assert.equal(redS!.existing_variant_id, 'v-red-s');
-    const others = rows.filter(r => r !== redS);
+    const others = rows.filter((r) => r !== redS);
     assert.equal(others.length, 5);
     for (const r of others) {
       assert.equal(r.exists, false, `row ${r.option_ids.join('/')} should not be exists`);
@@ -104,15 +111,8 @@ describe('selectedCombinations — filters to selected non-existing rows', () =>
     const rows = computeMatrix([colorTwo, sizeTwo], existing, 'p');
     assert.equal(rows.length, 4);
     // Select index 0 (Red-S, existing — must be skipped) and 2 (Green-S — create).
-    const combos = selectedCombinations(
-      rows,
-      [0, 2],
-      { 2: 'p-green-s-custom' },
-      { 2: 7 },
-    );
-    assert.deepEqual(combos, [
-      { option_ids: ['green', 's'], sku: 'p-green-s-custom', stock: 7 },
-    ]);
+    const combos = selectedCombinations(rows, [0, 2], { 2: 'p-green-s-custom' }, { 2: 7 });
+    assert.deepEqual(combos, [{ option_ids: ['green', 's'], sku: 'p-green-s-custom', stock: 7 }]);
     // The existing row (index 0) was selected but is NOT in the output.
   });
 

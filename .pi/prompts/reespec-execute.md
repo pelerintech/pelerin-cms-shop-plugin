@@ -1,7 +1,6 @@
 ---
-description: "Implement tasks from a reespec request, one RED→GREEN cycle at a time. Use when the user wants to start or continue implementing a planned request."
+description: 'Implement tasks from a reespec request, one RED→GREEN cycle at a time. Use when the user wants to start or continue implementing a planned request.'
 ---
-
 
 Implement tasks from a reespec request. One RED→GREEN cycle at a time.
 
@@ -18,6 +17,7 @@ Announce: "Executing request: <name>"
 ### 2. Read all context before starting
 
 Read in order before touching any implementation:
+
 ```
 reespec/requests/<name>/brief.md
 reespec/requests/<name>/design.md
@@ -50,6 +50,7 @@ I'll focus on these first, then work remaining tasks.
 
 Only surface PARTIAL and UNSATISFIED items — skip SATISFIED and UNCLEAR.
 If all items were SATISFIED, announce:
+
 ```
 Found previous evaluation (<date>) — all capabilities satisfied. Proceeding normally.
 ```
@@ -129,6 +130,7 @@ Mark the ACTION checkbox: `- [x] **ACTION**`
 ## Pause Conditions
 
 Stop and report when:
+
 - RED cannot be established (test won't run, assertion is untestable)
 - GREEN cannot be reached after implementing (test still fails)
 - A task contradicts the design or brief
@@ -155,6 +157,7 @@ What would you like to do?
 ## decisions.md guidance
 
 **Log this** — when you:
+
 - Chose library X over Y and it matters for future work
 - Deviated from the plan in a way that affects future tasks
 - Discovered a constraint not in the design
@@ -164,6 +167,7 @@ What would you like to do?
 **Do NOT log** — activity entries: "added X", "removed Y", "refactored Z", implementation details captured in the task. The log is signal, not noise.
 
 Entry format:
+
 ```markdown
 ### <Decision title> — YYYY-MM-DD (Request: <request-name>)
 
@@ -176,11 +180,13 @@ See request artifacts for full context.
 ## Progress reporting
 
 After each task:
+
 ```
 ✓ Task N/total complete: <title>
 ```
 
 After all tasks:
+
 ```
 ## Complete — <request-name>
 Progress: M/M tasks complete ✓

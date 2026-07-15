@@ -25,19 +25,16 @@ export interface VoucherRow {
 /** Find a voucher by code (case-insensitive). Returns null if not found. */
 export async function getVoucherByCode(
   db: LibSQLDatabase,
-  code: string,
+  code: string
 ): Promise<VoucherRow | null> {
   const normalized = code.trim().toUpperCase();
   const all = await db.select().from(vouchers);
-  const voucher = all.find(v => v.code.toUpperCase() === normalized);
+  const voucher = all.find((v) => v.code.toUpperCase() === normalized);
   return (voucher as VoucherRow) ?? null;
 }
 
 /** Get a voucher by id. */
-export async function getVoucherById(
-  db: LibSQLDatabase,
-  id: string,
-): Promise<VoucherRow | null> {
+export async function getVoucherById(db: LibSQLDatabase, id: string): Promise<VoucherRow | null> {
   const [voucher] = await db.select().from(vouchers).where(eq(vouchers.id, id));
   return (voucher as VoucherRow) ?? null;
 }
@@ -46,11 +43,11 @@ export async function getVoucherById(
 export async function listVouchers(db: LibSQLDatabase): Promise<VoucherRow[]>;
 export async function listVouchers(
   db: LibSQLDatabase,
-  opts: { page?: number; limit?: number; active?: boolean; search?: string },
+  opts: { page?: number; limit?: number; active?: boolean; search?: string }
 ): Promise<{ rows: VoucherRow[]; total: number; page: number; limit: number }>;
 export async function listVouchers(
   db: LibSQLDatabase,
-  opts: { page?: number; limit?: number; active?: boolean; search?: string } = {},
+  opts: { page?: number; limit?: number; active?: boolean; search?: string } = {}
 ): Promise<VoucherRow[] | { rows: VoucherRow[]; total: number; page: number; limit: number }> {
   // r17 Task 9 (list-accessors-sql): push WHERE/ORDER to SQL in every case, and
   // when pagination args are present push LIMIT/OFFSET + a separate COUNT(*) so
@@ -72,7 +69,9 @@ export async function listVouchers(
   const limit = Math.min(100, Math.max(1, opts.limit ?? 50));
   const [countRow] = await db.select({ value: count() }).from(vouchers).where(where);
   const total = countRow?.value ?? 0;
-  const paged = await db.select().from(vouchers)
+  const paged = await db
+    .select()
+    .from(vouchers)
     .where(where)
     .orderBy(desc(vouchers.created_at))
     .limit(limit)
@@ -93,15 +92,26 @@ export interface CreateVoucherInput {
 }
 
 /** Create a new voucher. */
-export async function createVoucher(db: LibSQLDatabase, input: CreateVoucherInput): Promise<VoucherRow> {
+export async function createVoucher(
+  db: LibSQLDatabase,
+  input: CreateVoucherInput
+): Promise<VoucherRow> {
   const now = new Date();
   const id = crypto.randomUUID();
   await db.insert(vouchers).values({
-    id, code: input.code, type: input.type, value: input.value ?? null,
-    min_order_value: input.min_order_value ?? null, max_uses: input.max_uses ?? null,
-    uses_count: 0, valid_from: input.valid_from ?? null, valid_until: input.valid_until ?? null,
-    single_use_per_customer: input.single_use_per_customer, active: input.active,
-    created_at: now, updated_at: now,
+    id,
+    code: input.code,
+    type: input.type,
+    value: input.value ?? null,
+    min_order_value: input.min_order_value ?? null,
+    max_uses: input.max_uses ?? null,
+    uses_count: 0,
+    valid_from: input.valid_from ?? null,
+    valid_until: input.valid_until ?? null,
+    single_use_per_customer: input.single_use_per_customer,
+    active: input.active,
+    created_at: now,
+    updated_at: now,
   });
   return (await getVoucherById(db, id))!;
 }
@@ -121,11 +131,18 @@ export interface UpdateVoucherInput {
 
 export class VoucherError extends Error {
   code: 'not_found';
-  constructor(message: string) { super(message); this.code = 'not_found'; }
+  constructor(message: string) {
+    super(message);
+    this.code = 'not_found';
+  }
 }
 
 /** Update a voucher by id. */
-export async function updateVoucher(db: LibSQLDatabase, id: string, input: UpdateVoucherInput): Promise<VoucherRow> {
+export async function updateVoucher(
+  db: LibSQLDatabase,
+  id: string,
+  input: UpdateVoucherInput
+): Promise<VoucherRow> {
   const [existing] = await db.select().from(vouchers).where(eq(vouchers.id, id));
   if (!existing) throw new VoucherError('Voucher not found');
   const updateData: Record<string, any> = { updated_at: new Date() };
@@ -145,6 +162,9 @@ export async function deleteVoucher(db: LibSQLDatabase, id: string): Promise<voi
 export async function incrementVoucherUsage(db: LibSQLDatabase, id: string): Promise<void> {
   const [v] = await db.select().from(vouchers).where(eq(vouchers.id, id));
   if (v) {
-    await db.update(vouchers).set({ uses_count: v.uses_count + 1, updated_at: new Date() }).where(eq(vouchers.id, id));
+    await db
+      .update(vouchers)
+      .set({ uses_count: v.uses_count + 1, updated_at: new Date() })
+      .where(eq(vouchers.id, id));
   }
 }

@@ -27,10 +27,12 @@ function listTestFiles(dir: string, acc: string[] = []): string[] {
 test('no handler test file path contains glob-bracket characters', () => {
   const files = listTestFiles(ROOT);
   assert.ok(files.length > 40, `expected many handler test files, found ${files.length}`);
-  const bracketed = files.filter((f) => relative('.', f).includes('[') || relative('.', f).includes(']'));
+  const bracketed = files.filter(
+    (f) => relative('.', f).includes('[') || relative('.', f).includes(']')
+  );
   assert.deepEqual(
     bracketed,
     [],
-    `bracket paths silently skipped by node --test (glob char class):\n${bracketed.join('\n')}`,
+    `bracket paths silently skipped by node --test (glob char class):\n${bracketed.join('\n')}`
   );
 });

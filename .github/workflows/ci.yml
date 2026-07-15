@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  format-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Pin Node 22 explicitly. The plugin repo has no committed
+      # package-lock.json (per AGENTS.md §13), so skip npm cache
+      # (which relies on a lockfile for the cache key).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install
+      - name: Format check
+        run: npm run format:check
+
+  quality-report:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install
+      - name: Lint
+        run: npm run lint
+      - name: Gitleaks
+        uses: zricethezav/gitleaks-action@v2
+      - name: npm audit
+        continue-on-error: true
+        run: npm audit --audit-level=low
+
+  type-check:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install
+      - name: Type check
+        run: npm run type-check
+
+  test:
+    needs: format-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install
+      - name: Run tests with coverage
+        run: node --experimental-test-coverage --test tests/full-suite.test.ts
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: warn

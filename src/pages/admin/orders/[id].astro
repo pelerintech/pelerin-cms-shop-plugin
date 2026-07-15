@@ -25,24 +25,34 @@ const orderId = Astro.params.id;
       if (json.success) {
         renderOrder(json.data);
       } else {
-        document.getElementById('order-detail').innerHTML = '<div class="text-center py-8 text-error">Order not found</div>';
+        document.getElementById('order-detail').innerHTML =
+          '<div class="text-center py-8 text-error">Order not found</div>';
       }
     } catch (err) {
-      document.getElementById('order-detail').innerHTML = '<div class="text-center py-8 text-error">Failed to load order: ' + (err.message || 'unknown error') + '</div>';
+      document.getElementById('order-detail').innerHTML =
+        '<div class="text-center py-8 text-error">Failed to load order: ' +
+        (err.message || 'unknown error') +
+        '</div>';
     }
   }
 
   function renderOrder(order) {
     const statusColors = {
-      pending: 'badge-ghost', awaiting_payment: 'badge-warning', paid: 'badge-success',
-      processing: 'badge-info', shipped: 'badge-primary', delivered: 'badge-accent',
-      cancelled: 'badge-error', partially_refunded: 'badge-warning', refunded: 'badge-error',
+      pending: 'badge-ghost',
+      awaiting_payment: 'badge-warning',
+      paid: 'badge-success',
+      processing: 'badge-info',
+      shipped: 'badge-primary',
+      delivered: 'badge-accent',
+      cancelled: 'badge-error',
+      partially_refunded: 'badge-warning',
+      refunded: 'badge-error',
     };
 
     // Derive available next statuses
     const transitions = {
       pending: ['awaiting_payment', 'cancelled'],
-      awaiting_payment: ['paid', 'cancelled'],
+      awaiting_payment: ['paid', 'cancelled', 'pending'],
       paid: ['processing', 'cancelled', 'refund_requested'],
       processing: ['shipped', 'cancelled'],
       shipped: ['delivered'],
@@ -51,52 +61,119 @@ const orderId = Astro.params.id;
       refund_requested: ['refunded'],
     };
     const nextStatuses = transitions[order.status] || [];
-    const isCancellable = ['pending', 'awaiting_payment', 'paid', 'processing'].includes(order.status);
+    const isCancellable = ['pending', 'awaiting_payment', 'paid', 'processing'].includes(
+      order.status
+    );
     const isTerminal = ['cancelled', 'refunded'].includes(order.status);
 
     // Status history rows
-    const historyRows = (order.status_history || []).map(function(h) {
-      return '<tr><td>' + new Date(h.created_at).toLocaleString() + '</td>' +
-        '<td>' + (h.from_status || '—') + ' → ' + h.to_status + '</td>' +
-        '<td class="text-sm text-gray-500">' + (h.note || '') + (h.changed_by ? ' (by ' + h.changed_by + ')' : '') + '</td></tr>';
-    }).join('');
+    const historyRows = (order.status_history || [])
+      .map(function (h) {
+        return (
+          '<tr><td>' +
+          new Date(h.created_at).toLocaleString() +
+          '</td>' +
+          '<td>' +
+          (h.from_status || '—') +
+          ' → ' +
+          h.to_status +
+          '</td>' +
+          '<td class="text-sm text-gray-500">' +
+          (h.note || '') +
+          (h.changed_by ? ' (by ' + h.changed_by + ')' : '') +
+          '</td></tr>'
+        );
+      })
+      .join('');
 
     // Items rows
-    const itemRows = (order.items || []).map(function(item) {
-      return '<tr><td>' + item.product_name + '</td><td>' + (item.sku || '—') + '</td>' +
-        '<td>' + item.quantity + '</td><td>' + item.price_net.toFixed(2) + '</td>' +
-        '<td>' + (item.vat_rate !== null ? (item.vat_rate * 100).toFixed(0) + '%' : '—') + '</td>' +
-        '<td>' + item.price_gross.toFixed(2) + ' ' + order.currency + '</td></tr>';
-    }).join('');
+    const itemRows = (order.items || [])
+      .map(function (item) {
+        return (
+          '<tr><td>' +
+          item.product_name +
+          '</td><td>' +
+          (item.sku || '—') +
+          '</td>' +
+          '<td>' +
+          item.quantity +
+          '</td><td>' +
+          item.price_net.toFixed(2) +
+          '</td>' +
+          '<td>' +
+          (item.vat_rate !== null ? (item.vat_rate * 100).toFixed(0) + '%' : '—') +
+          '</td>' +
+          '<td>' +
+          item.price_gross.toFixed(2) +
+          ' ' +
+          order.currency +
+          '</td></tr>'
+        );
+      })
+      .join('');
 
-    var html = '<div class="flex justify-between items-start mb-6">' +
-      '<div><h1 class="text-2xl font-bold">Order ' + order.order_number + '</h1>' +
-      '<p class="text-sm text-gray-500">Created: ' + new Date(order.created_at).toLocaleString() + '</p></div>' +
-      '<div class="flex items-center gap-3"><span class="badge ' + (statusColors[order.status] || 'badge-ghost') + ' text-lg px-3 py-2">' + order.status + '</span>' +
-      (isTerminal ? '' : '<div class="flex gap-2">' +
-        (nextStatuses.length > 0 ? '<button class="btn btn-sm btn-outline" onclick="openStatusModal()">Change Status</button>' : '') +
-        (isCancellable ? '<button class="btn btn-sm btn-error btn-outline" onclick="cancelOrder()">Cancel</button>' : '') +
-        (!isTerminal && order.status !== 'cancelled' ? '<button class="btn btn-sm btn-outline" onclick="showRefund()">Record Refund</button>' : '') +
-      '</div>') +
+    var html =
+      '<div class="flex justify-between items-start mb-6">' +
+      '<div><h1 class="text-2xl font-bold">Order ' +
+      order.order_number +
+      '</h1>' +
+      '<p class="text-sm text-gray-500">Created: ' +
+      new Date(order.created_at).toLocaleString() +
+      '</p></div>' +
+      '<div class="flex items-center gap-3"><span class="badge ' +
+      (statusColors[order.status] || 'badge-ghost') +
+      ' text-lg px-3 py-2">' +
+      order.status +
+      '</span>' +
+      (isTerminal
+        ? ''
+        : '<div class="flex gap-2">' +
+          (nextStatuses.length > 0
+            ? '<button class="btn btn-sm btn-outline" onclick="openStatusModal()">Change Status</button>'
+            : '') +
+          (isCancellable
+            ? '<button class="btn btn-sm btn-error btn-outline" onclick="cancelOrder()">Cancel</button>'
+            : '') +
+          (['pending', 'awaiting_payment'].includes(order.status)
+            ? '<button class="btn btn-sm btn-primary" onclick="createPayment()">Create Payment</button>'
+            : '') +
+          (!isTerminal && order.status !== 'cancelled'
+            ? '<button class="btn btn-sm btn-outline" onclick="showRefund()">Record Refund</button>'
+            : '') +
+          '</div>') +
       // Status change modal
       '<div id="status-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">' +
-        '<div class="bg-base-100 rounded-lg p-6 w-full max-w-md shadow-xl">' +
-          '<h3 class="text-lg font-bold mb-4">Change Status</h3>' +
-          '<div class="form-control mb-4">' +
-            '<label class="label"><span class="label-text">New Status</span></label>' +
-            '<select id="status-select" class="select select-bordered">' +
-              nextStatuses.map(function(s) { return '<option value="' + s + '">' + s.replace(/_/g, ' ') + '</option>'; }).join('') +
-            '</select>' +
-          '</div>' +
-          '<div class="form-control mb-4">' +
-            '<label class="label"><span class="label-text">Note (optional)</span></label>' +
-            '<textarea id="status-note" class="textarea textarea-bordered" rows="2" placeholder="Add a note..."></textarea>' +
-          '</div>' +
-          '<div class="flex justify-end gap-2">' +
-            '<button class="btn btn-ghost" onclick="closeStatusModal()">Cancel</button>' +
-            '<button class="btn btn-primary" onclick="confirmStatusChange()">Confirm</button>' +
-          '</div>' +
-        '</div>' +
+      '<div class="bg-base-100 rounded-lg p-6 w-full max-w-md shadow-xl">' +
+      '<h3 class="text-lg font-bold mb-4">Change Status</h3>' +
+      '<div class="form-control mb-4">' +
+      '<label class="label"><span class="label-text">New Status</span></label>' +
+      '<select id="status-select" class="select select-bordered">' +
+      nextStatuses
+        .map(function (s) {
+          return '<option value="' + s + '">' + s.replace(/_/g, ' ') + '</option>';
+        })
+        .join('') +
+      '</select>' +
+      '</div>' +
+      '<div class="form-control mb-4">' +
+      '<label class="label"><span class="label-text">Note (optional)</span></label>' +
+      '<textarea id="status-note" class="textarea textarea-bordered" rows="2" placeholder="Add a note..."></textarea>' +
+      '</div>' +
+      '<div class="flex justify-end gap-2">' +
+      '<button class="btn btn-ghost" onclick="closeStatusModal()">Cancel</button>' +
+      '<button class="btn btn-primary" onclick="confirmStatusChange()">Confirm</button>' +
+      '</div>' +
+      '</div>' +
+      '</div>' +
+      // Create Payment modal
+      '<div id="payment-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">' +
+      '<div class="bg-base-100 rounded-lg p-6 w-full max-w-md shadow-xl">' +
+      '<h3 class="text-lg font-bold mb-4">Create Payment</h3>' +
+      '<div id="payment-modal-body"></div>' +
+      '<div class="flex justify-end gap-2 mt-4">' +
+      '<button class="btn btn-ghost" onclick="closePaymentModal()">Cancel</button>' +
+      '</div>' +
+      '</div>' +
       '</div>' +
       '</div></div>';
 
@@ -105,99 +182,279 @@ const orderId = Astro.params.id;
 
     // Customer + Addresses
     var addressGridCols = showShipping ? 'md:grid-cols-3' : 'md:grid-cols-2';
-    html += '<div class="grid grid-cols-1 ' + addressGridCols + ' gap-6 mb-6">' +
+    html +=
+      '<div class="grid grid-cols-1 ' +
+      addressGridCols +
+      ' gap-6 mb-6">' +
       '<div class="card bg-base-100 shadow"><div class="card-body"><h2 class="card-title text-lg">Customer</h2>' +
-      '<p class="font-semibold">' + order.customer_name + '</p>' +
-      '<p>' + order.customer_email + '</p>' +
+      '<p class="font-semibold">' +
+      order.customer_name +
+      '</p>' +
+      '<p>' +
+      order.customer_email +
+      '</p>' +
       (order.customer_phone ? '<p>' + order.customer_phone + '</p>' : '') +
-      '<p class="text-sm text-gray-500">' + order.customer_type + '</p></div></div>' +
+      '<p class="text-sm text-gray-500">' +
+      order.customer_type +
+      '</p></div></div>' +
       '<div class="card bg-base-100 shadow"><div class="card-body"><h2 class="card-title text-lg">Billing Address</h2>' +
-      '<p>' + order.billing_first_name + ' ' + order.billing_last_name + '</p>' +
-      '<p>' + order.billing_address + '</p>' +
-      '<p>' + order.billing_city + ', ' + (order.billing_county || '') + ' ' + order.billing_postal_code + '</p>' +
-      '<p>' + order.billing_country + '</p>' +
-      (order.billing_company ? '<p class="text-sm mt-2">' + order.billing_company + (order.billing_vat_number ? ' — VAT: ' + order.billing_vat_number : '') + '</p>' : '') +
+      '<p>' +
+      order.billing_first_name +
+      ' ' +
+      order.billing_last_name +
+      '</p>' +
+      '<p>' +
+      order.billing_address +
+      '</p>' +
+      '<p>' +
+      order.billing_city +
+      ', ' +
+      (order.billing_county || '') +
+      ' ' +
+      order.billing_postal_code +
+      '</p>' +
+      '<p>' +
+      order.billing_country +
+      '</p>' +
+      (order.billing_company
+        ? '<p class="text-sm mt-2">' +
+          order.billing_company +
+          (order.billing_vat_number ? ' — VAT: ' + order.billing_vat_number : '') +
+          '</p>'
+        : '') +
       '</div></div>' +
-      (showShipping ? '<div class="card bg-base-100 shadow"><div class="card-body"><h2 class="card-title text-lg">Shipping Address</h2>' +
-        (order.shipping_same_as_billing ? '<p class="text-sm text-gray-500 mb-2">Same as billing</p>' : '') +
-        '<p>' + (order.shipping_first_name || '—') + ' ' + (order.shipping_last_name || '') + '</p>' +
-        '<p>' + (order.shipping_address || '—') + '</p>' +
-        '<p>' + (order.shipping_city || '—') + (order.shipping_county ? ', ' + order.shipping_county : '') + ' ' + (order.shipping_postal_code || '') + '</p>' +
-        '<p>' + (order.shipping_country || '—') + '</p>' +
-        (order.shipping_company ? '<p class="text-sm mt-2">' + order.shipping_company + (order.shipping_vat_number ? ' — VAT: ' + order.shipping_vat_number : '') + '</p>' : '') +
-      '</div></div>' : '') +
+      (showShipping
+        ? '<div class="card bg-base-100 shadow"><div class="card-body"><h2 class="card-title text-lg">Shipping Address</h2>' +
+          (order.shipping_same_as_billing
+            ? '<p class="text-sm text-gray-500 mb-2">Same as billing</p>'
+            : '') +
+          '<p>' +
+          (order.shipping_first_name || '—') +
+          ' ' +
+          (order.shipping_last_name || '') +
+          '</p>' +
+          '<p>' +
+          (order.shipping_address || '—') +
+          '</p>' +
+          '<p>' +
+          (order.shipping_city || '—') +
+          (order.shipping_county ? ', ' + order.shipping_county : '') +
+          ' ' +
+          (order.shipping_postal_code || '') +
+          '</p>' +
+          '<p>' +
+          (order.shipping_country || '—') +
+          '</p>' +
+          (order.shipping_company
+            ? '<p class="text-sm mt-2">' +
+              order.shipping_company +
+              (order.shipping_vat_number ? ' — VAT: ' + order.shipping_vat_number : '') +
+              '</p>'
+            : '') +
+          '</div></div>'
+        : '') +
       '</div>';
 
     // Items
-    html += '<div class="card bg-base-100 shadow mb-6"><div class="card-body"><h2 class="card-title text-lg">Items</h2>' +
+    html +=
+      '<div class="card bg-base-100 shadow mb-6"><div class="card-body"><h2 class="card-title text-lg">Items</h2>' +
       '<table class="table table-sm"><thead><tr><th>Product</th><th>SKU</th><th>Qty</th><th>Price Net</th><th>VAT</th><th>Total</th></tr></thead>' +
-      '<tbody>' + (itemRows || '<tr><td colspan="6">No items</td></tr>') + '</tbody></table></div></div>';
+      '<tbody>' +
+      (itemRows || '<tr><td colspan="6">No items</td></tr>') +
+      '</tbody></table></div></div>';
 
     // Totals
-    html += '<div class="card bg-base-100 shadow mb-6"><div class="card-body"><h2 class="card-title text-lg">Totals</h2>' +
-      '<div class="text-sm space-y-1"><p>Subtotal (net): ' + order.subtotal_net.toFixed(2) + ' ' + order.currency + '</p>' +
-      '<p>VAT: ' + order.vat_total.toFixed(2) + ' ' + order.currency + '</p>' +
-      '<p>Shipping: ' + order.shipping_cost.toFixed(2) + ' ' + order.currency + '</p>' +
-      (order.discount_amount > 0 ? '<p>Discount: -' + order.discount_amount.toFixed(2) + ' ' + order.currency + '</p>' : '') +
-      '<p class="font-bold text-lg mt-2">Total: ' + order.total.toFixed(2) + ' ' + order.currency + '</p></div></div></div>';
+    html +=
+      '<div class="card bg-base-100 shadow mb-6"><div class="card-body"><h2 class="card-title text-lg">Totals</h2>' +
+      '<div class="text-sm space-y-1"><p>Subtotal (net): ' +
+      order.subtotal_net.toFixed(2) +
+      ' ' +
+      order.currency +
+      '</p>' +
+      '<p>VAT: ' +
+      order.vat_total.toFixed(2) +
+      ' ' +
+      order.currency +
+      '</p>' +
+      '<p>Shipping: ' +
+      order.shipping_cost.toFixed(2) +
+      ' ' +
+      order.currency +
+      '</p>' +
+      (order.discount_amount > 0
+        ? '<p>Discount: -' + order.discount_amount.toFixed(2) + ' ' + order.currency + '</p>'
+        : '') +
+      '<p class="font-bold text-lg mt-2">Total: ' +
+      order.total.toFixed(2) +
+      ' ' +
+      order.currency +
+      '</p></div></div></div>';
 
     // Payment info
-    html += '<div class="card bg-base-100 shadow mb-6"><div class="card-body"><h2 class="card-title text-lg">Payment</h2>' +
-      '<p>Provider: ' + (order.payment_provider || '—') + ' | Transaction: ' + (order.transaction_id || '—') +
-      ' | Voucher: ' + (order.voucher_code || '—') + ' | Referral: ' + (order.referral_code || '—') + '</p>' +
-      (order.refund_amount ? '<p class="text-error mt-2">Refunded: ' + order.refund_amount.toFixed(2) + ' ' + order.currency + (order.refund_notes ? ' — ' + order.refund_notes : '') + '</p>' : '') +
+    html +=
+      '<div class="card bg-base-100 shadow mb-6"><div class="card-body"><h2 class="card-title text-lg">Payment</h2>' +
+      '<p>Provider: ' +
+      (order.payment_provider || '—') +
+      ' | Transaction: ' +
+      (order.transaction_id || '—') +
+      ' | Voucher: ' +
+      (order.voucher_code || '—') +
+      ' | Referral: ' +
+      (order.referral_code || '—') +
+      '</p>' +
+      (order.refund_amount
+        ? '<p class="text-error mt-2">Refunded: ' +
+          order.refund_amount.toFixed(2) +
+          ' ' +
+          order.currency +
+          (order.refund_notes ? ' — ' + order.refund_notes : '') +
+          '</p>'
+        : '') +
       '</div></div>';
 
     // Status History
-    html += '<div class="card bg-base-100 shadow mb-6"><div class="card-body"><h2 class="card-title text-lg">Status History</h2>' +
+    html +=
+      '<div class="card bg-base-100 shadow mb-6"><div class="card-body"><h2 class="card-title text-lg">Status History</h2>' +
       '<table class="table table-sm"><thead><tr><th>Date</th><th>Transition</th><th>Note</th></tr></thead>' +
-      '<tbody>' + (historyRows || '<tr><td colspan="3">No history</td></tr>') + '</tbody></table></div></div>';
+      '<tbody>' +
+      (historyRows || '<tr><td colspan="3">No history</td></tr>') +
+      '</tbody></table></div></div>';
 
     document.getElementById('order-detail').innerHTML = html;
+    // Store order data for client functions
+    window.__currentOrderData = order;
   }
 
-  window.openStatusModal = function() {
+  window.openStatusModal = function () {
     document.getElementById('status-modal').classList.remove('hidden');
   };
 
-  window.closeStatusModal = function() {
+  window.closeStatusModal = function () {
     document.getElementById('status-modal').classList.add('hidden');
   };
 
-  window.confirmStatusChange = async function() {
+  window.confirmStatusChange = async function () {
     var select = document.getElementById('status-select');
     var noteEl = document.getElementById('status-note');
     var newStatus = select.value;
     var note = noteEl.value.trim() || null;
     closeStatusModal();
     var res = await fetch('/api/plugins/shop/orders/' + CODE_ID + '/status', {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus, note: note }),
     });
     var json = await res.json();
-    if (json.success) { loadOrder(); }
-    else { alert(json.error || 'Failed to update status'); }
+    if (json.success) {
+      loadOrder();
+    } else {
+      alert(json.error || 'Failed to update status');
+    }
   };
 
-  window.cancelOrder = async function() {
+  window.cancelOrder = async function () {
     if (!confirm('Cancel this order?')) return;
     var res = await fetch('/api/plugins/shop/orders/' + CODE_ID + '/cancel', { method: 'PUT' });
     var json = await res.json();
-    if (json.success) { loadOrder(); }
-    else { alert(json.error || 'Failed to cancel'); }
+    if (json.success) {
+      loadOrder();
+    } else {
+      alert(json.error || 'Failed to cancel');
+    }
   };
 
-  window.showRefund = async function() {
-    var amount = prompt('Refund amount:');
-    if (!amount) return;
-    var notes = prompt('Notes (optional):');
+  window.createPayment = async function () {
+    try {
+      var provRes = await fetch('/api/plugins/shop/payment-providers');
+      var provJson = await provRes.json();
+      var providers = provJson.success ? provJson.data.providers : [];
+      if (providers.length === 0) {
+        alert('No payment providers configured');
+        return;
+      }
+      // If only one provider, initiate directly
+      if (providers.length === 1) {
+        await initiatePayment(providers[0].name);
+        return;
+      }
+      // Multiple providers — show modal with dropdown
+      var bodyEl = document.getElementById('payment-modal-body');
+      bodyEl.innerHTML =
+        '<div class="form-control mb-2">' +
+        '<label class="label"><span class="label-text">Payment Provider</span></label>' +
+        '<select id="payment-provider-select" class="select select-bordered">' +
+        providers
+          .map(function (p) {
+            return '<option value="' + p.name + '">' + p.label + '</option>';
+          })
+          .join('') +
+        '</select>' +
+        '</div>' +
+        '<div class="flex justify-end gap-2">' +
+        '<button class="btn btn-ghost" onclick="closePaymentModal()">Cancel</button>' +
+        '<button class="btn btn-primary" onclick="confirmCreatePayment()">Pay</button>' +
+        '</div>';
+      document.getElementById('payment-modal').classList.remove('hidden');
+    } catch (err) {
+      alert('Error: ' + (err.message || 'unknown'));
+    }
+  };
+
+  window.closePaymentModal = function () {
+    document.getElementById('payment-modal').classList.add('hidden');
+  };
+
+  window.confirmCreatePayment = async function () {
+    var select = document.getElementById('payment-provider-select');
+    var provider = select.value;
+    closePaymentModal();
+    await initiatePayment(provider);
+  };
+
+  async function initiatePayment(provider) {
+    try {
+      var res = await fetch('/api/plugins/shop/orders/' + CODE_ID + '/create-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: provider }),
+      });
+      var json = await res.json();
+      if (json.success && json.data.redirect_url) {
+        window.open(json.data.redirect_url, '_blank');
+      } else {
+        alert(json.error || 'Failed to create payment');
+      }
+    } catch (err) {
+      alert('Error: ' + (err.message || 'unknown'));
+    }
+  }
+
+  window.showRefund = async function () {
+    var orderData = window.__currentOrderData;
+    if (!orderData || !orderData.items || orderData.items.length === 0) {
+      alert('No items to refund');
+      return;
+    }
+    var notes = prompt('Refund notes (optional):');
+    // Build refunds array from order items (simplified: refund all items by 1)
+    var refunds = orderData.items.map(function (item) {
+      return {
+        order_item_id: item.id,
+        quantity: 1,
+        amount: item.price_gross,
+      };
+    });
     var res = await fetch('/api/plugins/shop/orders/' + CODE_ID + '/refund', {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refund_amount: parseFloat(amount), refund_notes: notes || null }),
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refunds: refunds, notes: notes || null }),
     });
     var json = await res.json();
-    if (json.success) { loadOrder(); }
-    else { alert(json.error || 'Failed to record refund'); }
+    if (json.success) {
+      loadOrder();
+    } else {
+      alert(json.error || 'Failed to record refund');
+    }
   };
 
   loadOrder();

@@ -3,14 +3,11 @@ import { ensureLoader } from '../../../stubs/register.mjs';
 import { matrix, assert } from '../_matrix.ts';
 
 ensureLoader();
-const { runGet, runPost } = await import(
-  '../../../../src/api/shop/referral-codes/index.ts'
-);
+const { runGet, runPost } = await import('../../../../src/api/shop/referral-codes/index.ts');
 
 const base = 'http://localhost/api/plugins/shop/referral-codes';
 
-test('GET auth-fail → 401', () =>
-  matrix.adminAuthFail({ run: runGet, url: base }));
+test('GET auth-fail → 401', () => matrix.adminAuthFail({ run: runGet, url: base }));
 
 test('GET happy-path → 200, data is array', () =>
   matrix.happyPath({
@@ -21,8 +18,7 @@ test('GET happy-path → 200, data is array', () =>
 
 test('GET error-wrap → 500', () => matrix.errorWrap({ run: runGet, url: base }));
 
-test('POST auth-fail → 401', () =>
-  matrix.adminAuthFail({ run: runPost, url: base, body: {} }));
+test('POST auth-fail → 401', () => matrix.adminAuthFail({ run: runPost, url: base, body: {} }));
 
 test('POST validation-fail → 422', () =>
   matrix.validationFail({

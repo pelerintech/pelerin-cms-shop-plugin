@@ -28,15 +28,27 @@ describe('Stripe adapter — webhook handler', () => {
   });
 
   it('throws on invalid signature', () => {
-    assert.match(content, /Invalid.*signature|Invalid.*webhook/, 'Should throw on invalid signature');
+    assert.match(
+      content,
+      /Invalid.*signature|Invalid.*webhook/,
+      'Should throw on invalid signature'
+    );
   });
 
   it('handles checkout.session.completed event', () => {
-    assert.match(content, /checkout\.session\.completed/, 'Should handle checkout.session.completed');
+    assert.match(
+      content,
+      /checkout\.session\.completed/,
+      'Should handle checkout.session.completed'
+    );
   });
 
   it('handles payment_intent.payment_failed event', () => {
-    assert.match(content, /payment_intent\.payment_failed/, 'Should handle payment_intent.payment_failed');
+    assert.match(
+      content,
+      /payment_intent\.payment_failed/,
+      'Should handle payment_intent.payment_failed'
+    );
   });
 
   it('transitions order to paid on completed', () => {

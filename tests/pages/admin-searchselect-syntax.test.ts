@@ -20,7 +20,10 @@ test('SearchSelect.astro client <script> transforms with esbuild without syntax 
 
   // Extract the <script is:inline> block
   const scriptMatches = [...source.matchAll(/<script[^>]*is:inline[^>]*>([\s\S]*?)<\/script>/gi)];
-  assert.ok(scriptMatches.length > 0, 'expected at least one <script is:inline> block in SearchSelect.astro');
+  assert.ok(
+    scriptMatches.length > 0,
+    'expected at least one <script is:inline> block in SearchSelect.astro'
+  );
 
   const clientScript = scriptMatches[0][1];
   assert.ok(clientScript.trim().length > 0, 'extracted client script is empty');
@@ -47,6 +50,6 @@ test('SearchSelect.astro client <script> transforms with esbuild without syntax 
   assert.equal(
     exitCode,
     0,
-    `client <script> in SearchSelect.astro has a syntax error.\nesbuild output:\n${combined}`,
+    `client <script> in SearchSelect.astro has a syntax error.\nesbuild output:\n${combined}`
   );
 });

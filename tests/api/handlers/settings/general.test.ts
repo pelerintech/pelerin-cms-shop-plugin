@@ -1,22 +1,13 @@
 import { test } from 'node:test';
 import { ensureLoader } from '../../../stubs/register.mjs';
-import {
-  matrix,
-  assert,
-  makeFakeSdk,
-  makeCtx,
-  poisonDb,
-} from '../_matrix.ts';
+import { matrix, assert, makeFakeSdk, makeCtx, poisonDb } from '../_matrix.ts';
 
 ensureLoader();
-const { runGet, runPut } = await import(
-  '../../../../src/api/shop/settings/general.ts'
-);
+const { runGet, runPut } = await import('../../../../src/api/shop/settings/general.ts');
 
 const base = 'http://localhost/api/plugins/shop/settings/general';
 
-test('GET auth-fail → 401', () =>
-  matrix.adminAuthFail({ run: runGet, url: base }));
+test('GET auth-fail → 401', () => matrix.adminAuthFail({ run: runGet, url: base }));
 
 test('GET happy-path → 200, data has locales/currencies', () =>
   matrix.happyPath({
@@ -35,14 +26,10 @@ test('GET happy-path → 200, data has locales/currencies', () =>
 test('GET error-wrap → rejects on db error (Pattern A)', async () => {
   const sdk = makeFakeSdk();
   const ctx = makeCtx({ url: base });
-  await assert.rejects(
-    () => runGet({ db: poisonDb(), sdk, ctx }),
-    /poison/,
-  );
+  await assert.rejects(() => runGet({ db: poisonDb(), sdk, ctx }), /poison/);
 });
 
-test('PUT auth-fail → 401', () =>
-  matrix.adminAuthFail({ run: runPut, url: base, body: {} }));
+test('PUT auth-fail → 401', () => matrix.adminAuthFail({ run: runPut, url: base, body: {} }));
 
 test('PUT validation-fail → 422', () =>
   matrix.validationFail({
@@ -63,8 +50,5 @@ test('PUT happy-path → 200, success', () =>
 test('PUT error-wrap → rejects on db error (Pattern A)', async () => {
   const sdk = makeFakeSdk();
   const ctx = makeCtx({ url: base, body: { shop_name: 'Err' }, method: 'PUT' });
-  await assert.rejects(
-    () => runPut({ db: poisonDb(), sdk, ctx }),
-    /poison/,
-  );
+  await assert.rejects(() => runPut({ db: poisonDb(), sdk, ctx }), /poison/);
 });

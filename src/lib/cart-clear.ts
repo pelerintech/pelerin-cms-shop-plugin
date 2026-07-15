@@ -24,7 +24,7 @@ export async function clearCartForOrder(db: LibSQLDatabase, orderId: string): Pr
   // Find the most recent unconverted cart for this user
   const userCarts = await db.select().from(carts).where(eq(carts.user_id, order.user_id));
   const unconverted = userCarts
-    .filter(c => c.converted_at === null)
+    .filter((c) => c.converted_at === null)
     .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
 
   if (unconverted.length === 0) {

@@ -15,10 +15,10 @@ export async function runPost({ sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
     await sdk.auth.requireAdmin(ctx.request);
   } catch {
-    return new Response(
-      JSON.stringify({ success: false, error: 'Unauthorized' }),
-      { status: 401, headers: { 'Content-Type': 'application/json' } },
-    );
+    return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   return new Response(
@@ -26,6 +26,6 @@ export async function runPost({ sdk, ctx }: HandlerDeps): Promise<Response> {
       success: true,
       message: 'Email notifications not yet configured',
     }),
-    { status: 200, headers: { 'Content-Type': 'application/json' } },
+    { status: 200, headers: { 'Content-Type': 'application/json' } }
   );
 }

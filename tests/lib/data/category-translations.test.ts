@@ -8,7 +8,11 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { createTestDb, seedMinimal, categories, translations } from '../../db/harness.ts';
 import { eq, and } from 'drizzle-orm';
-import { updateCategoryWithTranslations, getCategoryById, listTranslations } from '../../../src/lib/data/products.ts';
+import {
+  updateCategoryWithTranslations,
+  getCategoryById,
+  listTranslations,
+} from '../../../src/lib/data/products.ts';
 
 test('updateCategoryWithTranslations: upserts translations for known locale codes', async () => {
   const { db, cleanup } = await createTestDb();
@@ -27,7 +31,7 @@ test('updateCategoryWithTranslations: upserts translations for known locale code
       f.categoryBooksId,
       { name: 'Electronics' },
       rawBody,
-      knownLocaleCodes,
+      knownLocaleCodes
     );
 
     // Category row updated
@@ -36,7 +40,7 @@ test('updateCategoryWithTranslations: upserts translations for known locale code
 
     // Translation row created
     const transRows = await listTranslations(db, 'category', f.categoryBooksId);
-    const roTrans = transRows.find(t => t.locale === 'ro');
+    const roTrans = transRows.find((t) => t.locale === 'ro');
     assert.ok(roTrans, 'RO translation should exist');
     assert.equal(roTrans.name, 'Electronice');
     assert.equal(roTrans.slug, 'electronice');
@@ -63,7 +67,7 @@ test('updateCategoryWithTranslations: ignores fields with unknown locale suffixe
       f.categoryBooksId,
       { name: 'Electronics' },
       rawBody,
-      knownLocaleCodes,
+      knownLocaleCodes
     );
 
     // Category row updated
@@ -72,7 +76,7 @@ test('updateCategoryWithTranslations: ignores fields with unknown locale suffixe
 
     // No translation for 'special'
     const transRows = await listTranslations(db, 'category', f.categoryBooksId);
-    const specialTrans = transRows.find(t => t.locale === 'special');
+    const specialTrans = transRows.find((t) => t.locale === 'special');
     assert.equal(specialTrans, undefined, 'No translation for unknown locale "special"');
   } finally {
     await cleanup();
@@ -85,13 +89,15 @@ test('updateCategoryWithTranslations: updates existing translation row (no dupli
     const f = await seedMinimal(db);
 
     // Delete the seed's RO translation for categoryBooksId so we start clean
-    await db.delete(translations).where(
-      and(
-        eq(translations.entity_id, f.categoryBooksId),
-        eq(translations.locale, 'ro'),
-        eq(translations.entity_type, 'category'),
-      ),
-    );
+    await db
+      .delete(translations)
+      .where(
+        and(
+          eq(translations.entity_id, f.categoryBooksId),
+          eq(translations.locale, 'ro'),
+          eq(translations.entity_type, 'category')
+        )
+      );
 
     // Seed a single known RO translation
     const existingTransId = crypto.randomUUID();
@@ -111,17 +117,11 @@ test('updateCategoryWithTranslations: updates existing translation row (no dupli
     };
     const knownLocaleCodes = new Set(['ro']);
 
-    await updateCategoryWithTranslations(
-      db,
-      f.categoryBooksId,
-      {},
-      rawBody,
-      knownLocaleCodes,
-    );
+    await updateCategoryWithTranslations(db, f.categoryBooksId, {}, rawBody, knownLocaleCodes);
 
     // Exactly one translation row for 'ro'
     const transRows = await listTranslations(db, 'category', f.categoryBooksId);
-    const roTrans = transRows.filter(t => t.locale === 'ro');
+    const roTrans = transRows.filter((t) => t.locale === 'ro');
     assert.equal(roTrans.length, 1, 'Exactly one RO translation');
     assert.equal(roTrans[0].name, 'New Name');
   } finally {
@@ -145,7 +145,7 @@ test('updateCategoryWithTranslations: handles empty locale codes (no translation
       f.categoryBooksId,
       { name: 'Electronics' },
       rawBody,
-      knownLocaleCodes,
+      knownLocaleCodes
     );
 
     // Category row updated
@@ -164,7 +164,7 @@ test('updateCategoryWithTranslations: handles empty locale codes (no translation
     assert.ok(transRows.length <= initialCount + 1, 'No extra translations created');
     // More precisely: no new 'ro' translation was upserted by our call since
     // the seed's 'ro' translation should be unchanged
-    const roTrans = transRows.find(t => t.locale === 'ro');
+    const roTrans = transRows.find((t) => t.locale === 'ro');
     assert.equal(roTrans?.name, 'Cărți', 'Existing seed translation unchanged');
   } finally {
     await cleanup();
@@ -176,13 +176,7 @@ test('updateCategoryWithTranslations: works on empty database (no categories)', 
   try {
     // Empty database — no categories, no settings
     // Should not throw
-    await updateCategoryWithTranslations(
-      db,
-      'nonexistent',
-      {},
-      {},
-      new Set(),
-    );
+    await updateCategoryWithTranslations(db, 'nonexistent', {}, {}, new Set());
     // If we get here without throwing, the test passes
   } finally {
     await cleanup();

@@ -51,15 +51,18 @@ export interface MatrixRow {
 export function computeMatrix(
   dimensions: DimensionForMatrix[],
   existing: ExistingVariant[],
-  productSlug: string,
+  productSlug: string
 ): MatrixRow[] {
-  const combos = cartesianProduct(dimensions.map(d => d.options));
-  return combos.map(combo => {
-    const option_ids = combo.map(o => o.id);
-    const labels = combo.map(o => o.label || o.value);
-    const optionValues = combo.map(o => o.value).join('-').toLowerCase();
+  const combos = cartesianProduct(dimensions.map((d) => d.options));
+  return combos.map((combo) => {
+    const option_ids = combo.map((o) => o.id);
+    const labels = combo.map((o) => o.label || o.value);
+    const optionValues = combo
+      .map((o) => o.value)
+      .join('-')
+      .toLowerCase();
     const auto_sku = `${productSlug}-${optionValues}`;
-    const match = existing.find(ev => sameOptionSet(ev.option_ids, option_ids));
+    const match = existing.find((ev) => sameOptionSet(ev.option_ids, option_ids));
     return {
       option_ids,
       labels,
@@ -83,11 +86,11 @@ export function selectedCombinations(
   rows: MatrixRow[],
   selectedIndices: number[],
   skus: Record<number, string>,
-  stocks: Record<number, number>,
+  stocks: Record<number, number>
 ): { option_ids: string[]; sku: string; stock: number }[] {
   return selectedIndices
-    .filter(i => !rows[i]?.exists)
-    .map(i => {
+    .filter((i) => !rows[i]?.exists)
+    .map((i) => {
       const row = rows[i];
       const sku = (skus[i] ?? '').trim() || row.auto_sku;
       const stock = stocks[i] ?? 0;
@@ -98,8 +101,8 @@ export function selectedCombinations(
 /** Cartesian product of arrays (preserving the input order per axis). */
 function cartesianProduct<T>(arrays: T[][]): T[][] {
   return arrays.reduce(
-    (acc, axis) => acc.flatMap(prefix => axis.map(item => [...prefix, item])),
-    [[]] as T[][],
+    (acc, axis) => acc.flatMap((prefix) => axis.map((item) => [...prefix, item])),
+    [[]] as T[][]
   );
 }
 

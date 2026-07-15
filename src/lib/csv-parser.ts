@@ -16,10 +16,13 @@
  */
 export function parseCSV(text: string): Record<string, string>[] {
   if (!text) return [];
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const lines = text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
   if (lines.length === 0) return [];
 
-  const headers = lines[0].split(',').map(h => h.trim());
+  const headers = lines[0].split(',').map((h) => h.trim());
   const rows: Record<string, string>[] = [];
 
   for (let i = 1; i < lines.length; i++) {

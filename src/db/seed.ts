@@ -32,8 +32,14 @@ export default async function seed(db: any) {
   // ─── Settings (locales, currencies, order config) ───
   await db.run(sql`
     INSERT INTO shop_settings (id, key, value) VALUES
-      (${crypto.randomUUID()}, 'locales', ${JSON.stringify([{ code: 'ro', name: 'Română', isDefault: true }, { code: 'en', name: 'English', isDefault: false }])}),
-      (${crypto.randomUUID()}, 'currencies', ${JSON.stringify([{ code: 'RON', name: 'Leu românesc', isDefault: true }, { code: 'EUR', name: 'Euro', isDefault: false }])}),
+      (${crypto.randomUUID()}, 'locales', ${JSON.stringify([
+        { code: 'ro', name: 'Română', isDefault: true },
+        { code: 'en', name: 'English', isDefault: false },
+      ])}),
+      (${crypto.randomUUID()}, 'currencies', ${JSON.stringify([
+        { code: 'RON', name: 'Leu românesc', isDefault: true },
+        { code: 'EUR', name: 'Euro', isDefault: false },
+      ])}),
       (${crypto.randomUUID()}, 'order_number_prefix', 'ORD'),
       (${crypto.randomUUID()}, 'order_number_year', 'true'),
       (${crypto.randomUUID()}, 'order_number_padding', '6'),

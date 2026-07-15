@@ -29,7 +29,10 @@ describe('RichTextEditor.astro client <script is:inline> syntax', () => {
     const source = readFileSync(PAGE_PATH, 'utf-8');
 
     const scriptMatches = [...source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)];
-    assert.ok(scriptMatches.length > 0, 'expected at least one <script> block in RichTextEditor.astro');
+    assert.ok(
+      scriptMatches.length > 0,
+      'expected at least one <script> block in RichTextEditor.astro'
+    );
 
     const clientScript = scriptMatches[scriptMatches.length - 1][1];
     assert.ok(clientScript.trim().length > 0, 'extracted client script is empty');
@@ -56,7 +59,7 @@ describe('RichTextEditor.astro client <script is:inline> syntax', () => {
     assert.equal(
       exitCode,
       0,
-      `client <script> in RichTextEditor.astro has a syntax error — the entire editor is disabled at parse time.\nesbuild output:\n${combined}`,
+      `client <script> in RichTextEditor.astro has a syntax error — the entire editor is disabled at parse time.\nesbuild output:\n${combined}`
     );
   });
 
@@ -66,7 +69,7 @@ describe('RichTextEditor.astro client <script is:inline> syntax', () => {
     // Must contain the IIFE guard pattern
     assert.ok(
       source.includes('window.__rtEditorInitialized'),
-      'RichTextEditor.astro must use window.__rtEditorInitialized guard to prevent redeclaration',
+      'RichTextEditor.astro must use window.__rtEditorInitialized guard to prevent redeclaration'
     );
 
     // Must NOT have top-level `let marked` outside the IIFE (would cause redeclaration)
@@ -76,10 +79,13 @@ describe('RichTextEditor.astro client <script is:inline> syntax', () => {
 
     // The `let marked` should only appear inside the IIFE, not at the top level
     // After the opening <script>, the first meaningful statement should be the IIFE
-    const trimmed = scriptContent.replace(/<script(?:\s[^>]*)?>/, '').replace(/<\/script>/, '').trim();
+    const trimmed = scriptContent
+      .replace(/<script(?:\s[^>]*)?>/, '')
+      .replace(/<\/script>/, '')
+      .trim();
     assert.ok(
       trimmed.startsWith('//') || trimmed.startsWith('(function'),
-      'RichTextEditor.astro script should start with comment or IIFE, not top-level declarations',
+      'RichTextEditor.astro script should start with comment or IIFE, not top-level declarations'
     );
   });
 });

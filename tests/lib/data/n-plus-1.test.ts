@@ -17,7 +17,15 @@ import { createTestDb, seedMinimal, insertFixture } from '../../db/harness.ts';
 import { enrichCartItems } from '../../../src/lib/data/cart.ts';
 import { reorderProductImages } from '../../../src/lib/data/products.ts';
 import { createVariants } from '../../../src/lib/data/variants.ts';
-import { product_prices, product_images, product_variants, product_attribute_values, product_attribute_assignments, product_attributes, product_attribute_options } from '../../../src/db/schema.ts';
+import {
+  product_prices,
+  product_images,
+  product_variants,
+  product_attribute_values,
+  product_attribute_assignments,
+  product_attributes,
+  product_attribute_options,
+} from '../../../src/db/schema.ts';
 
 const now = () => new Date();
 const rid = () => crypto.randomUUID();
@@ -66,19 +74,42 @@ test('enrichCartItems fetches product_prices in at most 2 queries (batched, not 
     // Build a 10-item cart: 5 variant items (variantBlack128Id) + 5 product items (simpleProductId).
     const cartId = rid();
     await insertFixture(db, 'carts', {
-      id: cartId, session_id: 'sess-n1', user_id: null, applied_voucher_code: null,
-      applied_referral_code: null, converted_at: null, expires_at: futureExpiry(),
-      created_at: now(), updated_at: now(),
+      id: cartId,
+      session_id: 'sess-n1',
+      user_id: null,
+      applied_voucher_code: null,
+      applied_referral_code: null,
+      converted_at: null,
+      expires_at: futureExpiry(),
+      created_at: now(),
+      updated_at: now(),
     });
     const items: any[] = [];
     for (let i = 0; i < 5; i++) {
       const vi = rid();
-      await insertFixture(db, 'cart_items', { id: vi, cart_id: cartId, product_id: f.variantProductId, variant_id: f.variantBlack128Id, quantity: 1 });
-      items.push({ id: vi, product_id: f.variantProductId, variant_id: f.variantBlack128Id, quantity: 1 });
+      await insertFixture(db, 'cart_items', {
+        id: vi,
+        cart_id: cartId,
+        product_id: f.variantProductId,
+        variant_id: f.variantBlack128Id,
+        quantity: 1,
+      });
+      items.push({
+        id: vi,
+        product_id: f.variantProductId,
+        variant_id: f.variantBlack128Id,
+        quantity: 1,
+      });
     }
     for (let i = 0; i < 5; i++) {
       const pi = rid();
-      await insertFixture(db, 'cart_items', { id: pi, cart_id: cartId, product_id: f.simpleProductId, variant_id: null, quantity: 1 });
+      await insertFixture(db, 'cart_items', {
+        id: pi,
+        cart_id: cartId,
+        product_id: f.simpleProductId,
+        variant_id: null,
+        quantity: 1,
+      });
       items.push({ id: pi, product_id: f.simpleProductId, variant_id: null, quantity: 1 });
     }
 
@@ -88,7 +119,7 @@ test('enrichCartItems fetches product_prices in at most 2 queries (batched, not 
     const priceQueries = counts.get('product_prices') ?? 0;
     assert.ok(
       priceQueries <= 2,
-      `enrichCartItems must fetch product_prices in ≤2 batched queries, NOT ${priceQueries} (one-per-item is the N+1 bug)`,
+      `enrichCartItems must fetch product_prices in ≤2 batched queries, NOT ${priceQueries} (one-per-item is the N+1 bug)`
     );
     // Results identical to the per-item version: variant items get the variant price, product items the product price.
     for (const e of enriched) assert.ok(e.price_net >= 0);
@@ -107,12 +138,27 @@ test('reorderProductImages is transactional — a mid-reorder failure rolls back
     const originalIds: string[] = [];
     for (let i = 0; i < 20; i++) {
       const id = rid();
-      await insertFixture(db, 'product_images', { id, product_id: f.simpleProductId, variant_id: null, url: `u${i}`, alt: null, sort_order: i, mime: 'image/png', size: 0, width: null, height: null, original_filename: null });
+      await insertFixture(db, 'product_images', {
+        id,
+        product_id: f.simpleProductId,
+        variant_id: null,
+        url: `u${i}`,
+        alt: null,
+        sort_order: i,
+        mime: 'image/png',
+        size: 0,
+        width: null,
+        height: null,
+        original_filename: null,
+      });
       originalIds.push(id);
     }
     // Record original sort_orders.
-    const origRows = await db.select().from(product_images).where(eq(product_images.product_id, f.simpleProductId));
-    const origSort = new Map(origRows.map(r => [r.id, r.sort_order]));
+    const origRows = await db
+      .select()
+      .from(product_images)
+      .where(eq(product_images.product_id, f.simpleProductId));
+    const origSort = new Map(origRows.map((r) => [r.id, r.sort_order]));
 
     // Reverse the order (new sort_order = 19-i) and force a transaction-level failure.
     const reversed = [...originalIds].reverse();
@@ -124,16 +170,20 @@ test('reorderProductImages is transactional — a mid-reorder failure rolls back
       });
     }) as any;
 
-    await assert.rejects(
-      () => reorderProductImages(db, reversed),
-      /forced-reorder-failure/,
-    );
+    await assert.rejects(() => reorderProductImages(db, reversed), /forced-reorder-failure/);
 
     // Restore and verify ALL sort_orders are unchanged (rollback).
     (db as any).transaction = realTx;
-    const afterRows = await db.select().from(product_images).where(eq(product_images.product_id, f.simpleProductId));
+    const afterRows = await db
+      .select()
+      .from(product_images)
+      .where(eq(product_images.product_id, f.simpleProductId));
     for (const r of afterRows) {
-      assert.strictEqual(r.sort_order, origSort.get(r.id), `image ${r.id} sort_order must be rolled back to original`);
+      assert.strictEqual(
+        r.sort_order,
+        origSort.get(r.id),
+        `image ${r.id} sort_order must be rolled back to original`
+      );
     }
   } finally {
     await cleanup();
@@ -149,7 +199,12 @@ test('createVariants is transactional — a failure on a value rolls back the va
     // The variant product already has Color (black/white) + Storage (128/256) dimensions.
     // Existing variants: Black-128, White-256. Use a NOVEL combo (Black-256) so
     // createVariants reaches the insert path (and the forced tx failure).
-    const combo = { option_ids: [f.optColorBlackId, f.optStorage256Id], sku: 'NEWVAR-TX', stock: 7, active: true };
+    const combo = {
+      option_ids: [f.optColorBlackId, f.optStorage256Id],
+      sku: 'NEWVAR-TX',
+      stock: 7,
+      active: true,
+    };
 
     const realTx = db.transaction.bind(db);
     (db as any).transaction = (async (cb: any) => {
@@ -161,16 +216,19 @@ test('createVariants is transactional — a failure on a value rolls back the va
 
     await assert.rejects(
       () => createVariants(db, f.variantProductId, [combo]),
-      /forced-variant-failure/,
+      /forced-variant-failure/
     );
 
     (db as any).transaction = realTx;
     // No new variant row with the SKU should exist (rollback).
-    const newVariants = await db.select().from(product_variants).where(eq(product_variants.sku, 'NEWVAR-TX'));
+    const newVariants = await db
+      .select()
+      .from(product_variants)
+      .where(eq(product_variants.sku, 'NEWVAR-TX'));
     assert.strictEqual(newVariants.length, 0, 'variant row must be rolled back (transactional)');
     // No dangling attribute values for a non-existent variant (defensive — none inserted).
     const allVals = await db.select().from(product_attribute_values);
-    const newVarValCount = allVals.filter(v => v.entity_type === 'variant').length;
+    const newVarValCount = allVals.filter((v) => v.entity_type === 'variant').length;
     // Only the pre-existing variant values remain; the failed insert added none.
     assert.strictEqual(newVariants.length, 0);
   } finally {

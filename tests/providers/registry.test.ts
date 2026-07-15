@@ -10,6 +10,8 @@ const mockStripe: PaymentProvider = {
   refundable: true,
   initiatePayment: async () => ({ redirect_url: '', provider_session_id: '' }),
   handleWebhook: async () => ({ order_id: '', status: 'paid' }),
+  isConfigured: async () => true,
+  refund: async () => ({ success: false, error: 'Not implemented' }),
 };
 
 const mockEuplatesc: PaymentProvider = {
@@ -17,6 +19,8 @@ const mockEuplatesc: PaymentProvider = {
   refundable: true,
   initiatePayment: async () => ({ redirect_url: '', provider_session_id: '' }),
   handleWebhook: async () => ({ order_id: '', status: 'paid' }),
+  isConfigured: async () => true,
+  refund: async () => ({ success: false, error: 'Not implemented' }),
 };
 
 describe('Payment provider registry', () => {

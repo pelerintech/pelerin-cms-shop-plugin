@@ -22,6 +22,7 @@ export interface PaymentOrder {
 export interface PaymentOptions {
   success_url: string;
   cancel_url: string;
+  webhook_url: string;
   currency: string;
   locale?: string;
 }
@@ -40,10 +41,28 @@ export interface WebhookResult {
   error?: string;
 }
 
+/** Return value from a refund operation */
+export interface RefundResult {
+  success: boolean;
+  error?: string;
+  provider_refund_id?: string;
+}
+
 /** Every payment provider must implement this interface */
 export interface PaymentProvider {
   readonly name: string;
   readonly refundable: boolean;
-  initiatePayment(db: LibSQLDatabase, order: PaymentOrder, options: PaymentOptions): Promise<PaymentInitResult>;
+  initiatePayment(
+    db: LibSQLDatabase,
+    order: PaymentOrder,
+    options: PaymentOptions
+  ): Promise<PaymentInitResult>;
   handleWebhook(db: LibSQLDatabase, request: Request): Promise<WebhookResult>;
+  isConfigured(db: LibSQLDatabase): Promise<boolean>;
+  refund(
+    db: LibSQLDatabase,
+    order: PaymentOrder & { transaction_id: string | null },
+    amount: number,
+    reason: string
+  ): Promise<RefundResult>;
 }

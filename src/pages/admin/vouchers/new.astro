@@ -13,11 +13,13 @@ const user = await sdk.auth.requireAdmin(Astro.request);
 ---
 
 <AdminLayout title="New Voucher" currentPath="/admin/plugins/shop/vouchers" user={user}>
-  <Breadcrumbs items={[
-    { label: 'Shop', href: '/admin/plugins/shop' },
-    { label: 'Vouchers', href: '/admin/plugins/shop/vouchers' },
-    { label: 'New Voucher' },
-  ]} />
+  <Breadcrumbs
+    items={[
+      { label: 'Shop', href: '/admin/plugins/shop' },
+      { label: 'Vouchers', href: '/admin/plugins/shop/vouchers' },
+      { label: 'New Voucher' },
+    ]}
+  />
 
   <div class="flex items-center justify-between col-span-12 mb-4">
     <div>
@@ -31,17 +33,49 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     <div class="card-body">
       <form id="voucher-form" class="space-y-6">
         <div class="space-y-4">
-          <TextField name="code" label="Code" required placeholder="SUMMER10" style="text-transform: uppercase;" />
-          <SelectField name="type" label="Type" required placeholder="Select type..." options={[
-            { value: 'fixed_amount', label: 'Fixed Amount' },
-            { value: 'percentage', label: 'Percentage' },
-            { value: 'free_shipping', label: 'Free Shipping' },
-          ]} />
+          <TextField
+            name="code"
+            label="Code"
+            required
+            placeholder="SUMMER10"
+            style="text-transform: uppercase;"
+          />
+          <SelectField
+            name="type"
+            label="Type"
+            required
+            placeholder="Select type..."
+            options={[
+              { value: 'fixed_amount', label: 'Fixed Amount' },
+              { value: 'percentage', label: 'Percentage' },
+              { value: 'free_shipping', label: 'Free Shipping' },
+            ]}
+          />
           <div id="value-field">
-            <TextField name="value" label="Value" type="number" step="0.01" min="0" placeholder="10" />
+            <TextField
+              name="value"
+              label="Value"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="10"
+            />
           </div>
-          <TextField name="min_order_value" label="Minimum Order Value" type="number" step="0.01" min="0" placeholder="Optional" />
-          <TextField name="max_uses" label="Max Uses" type="number" min="1" placeholder="Leave empty for unlimited" />
+          <TextField
+            name="min_order_value"
+            label="Minimum Order Value"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="Optional"
+          />
+          <TextField
+            name="max_uses"
+            label="Max Uses"
+            type="number"
+            min="1"
+            placeholder="Leave empty for unlimited"
+          />
 
           <div class="grid grid-cols-2 gap-4">
             <TextField name="valid_from" label="Valid From" type="date" />
@@ -67,7 +101,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
   var API_URL = '/api/plugins/shop/vouchers';
 
   // Toggle value field visibility based on type
-  document.getElementById('type').addEventListener('change', function() {
+  document.getElementById('type').addEventListener('change', function () {
     var valueField = document.getElementById('value-field');
     if (this.value === 'free_shipping') {
       valueField.style.display = 'none';
@@ -76,7 +110,7 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     }
   });
 
-  document.getElementById('voucher-form').addEventListener('submit', async function(e) {
+  document.getElementById('voucher-form').addEventListener('submit', async function (e) {
     e.preventDefault();
     var form = e.target;
     var formData = new FormData(form);
@@ -84,11 +118,22 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     var body = {
       code: formData.get('code') || '',
       type: formData.get('type'),
-      value: formData.get('type') === 'free_shipping' ? null : (formData.get('value') ? parseFloat(formData.get('value')) : null),
-      min_order_value: formData.get('min_order_value') ? parseFloat(formData.get('min_order_value')) : null,
+      value:
+        formData.get('type') === 'free_shipping'
+          ? null
+          : formData.get('value')
+            ? parseFloat(formData.get('value'))
+            : null,
+      min_order_value: formData.get('min_order_value')
+        ? parseFloat(formData.get('min_order_value'))
+        : null,
       max_uses: formData.get('max_uses') ? parseInt(formData.get('max_uses')) : null,
-      valid_from: formData.get('valid_from') ? new Date(formData.get('valid_from')).toISOString() : null,
-      valid_until: formData.get('valid_until') ? new Date(formData.get('valid_until')).toISOString() : null,
+      valid_from: formData.get('valid_from')
+        ? new Date(formData.get('valid_from')).toISOString()
+        : null,
+      valid_until: formData.get('valid_until')
+        ? new Date(formData.get('valid_until')).toISOString()
+        : null,
       single_use_per_customer: formData.get('single_use_per_customer') === 'on',
       active: formData.get('active') === 'on',
     };

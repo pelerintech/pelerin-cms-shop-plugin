@@ -66,7 +66,10 @@ export async function saveLocales(db: LibSQLDatabase, locales: LocaleItem[]): Pr
 }
 
 /** Save currencies array (upserts the JSON blob). */
-export async function saveCurrencies(db: LibSQLDatabase, currencies: CurrencyItem[]): Promise<void> {
+export async function saveCurrencies(
+  db: LibSQLDatabase,
+  currencies: CurrencyItem[]
+): Promise<void> {
   await upsertSetting(db, 'currencies', JSON.stringify(currencies));
 }
 
@@ -87,17 +90,18 @@ export async function getShopConfig(db: LibSQLDatabase): Promise<{
   const settings = await getSettings(db);
   let locales: LocaleItem[] = [];
   let currencies: CurrencyItem[] = [];
-  try { locales = JSON.parse(settings.locales || '[]'); } catch {}
-  try { currencies = JSON.parse(settings.currencies || '[]'); } catch {}
+  try {
+    locales = JSON.parse(settings.locales || '[]');
+  } catch {}
+  try {
+    currencies = JSON.parse(settings.currencies || '[]');
+  } catch {}
 
   // Derive default from isDefault flag; fall back to old key for backward compat.
   // When no config exists at all, return empty string — callers should handle this.
-  const defaultLocale = locales.find(l => l.isDefault)?.code
-    || settings.default_locale
-    || '';
-  const defaultCurrency = currencies.find(c => c.isDefault)?.code
-    || settings.default_currency
-    || '';
+  const defaultLocale = locales.find((l) => l.isDefault)?.code || settings.default_locale || '';
+  const defaultCurrency =
+    currencies.find((c) => c.isDefault)?.code || settings.default_currency || '';
 
   return {
     locales,
@@ -160,7 +164,7 @@ export async function getSettingNumber(db: LibSQLDatabase, key: string): Promise
 export async function upsertSettingTyped(
   db: LibSQLDatabase,
   key: string,
-  value: number | boolean | string,
+  value: number | boolean | string
 ): Promise<void> {
   const serialized = typeof value === 'string' ? value : String(value);
   await upsertSetting(db, key, serialized);

@@ -1,18 +1,10 @@
 import { test } from 'node:test';
 import { ensureLoader } from '../../../stubs/register.mjs';
-import { assert,
-  matrix,
-  createTestDb,
-  seedMinimal,
-  makeFakeSdk,
-  makeCtx,
-} from '../_matrix.ts';
+import { assert, matrix, createTestDb, seedMinimal, makeFakeSdk, makeCtx } from '../_matrix.ts';
 import { insertFixture } from '../../../db/harness.ts';
 
 ensureLoader();
-const { runGet } = await import(
-  '../../../../src/api/shop/carts/[id].ts'
-);
+const { runGet } = await import('../../../../src/api/shop/carts/[id].ts');
 
 const base = 'http://localhost/api/plugins/shop/carts';
 

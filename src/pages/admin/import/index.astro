@@ -26,10 +26,7 @@ const priceTemplateUrl = `data:text/csv;charset=utf-8,${encodeURIComponent(PRICE
 ---
 
 <AdminLayout title="Import" currentPath="/admin/plugins/shop/import" user={user}>
-  <Breadcrumbs items={[
-    { label: 'Shop', href: '/admin/plugins/shop' },
-    { label: 'Import' },
-  ]} />
+  <Breadcrumbs items={[{ label: 'Shop', href: '/admin/plugins/shop' }, { label: 'Import' }]} />
 
   <div class="flex items-center justify-between col-span-12 mb-4">
     <div>
@@ -44,11 +41,16 @@ const priceTemplateUrl = `data:text/csv;charset=utf-8,${encodeURIComponent(PRICE
       <div class="card-body">
         <h2 class="card-title">Products</h2>
         <p class="text-sm text-base-content/60">
-          Upsert products by SKU. Required columns: <code>sku</code>, <code>name_ro</code>, <code>type</code>.
-          Unknown SKUs are created; existing SKUs are updated.
+          Upsert products by SKU. Required columns: <code>sku</code>, <code>name_ro</code>, <code
+            >type</code
+          >. Unknown SKUs are created; existing SKUs are updated.
         </p>
         <div class="mb-2">
-          <a href={productTemplateUrl} download="products-template.csv" class="btn btn-ghost btn-sm">
+          <a
+            href={productTemplateUrl}
+            download="products-template.csv"
+            class="btn btn-ghost btn-sm"
+          >
             ⬇ Download Template
           </a>
         </div>
@@ -58,9 +60,18 @@ const priceTemplateUrl = `data:text/csv;charset=utf-8,${encodeURIComponent(PRICE
               <span class="label-text font-medium">CSV file <span class="text-error">*</span></span>
               <span class="label-text-alt text-base-content/50">.csv only</span>
             </label>
-            <input id="products-file" type="file" name="file" accept=".csv,text/csv" class="file-input file-input-bordered w-full" required />
+            <input
+              id="products-file"
+              type="file"
+              name="file"
+              accept=".csv,text/csv"
+              class="file-input file-input-bordered w-full"
+              required
+            />
             <label class="label">
-              <span class="label-text-alt text-base-content/40">Select the product CSV file to import</span>
+              <span class="label-text-alt text-base-content/40"
+                >Select the product CSV file to import</span
+              >
             </label>
           </div>
           <button type="submit" class="btn btn-primary">Upload &amp; Import</button>
@@ -74,8 +85,9 @@ const priceTemplateUrl = `data:text/csv;charset=utf-8,${encodeURIComponent(PRICE
       <div class="card-body">
         <h2 class="card-title">Prices</h2>
         <p class="text-sm text-base-content/60">
-          Upsert per-currency prices by SKU. Required columns: <code>sku</code>, <code>currency</code>, <code>price_net</code>.
-          SKU may match a product or a variant.
+          Upsert per-currency prices by SKU. Required columns: <code>sku</code>, <code
+            >currency</code
+          >, <code>price_net</code>. SKU may match a product or a variant.
         </p>
         <div class="mb-2">
           <a href={priceTemplateUrl} download="prices-template.csv" class="btn btn-ghost btn-sm">
@@ -88,9 +100,18 @@ const priceTemplateUrl = `data:text/csv;charset=utf-8,${encodeURIComponent(PRICE
               <span class="label-text font-medium">CSV file <span class="text-error">*</span></span>
               <span class="label-text-alt text-base-content/50">.csv only</span>
             </label>
-            <input id="prices-file" type="file" name="file" accept=".csv,text/csv" class="file-input file-input-bordered w-full" required />
+            <input
+              id="prices-file"
+              type="file"
+              name="file"
+              accept=".csv,text/csv"
+              class="file-input file-input-bordered w-full"
+              required
+            />
             <label class="label">
-              <span class="label-text-alt text-base-content/40">Select the price CSV file to import</span>
+              <span class="label-text-alt text-base-content/40"
+                >Select the price CSV file to import</span
+              >
             </label>
           </div>
           <button type="submit" class="btn btn-primary">Upload &amp; Import</button>
@@ -104,12 +125,15 @@ const priceTemplateUrl = `data:text/csv;charset=utf-8,${encodeURIComponent(PRICE
 <script is:inline>
   function renderResult(container, data) {
     if (!data) return;
-    const errorList = (data.errors && data.errors.length > 0)
-      ? `<div class="mt-3"><p class="font-semibold text-error">${data.errors.length} row error(s):</p>` +
-        `<ul class="mt-1 text-sm text-error/80 max-h-48 overflow-auto">` +
-        data.errors.map(e => `<li>Row ${e.row}${e.sku ? ' (' + e.sku + ')' : ''}: ${e.error}</li>`).join('') +
-        `</ul></div>`
-      : '';
+    const errorList =
+      data.errors && data.errors.length > 0
+        ? `<div class="mt-3"><p class="font-semibold text-error">${data.errors.length} row error(s):</p>` +
+          `<ul class="mt-1 text-sm text-error/80 max-h-48 overflow-auto">` +
+          data.errors
+            .map((e) => `<li>Row ${e.row}${e.sku ? ' (' + e.sku + ')' : ''}: ${e.error}</li>`)
+            .join('') +
+          `</ul></div>`
+        : '';
     container.innerHTML = `
       <div class="alert ${data.errors && data.errors.length ? 'alert-warning' : 'alert-success'}">
         <div>

@@ -7,11 +7,11 @@ const { items } = Astro.props;
 
 <div class="breadcrumbs text-sm mb-4 col-span-12">
   <ul>
-    {items.map((item, i) => {
-      const isLast = i === items.length - 1;
-      return (
-        <li>{isLast ? item.label : <a href={item.href}>{item.label}</a>}</li>
-      );
-    })}
+    {
+      items.map((item, i) => {
+        const isLast = i === items.length - 1;
+        return <li>{isLast ? item.label : <a href={item.href}>{item.label}</a>}</li>;
+      })
+    }
   </ul>
 </div>

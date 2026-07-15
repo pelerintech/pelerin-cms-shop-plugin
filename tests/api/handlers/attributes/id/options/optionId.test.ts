@@ -4,9 +4,8 @@ import { ensureLoader } from '../../../../../stubs/register.mjs';
 import { matrix, createTestDb, seedMinimal, makeFakeSdk, makeCtx } from '../../../_matrix.ts';
 
 ensureLoader();
-const { runGet, runPut, runDelete } = await import(
-  '../../../../../../src/api/shop/attributes/[id]/options/[optionId].ts'
-);
+const { runGet, runPut, runDelete } =
+  await import('../../../../../../src/api/shop/attributes/[id]/options/[optionId].ts');
 
 const base = (id: string, oid: string) =>
   `http://localhost/api/plugins/shop/attributes/${id}/options/${oid}`;
@@ -138,7 +137,10 @@ test('DELETE [optionId] happy-path seeded (unused option) → 200', async () => 
     const freeOptId = crypto.randomUUID();
     const { insertFixture } = await import('../../../../../db/harness.ts');
     await insertFixture(db, 'product_attribute_options', {
-      id: freeOptId, attribute_id: f.attrColorId, value: 'green', sort_order: 9,
+      id: freeOptId,
+      attribute_id: f.attrColorId,
+      value: 'green',
+      sort_order: 9,
     });
     const sdk = makeFakeSdk();
     const ctx = makeCtx({

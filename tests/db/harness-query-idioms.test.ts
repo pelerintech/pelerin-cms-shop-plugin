@@ -9,8 +9,36 @@ test('raw parameterized query with interpolated params works in harness', async 
   try {
     const now = new Date();
     await db.insert(products).values([
-      { id: 'pA', sku: 'A', type: 'physical', has_variants: false, vat_rate: null, stock: 1, category_id: null, active: true, name: 'A', description: null, slug: 'a', created_at: now, updated_at: now },
-      { id: 'pB', sku: 'B', type: 'physical', has_variants: false, vat_rate: null, stock: 1, category_id: null, active: true, name: 'B', description: null, slug: 'b', created_at: now, updated_at: now },
+      {
+        id: 'pA',
+        sku: 'A',
+        type: 'physical',
+        has_variants: false,
+        vat_rate: null,
+        stock: 1,
+        category_id: null,
+        active: true,
+        name: 'A',
+        description: null,
+        slug: 'a',
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: 'pB',
+        sku: 'B',
+        type: 'physical',
+        has_variants: false,
+        vat_rate: null,
+        stock: 1,
+        category_id: null,
+        active: true,
+        name: 'B',
+        description: null,
+        slug: 'b',
+        created_at: now,
+        updated_at: now,
+      },
     ]);
 
     // D3 raw idiom: build placeholders via sql.raw for the IN list, bind values
@@ -19,7 +47,10 @@ test('raw parameterized query with interpolated params works in harness', async 
     const ids = ['pA', 'pB'];
     const placeholders = ids.map(() => '?').join(',');
     const result = await db.run(
-      sql`SELECT * FROM ${products} WHERE ${products.id} IN (${sql.join(ids.map(id => sql`${id}`), sql.raw(','))})`
+      sql`SELECT * FROM ${products} WHERE ${products.id} IN (${sql.join(
+        ids.map((id) => sql`${id}`),
+        sql.raw(',')
+      )})`
     );
     assert.ok(result.rows, 'must return rows');
     assert.strictEqual((result.rows as any[]).length, 2, 'must match both IDs');
@@ -33,11 +64,43 @@ test('inArray operator with populated array works in harness', async () => {
   try {
     const now = new Date();
     await db.insert(products).values([
-      { id: 'pA', sku: 'A', type: 'physical', has_variants: false, vat_rate: null, stock: 1, category_id: null, active: true, name: 'A', description: null, slug: 'a', created_at: now, updated_at: now },
-      { id: 'pB', sku: 'B', type: 'physical', has_variants: false, vat_rate: null, stock: 1, category_id: null, active: true, name: 'B', description: null, slug: 'b', created_at: now, updated_at: now },
+      {
+        id: 'pA',
+        sku: 'A',
+        type: 'physical',
+        has_variants: false,
+        vat_rate: null,
+        stock: 1,
+        category_id: null,
+        active: true,
+        name: 'A',
+        description: null,
+        slug: 'a',
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: 'pB',
+        sku: 'B',
+        type: 'physical',
+        has_variants: false,
+        vat_rate: null,
+        stock: 1,
+        category_id: null,
+        active: true,
+        name: 'B',
+        description: null,
+        slug: 'b',
+        created_at: now,
+        updated_at: now,
+      },
     ]);
 
-    const rows = await db.select().from(products).where(inArray(products.id, ['pA'])).all();
+    const rows = await db
+      .select()
+      .from(products)
+      .where(inArray(products.id, ['pA']))
+      .all();
     assert.strictEqual(rows.length, 1, 'inArray with single element must return 1 row');
     assert.strictEqual(rows[0].id, 'pA');
   } finally {
@@ -50,7 +113,21 @@ test('inArray operator with EMPTY array executes without error (no near "?" synt
   try {
     const now = new Date();
     await db.insert(products).values([
-      { id: 'pA', sku: 'A', type: 'physical', has_variants: false, vat_rate: null, stock: 1, category_id: null, active: true, name: 'A', description: null, slug: 'a', created_at: now, updated_at: now },
+      {
+        id: 'pA',
+        sku: 'A',
+        type: 'physical',
+        has_variants: false,
+        vat_rate: null,
+        stock: 1,
+        category_id: null,
+        active: true,
+        name: 'A',
+        description: null,
+        slug: 'a',
+        created_at: now,
+        updated_at: now,
+      },
     ]);
 
     // This is the core regression guard: empty inArray must NOT throw "near ?" syntax error

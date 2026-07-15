@@ -37,13 +37,16 @@ test('import hub renders both upload forms and Download Template links', async (
   await expect(page.locator('a[download="prices-template.csv"]')).toBeVisible();
 });
 
-test('uploading a valid product CSV shows a result summary with created count', async ({ page }) => {
+test('uploading a valid product CSV shows a result summary with created count', async ({
+  page,
+}) => {
   await adminLogin(page);
   await page.goto('/admin/plugins/shop/import');
 
   // Unique SKU so the row is CREATED (not updated) regardless of prior runs.
   const sku = `E2E-IMP-${Date.now()}`;
-  const csv = `sku,name_ro,name_en,description_ro,description_en,type,category_slug,vat_rate,stock\n` +
+  const csv =
+    `sku,name_ro,name_en,description_ro,description_en,type,category_slug,vat_rate,stock\n` +
     `${sku},Produs E2E,E2E Product,Desc,Desc,physical,carti,0.09,10\n`;
 
   const fileInput = page.locator('#products-file');
@@ -62,12 +65,15 @@ test('uploading a valid product CSV shows a result summary with created count', 
   await expect(result.getByText(/Created: 1/)).toBeVisible();
 });
 
-test('uploading an all-errors product CSV shows 0 created and lists row errors', async ({ page }) => {
+test('uploading an all-errors product CSV shows 0 created and lists row errors', async ({
+  page,
+}) => {
   await adminLogin(page);
   await page.goto('/admin/plugins/shop/import');
 
   // Every row is invalid: missing sku, invalid type, non-existent category.
-  const csv = `sku,name_ro,name_en,description_ro,description_en,type,category_slug,vat_rate,stock\n` +
+  const csv =
+    `sku,name_ro,name_en,description_ro,description_en,type,category_slug,vat_rate,stock\n` +
     `,Fara SKU,,Desc,Desc,physical,carti,0.09,5\n` +
     `BAD-TYPE,Rau Tip,,Desc,Desc,widget,carti,0.09,5\n` +
     `BAD-CAT,Rau Cat,,Desc,Desc,physical,nonexistent-category-xyz,0.09,5\n`;
@@ -95,8 +101,7 @@ test('uploading a valid price CSV shows a result summary with updated count', as
   await page.goto('/admin/plugins/shop/import');
 
   // BOOK-001 is seeded with RON + EUR prices — this upserts (updates) the RON row.
-  const csv = `sku,currency,price_net\n` +
-    `BOOK-001,RON,9999\n`;
+  const csv = `sku,currency,price_net\n` + `BOOK-001,RON,9999\n`;
 
   await page.locator('#prices-file').setInputFiles({
     name: 'prices.csv',

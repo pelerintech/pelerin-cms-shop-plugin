@@ -46,7 +46,7 @@ test('a throwing transaction rolls back data but keeps the schema', async () => 
           });
           throw new Error('boom');
         }),
-      /boom/,
+      /boom/
     );
 
     // Schema survives: a SELECT from products must NOT throw "no such table".

@@ -4,7 +4,10 @@ import { listOrders } from '../../../lib/data/orders';
 import { escapeCsvCell } from '../../../lib/csv';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
-export const GET: APIRoute = (context) => { const sdk = createPluginContext(); return runGet({ db: sdk.db, sdk, ctx: context }); }
+export const GET: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runGet({ db: sdk.db, sdk, ctx: context });
+};
 
 export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
   try {
@@ -13,32 +16,52 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     const url = new URL(ctx.request.url);
     const statusFilter = url.searchParams.get('status');
     const result = await listOrders(db, {
-      page: 1, limit: 10000,
-      status: statusFilter ? statusFilter.split(',').map(s => s.trim()).filter(Boolean) : undefined,
+      page: 1,
+      limit: 10000,
+      status: statusFilter
+        ? statusFilter
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : undefined,
       from: url.searchParams.get('from') ?? undefined,
       to: url.searchParams.get('to') ?? undefined,
       search: url.searchParams.get('search') ?? undefined,
-      sort: 'created_at', dir: 'desc',
+      sort: 'created_at',
+      dir: 'desc',
     });
 
     // Build CSV — every cell is escaped (RFC 4180 + formula-injection defense).
-    const headers_csv = ['order_number', 'status', 'customer_name', 'customer_email', 'total', 'currency', 'created_at'];
+    const headers_csv = [
+      'order_number',
+      'status',
+      'customer_name',
+      'customer_email',
+      'total',
+      'currency',
+      'created_at',
+    ];
     const lines = [headers_csv.join(',')];
     for (const o of result.orders) {
-      lines.push([
-        escapeCsvCell(o.order_number),
-        escapeCsvCell(o.status),
-        escapeCsvCell(o.customer_name),
-        escapeCsvCell(o.customer_email),
-        escapeCsvCell(o.total),
-        escapeCsvCell(o.currency),
-        escapeCsvCell(o.created_at?.toISOString()),
-      ].join(','));
+      lines.push(
+        [
+          escapeCsvCell(o.order_number),
+          escapeCsvCell(o.status),
+          escapeCsvCell(o.customer_name),
+          escapeCsvCell(o.customer_email),
+          escapeCsvCell(o.total),
+          escapeCsvCell(o.currency),
+          escapeCsvCell(o.created_at?.toISOString()),
+        ].join(',')
+      );
     }
 
     return new Response(lines.join('\n'), {
       status: 200,
-      headers: { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="orders.csv"' },
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': 'attachment; filename="orders.csv"',
+      },
     });
   } catch (err: any) {
     // r17 Task 11: a CSV client always gets CSV — return text/csv with a single

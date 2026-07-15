@@ -6,12 +6,10 @@ import { createTestDb, seedMinimal } from '../../../../db/harness.ts';
 import { makeFakeSdk, makeCtx } from '../../../helpers.ts';
 
 ensureLoader();
-const { runGet, runPut } = await import(
-  '../../../../../src/api/shop/products/[id]/attribute-values.ts'
-);
+const { runGet, runPut } =
+  await import('../../../../../src/api/shop/products/[id]/attribute-values.ts');
 
-const URL = (id: string) =>
-  `http://localhost/api/plugins/shop/products/${id}/attribute-values`;
+const URL = (id: string) => `http://localhost/api/plugins/shop/products/${id}/attribute-values`;
 
 test('GET auth-fail → 401', () =>
   matrix.adminAuthFail({ run: runGet, url: URL('x'), params: { id: 'x' } }));
@@ -71,13 +69,15 @@ test('PUT happy-path → 200', async () => {
     const ctx = makeCtx({
       url: URL(f.simpleProductId),
       body: {
-        values: [{
-          assignment_id: f.assignSimpleBrandId,
-          option_id: null,
-          value_text: 'New Brand Co',
-          value_number: null,
-          value_boolean: null,
-        }],
+        values: [
+          {
+            assignment_id: f.assignSimpleBrandId,
+            option_id: null,
+            value_text: 'New Brand Co',
+            value_number: null,
+            value_boolean: null,
+          },
+        ],
       },
       method: 'PUT',
       params: { id: f.simpleProductId },
@@ -95,6 +95,16 @@ test('PUT error-wrap → 500', () =>
   matrix.errorWrap({
     run: runPut,
     url: URL('x'),
-    body: { values: [{ assignment_id: 'a', option_id: null, value_text: 'x', value_number: null, value_boolean: null }] },
+    body: {
+      values: [
+        {
+          assignment_id: 'a',
+          option_id: null,
+          value_text: 'x',
+          value_number: null,
+          value_boolean: null,
+        },
+      ],
+    },
     params: { id: 'x' },
   }));

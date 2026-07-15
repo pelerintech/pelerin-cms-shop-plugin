@@ -47,13 +47,19 @@ function formatZodError(issues: { path: (string | number)[]; message: string }[]
  */
 export async function importPrices(
   db: LibSQLDatabase,
-  rows: Record<string, string>[],
+  rows: Record<string, string>[]
 ): Promise<ImportResult> {
-  const result: ImportResult = { total: rows.length, created: 0, updated: 0, skipped: 0, errors: [] };
+  const result: ImportResult = {
+    total: rows.length,
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    errors: [],
+  };
 
   // Pre-load configured currency codes once.
   const { currencies } = await getShopConfig(db);
-  const currencyCodes = new Set(currencies.map(c => c.code));
+  const currencyCodes = new Set(currencies.map((c) => c.code));
 
   for (let i = 0; i < rows.length; i++) {
     const raw = rows[i];
@@ -63,7 +69,11 @@ export async function importPrices(
     // 1. Validate the row.
     const parsed = PriceImportRowSchema.safeParse(raw);
     if (!parsed.success) {
-      result.errors.push({ row: rowNum, sku: skuForError, error: formatZodError(parsed.error.issues as any) });
+      result.errors.push({
+        row: rowNum,
+        sku: skuForError,
+        error: formatZodError(parsed.error.issues as any),
+      });
       result.skipped++;
       continue;
     }
@@ -71,7 +81,11 @@ export async function importPrices(
 
     // 2. Validate currency against configured currencies.
     if (!currencyCodes.has(data.currency)) {
-      result.errors.push({ row: rowNum, sku: data.sku, error: `Unknown currency: '${data.currency}'` });
+      result.errors.push({
+        row: rowNum,
+        sku: data.sku,
+        error: `Unknown currency: '${data.currency}'`,
+      });
       result.skipped++;
       continue;
     }
@@ -80,7 +94,11 @@ export async function importPrices(
     const product = await findProductBySku(db, data.sku);
     const variant = product ? null : await findVariantBySku(db, data.sku);
     if (!product && !variant) {
-      result.errors.push({ row: rowNum, sku: data.sku, error: `No product or variant with SKU: '${data.sku}'` });
+      result.errors.push({
+        row: rowNum,
+        sku: data.sku,
+        error: `No product or variant with SKU: '${data.sku}'`,
+      });
       result.skipped++;
       continue;
     }

@@ -20,7 +20,12 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { createTestDb, resetDb, type TestDb } from '../../db/harness.ts';
-import { getSetting, getSettingBool, getSettingNumber, upsertSettingTyped } from '../../../src/lib/data/settings.ts';
+import {
+  getSetting,
+  getSettingBool,
+  getSettingNumber,
+  upsertSettingTyped,
+} from '../../../src/lib/data/settings.ts';
 import { generateOrderNumber } from '../../../src/lib/data/orders.ts';
 
 let env: TestDb;
@@ -88,23 +93,35 @@ test('generateOrderNumber uses numeric padding — padding=3 yields 001', async 
 });
 
 test('settings/general.ts PUT handler has NO blanket String(value) coercion', () => {
-  const src = readFileSync(new URL('../../../src/api/shop/settings/general.ts', import.meta.url), 'utf-8');
-  assert.doesNotMatch(src, /String\s*\(\s*value\s*\)/,
-    'general.ts must not coerce parsed values with String(value); the settings accessor serializes at the storage boundary');
+  const src = readFileSync(
+    new URL('../../../src/api/shop/settings/general.ts', import.meta.url),
+    'utf-8'
+  );
+  assert.doesNotMatch(
+    src,
+    /String\s*\(\s*value\s*\)/,
+    'general.ts must not coerce parsed values with String(value); the settings accessor serializes at the storage boundary'
+  );
 });
 
 test('settings.schema.ts declares order_number_year as z.boolean() (include-year flag), not z.string()', () => {
-  const src = readFileSync(new URL('../../../src/schemas/settings.schema.ts', import.meta.url), 'utf-8');
+  const src = readFileSync(
+    new URL('../../../src/schemas/settings.schema.ts', import.meta.url),
+    'utf-8'
+  );
   // The line for order_number_year must use z.boolean, not z.string
-  const yearLine = src.split('\n').find(l => l.includes('order_number_year'));
+  const yearLine = src.split('\n').find((l) => l.includes('order_number_year'));
   assert.ok(yearLine, 'order_number_year must be declared in settings.schema.ts');
   assert.match(yearLine, /z\.boolean/, 'order_number_year must be z.boolean() (include-year flag)');
   assert.doesNotMatch(yearLine, /z\.string/, 'order_number_year must NOT be z.string()');
 });
 
 test('settings.schema.ts declares order_number_padding as z.number().int().min(1)', () => {
-  const src = readFileSync(new URL('../../../src/schemas/settings.schema.ts', import.meta.url), 'utf-8');
-  const padLine = src.split('\n').find(l => l.includes('order_number_padding'));
+  const src = readFileSync(
+    new URL('../../../src/schemas/settings.schema.ts', import.meta.url),
+    'utf-8'
+  );
+  const padLine = src.split('\n').find((l) => l.includes('order_number_padding'));
   assert.ok(padLine, 'order_number_padding must be declared');
   assert.match(padLine, /z\.number/, 'order_number_padding must be z.number()');
 });

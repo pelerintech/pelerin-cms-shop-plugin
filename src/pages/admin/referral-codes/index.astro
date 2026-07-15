@@ -25,7 +25,7 @@ const total = result.total;
 const totalPages = Math.ceil(total / limit);
 
 // Fetch order attribution counts for all referral codes (via accessor)
-const codes = codeList.map(c => c.code);
+const codes = codeList.map((c) => c.code);
 const orderCounts = await countOrdersByReferralCodes(sdk.db, codes);
 
 function discountLabel(c: any): string {
@@ -64,70 +64,97 @@ function buildFilterParams(p: number): string {
         <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
         <button type="submit" class="btn btn-outline">Filter</button>
       </div>
-      {activeFilter && (
-        <div class="form-control">
-          <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
-          <a href="/admin/plugins/shop/referral-codes" class="btn btn-ghost">Clear</a>
-        </div>
-      )}
+      {
+        activeFilter && (
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text opacity-0">&nbsp;</span>
+            </label>
+            <a href="/admin/plugins/shop/referral-codes" class="btn btn-ghost">
+              Clear
+            </a>
+          </div>
+        )
+      }
     </form>
 
     <!-- Referral Codes Table -->
-    {codeList.length === 0 ? (
-      <p class="text-base-content/60">No referral codes found.</p>
-    ) : (
-      <div class="overflow-x-auto">
-        <table class="table table-zebra w-full">
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Name</th>
-              <th>Discount</th>
-              <th>Orders</th>
-              <th>Status</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {codeList.map((c: any) => (
+    {
+      codeList.length === 0 ? (
+        <p class="text-base-content/60">No referral codes found.</p>
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="table table-zebra w-full">
+            <thead>
               <tr>
-                <td class="font-mono font-bold">{c.code}</td>
-                <td>{c.name}</td>
-                <td>{discountLabel(c)}</td>
-                <td>{orderCounts.get(c.code) ?? 0}</td>
-                <td>{c.active ? <span class="badge badge-sm badge-success">Active</span> : <span class="badge badge-sm badge-ghost">Inactive</span>}</td>
-                <td>
-                  <div class="flex gap-2">
-                    <a href={`/admin/plugins/shop/referral-codes/${c.id}?from_page=${page}`} class="btn btn-ghost btn-xs">Edit</a>
-                    <button class="btn btn-error btn-xs delete-referral" data-id={c.id} data-code={c.code}>Delete</button>
-                  </div>
-                </td>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Discount</th>
+                <th>Orders</th>
+                <th>Status</th>
+                <th />
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )}
+            </thead>
+            <tbody>
+              {codeList.map((c: any) => (
+                <tr>
+                  <td class="font-mono font-bold">{c.code}</td>
+                  <td>{c.name}</td>
+                  <td>{discountLabel(c)}</td>
+                  <td>{orderCounts.get(c.code) ?? 0}</td>
+                  <td>
+                    {c.active ? (
+                      <span class="badge badge-sm badge-success">Active</span>
+                    ) : (
+                      <span class="badge badge-sm badge-ghost">Inactive</span>
+                    )}
+                  </td>
+                  <td>
+                    <div class="flex gap-2">
+                      <a
+                        href={`/admin/plugins/shop/referral-codes/${c.id}?from_page=${page}`}
+                        class="btn btn-ghost btn-xs"
+                      >
+                        Edit
+                      </a>
+                      <button
+                        class="btn btn-error btn-xs delete-referral"
+                        data-id={c.id}
+                        data-code={c.code}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
 
     <!-- Pagination -->
-    {totalPages > 1 && (
-      <div class="join mt-4">
-        {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-          <a
-            href={`/admin/plugins/shop/referral-codes?${buildFilterParams(p)}`}
-            class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
-          >
-            {p}
-          </a>
-        ))}
-      </div>
-    )}
+    {
+      totalPages > 1 && (
+        <div class="join mt-4">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <a
+              href={`/admin/plugins/shop/referral-codes?${buildFilterParams(p)}`}
+              class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
+            >
+              {p}
+            </a>
+          ))}
+        </div>
+      )
+    }
   </div>
 </AdminLayout>
 
 <script>
   // Delete referral code
-  document.querySelectorAll('.delete-referral').forEach(btn => {
+  document.querySelectorAll('.delete-referral').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const refId = (btn as HTMLElement).dataset.id!;
       const refCode = (btn as HTMLElement).dataset.code!;

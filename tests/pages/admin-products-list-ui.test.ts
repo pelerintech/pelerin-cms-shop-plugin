@@ -22,6 +22,10 @@ describe('Products list page - filter bar alignment', () => {
   it('Filter button is wrapped in form-control with invisible label', () => {
     const content = readFileSync(PAGE_PATH, 'utf-8');
     // The Filter button should be inside a form-control div with a label containing opacity-0 or invisible
-    assert.match(content, /opacity-0|invisible/, 'Filter button wrapper label should have invisible spacer class');
+    assert.match(
+      content,
+      /opacity-0|invisible/,
+      'Filter button wrapper label should have invisible spacer class'
+    );
   });
 });

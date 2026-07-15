@@ -44,7 +44,7 @@ test('ProductImportRowSchema rejects missing sku', () => {
   const row = { name_ro: 'No SKU', type: 'physical' };
   const parsed = ProductImportRowSchema.safeParse(row);
   assert.ok(!parsed.success, 'missing sku must fail');
-  const paths = parsed.error.issues.map(i => i.path.join('.'));
+  const paths = parsed.error.issues.map((i) => i.path.join('.'));
   assert.ok(paths.includes('sku'), 'error should reference sku');
 });
 
@@ -52,7 +52,7 @@ test('ProductImportRowSchema rejects missing name_ro', () => {
   const row = { sku: 'TEST-003', type: 'physical' };
   const parsed = ProductImportRowSchema.safeParse(row);
   assert.ok(!parsed.success);
-  const paths = parsed.error.issues.map(i => i.path.join('.'));
+  const paths = parsed.error.issues.map((i) => i.path.join('.'));
   assert.ok(paths.includes('name_ro'));
 });
 
@@ -60,7 +60,7 @@ test('ProductImportRowSchema rejects missing type', () => {
   const row = { sku: 'TEST-004', name_ro: 'Thing' };
   const parsed = ProductImportRowSchema.safeParse(row);
   assert.ok(!parsed.success);
-  const paths = parsed.error.issues.map(i => i.path.join('.'));
+  const paths = parsed.error.issues.map((i) => i.path.join('.'));
   assert.ok(paths.includes('type'));
 });
 
@@ -68,7 +68,7 @@ test('ProductImportRowSchema rejects invalid type value', () => {
   const row = { sku: 'TEST-005', name_ro: 'Thing', type: 'xyz' };
   const parsed = ProductImportRowSchema.safeParse(row);
   assert.ok(!parsed.success, 'type must be physical|digital');
-  const paths = parsed.error.issues.map(i => i.path.join('.'));
+  const paths = parsed.error.issues.map((i) => i.path.join('.'));
   assert.ok(paths.includes('type'));
 });
 
@@ -82,7 +82,7 @@ test('ProductImportRowSchema rejects vat_rate outside 0–1', () => {
   const row = { sku: 'TEST-006', name_ro: 'Thing', type: 'physical', vat_rate: '1.5' };
   const parsed = ProductImportRowSchema.safeParse(row);
   assert.ok(!parsed.success);
-  const paths = parsed.error.issues.map(i => i.path.join('.'));
+  const paths = parsed.error.issues.map((i) => i.path.join('.'));
   assert.ok(paths.includes('vat_rate'));
 });
 
@@ -90,7 +90,7 @@ test('ProductImportRowSchema rejects non-integer stock', () => {
   const row = { sku: 'TEST-007', name_ro: 'Thing', type: 'physical', stock: '12.5' };
   const parsed = ProductImportRowSchema.safeParse(row);
   assert.ok(!parsed.success);
-  const paths = parsed.error.issues.map(i => i.path.join('.'));
+  const paths = parsed.error.issues.map((i) => i.path.join('.'));
   assert.ok(paths.includes('stock'));
 });
 
@@ -105,11 +105,15 @@ test('ProductImportRowSchema allows empty stock (unlimited) and empty vat_rate',
 // ── PriceImportRowSchema ──
 
 test('PriceImportRowSchema accepts a valid price row', () => {
-  const parsed = PriceImportRowSchema.safeParse({ sku: 'TEST-001', currency: 'RON', price_net: '250.00' });
+  const parsed = PriceImportRowSchema.safeParse({
+    sku: 'TEST-001',
+    currency: 'RON',
+    price_net: '250.00',
+  });
   assert.ok(parsed.success);
   assert.strictEqual(parsed.data.sku, 'TEST-001');
   assert.strictEqual(parsed.data.currency, 'RON');
-  assert.strictEqual(parsed.data.price_net, 250.00);
+  assert.strictEqual(parsed.data.price_net, 250.0);
 });
 
 test('PriceImportRowSchema rejects missing sku', () => {
@@ -126,9 +130,13 @@ test('PriceImportRowSchema rejects missing price_net', () => {
 
 test('PriceImportRowSchema rejects non-positive price_net', () => {
   assert.ok(!PriceImportRowSchema.safeParse({ sku: 'X', currency: 'RON', price_net: '0' }).success);
-  assert.ok(!PriceImportRowSchema.safeParse({ sku: 'X', currency: 'RON', price_net: '-5' }).success);
+  assert.ok(
+    !PriceImportRowSchema.safeParse({ sku: 'X', currency: 'RON', price_net: '-5' }).success
+  );
 });
 
 test('PriceImportRowSchema rejects non-numeric price_net', () => {
-  assert.ok(!PriceImportRowSchema.safeParse({ sku: 'X', currency: 'RON', price_net: 'abc' }).success);
+  assert.ok(
+    !PriceImportRowSchema.safeParse({ sku: 'X', currency: 'RON', price_net: 'abc' }).success
+  );
 });

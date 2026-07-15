@@ -1,10 +1,18 @@
 import { test } from 'node:test';
 import { ensureLoader } from '../../../../../stubs/register.mjs';
-import { matrix, assert, createTestDb, seedMinimal, makeFakeSdk, makeCtx } from '../../../_matrix.ts';
+import {
+  matrix,
+  assert,
+  createTestDb,
+  seedMinimal,
+  makeFakeSdk,
+  makeCtx,
+} from '../../../_matrix.ts';
 import { insertFixture } from '../../../../../db/harness.ts';
 
 ensureLoader();
-const { runPut, runDelete } = await import('../../../../../../src/api/shop/public/cart/items/[itemId].ts');
+const { runPut, runDelete } =
+  await import('../../../../../../src/api/shop/public/cart/items/[itemId].ts');
 
 const URL = (itemId: string) => `http://localhost/api/plugins/shop/public/cart/items/${itemId}`;
 
@@ -16,17 +24,33 @@ async function seedCartWithItem(db: any, f: any, itemId = 'ci-1', qty = 2) {
   const sessionId = 'sess-test-1';
   const cartId = 'cart-test-1';
   await insertFixture(db, 'carts', {
-    id: cartId, session_id: sessionId, user_id: null,
-    applied_voucher_code: null, applied_referral_code: null,
-    converted_at: null, expires_at: expires, created_at: now, updated_at: now,
+    id: cartId,
+    session_id: sessionId,
+    user_id: null,
+    applied_voucher_code: null,
+    applied_referral_code: null,
+    converted_at: null,
+    expires_at: expires,
+    created_at: now,
+    updated_at: now,
   });
   await insertFixture(db, 'cart_items', {
-    id: itemId, cart_id: cartId, product_id: f.simpleProductId, variant_id: null, quantity: qty,
+    id: itemId,
+    cart_id: cartId,
+    product_id: f.simpleProductId,
+    variant_id: null,
+    quantity: qty,
   });
   return { cartId, sessionId, itemId };
 }
 
-function ctxWithCookie(url: string, sessionId: string, params: Record<string, string>, body?: any, method?: string) {
+function ctxWithCookie(
+  url: string,
+  sessionId: string,
+  params: Record<string, string>,
+  body?: any,
+  method?: string
+) {
   return makeCtx({
     url,
     method,

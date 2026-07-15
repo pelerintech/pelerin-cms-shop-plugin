@@ -19,7 +19,7 @@ const defaultLocale = shopConfig.defaultLocale;
 const attributes = await listAttributes(sdk.db, defaultLocale);
 
 // Fetch option counts for select-type attributes (via accessor per attribute)
-const selectAttributes = attributes.filter(a => a.type === 'select');
+const selectAttributes = attributes.filter((a) => a.type === 'select');
 const optionCounts = new Map<string, number>();
 for (const attr of selectAttributes) {
   const options = await listOptions(sdk.db, attr.id, defaultLocale);
@@ -27,7 +27,7 @@ for (const attr of selectAttributes) {
 }
 
 // Fetch assignment counts (via accessor)
-const attrIds = attributes.map(a => a.id);
+const attrIds = attributes.map((a) => a.id);
 const assignmentCounts = await countAssignmentsByAttributeIds(sdk.db, attrIds);
 
 const typeLabels: Record<string, string> = {
@@ -41,71 +41,93 @@ const typeLabels: Record<string, string> = {
 
 <AdminLayout title="Attributes" currentPath="/admin/plugins/shop/settings/attributes" user={user}>
   <div class="col-span-12">
-    <Breadcrumbs items={[
-      { label: 'Shop', href: '/admin/plugins/shop' },
-      { label: 'Settings', href: '/admin/plugins/shop/settings' },
-      { label: 'Attributes' },
-    ]} />
+    <Breadcrumbs
+      items={[
+        { label: 'Shop', href: '/admin/plugins/shop' },
+        { label: 'Settings', href: '/admin/plugins/shop/settings' },
+        { label: 'Attributes' },
+      ]}
+    />
 
     <div class="flex items-center justify-between mb-6">
       <div>
         <h1 class="text-2xl font-bold">Attributes</h1>
         <p class="text-base-content/60 mt-1">Global attribute definitions for products</p>
       </div>
-      <a href="/admin/plugins/shop/settings/attributes/new" class="btn btn-primary">New Attribute</a>
+      <a href="/admin/plugins/shop/settings/attributes/new" class="btn btn-primary">New Attribute</a
+      >
     </div>
 
     <div class="card bg-base-100 shadow-lg">
       <div class="card-body">
         {
-          attributes.length === 0
-            ? <p class="text-base-content/60">No attributes defined yet. Create one to get started.</p>
-            : <div class="overflow-x-auto">
-                <table class="table w-full">
-                  <thead>
+          attributes.length === 0 ? (
+            <p class="text-base-content/60">
+              No attributes defined yet. Create one to get started.
+            </p>
+          ) : (
+            <div class="overflow-x-auto">
+              <table class="table w-full">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Options</th>
+                    <th>Used by</th>
+                    <th>Sort</th>
+                    <th class="text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {attributes.map((attr) => (
                     <tr>
-                      <th>Name</th>
-                      <th>Type</th>
-                      <th>Options</th>
-                      <th>Used by</th>
-                      <th>Sort</th>
-                      <th class="text-right">Actions</th>
+                      <td class="font-medium">
+                        <a href={`/admin/plugins/shop/settings/attributes/${attr.id}`}>
+                          {attr.name}
+                        </a>
+                      </td>
+                      <td>
+                        <span class="badge badge-ghost badge-sm">
+                          {typeLabels[attr.type] || attr.type}
+                        </span>
+                      </td>
+                      <td>
+                        {attr.type === 'select' ? (
+                          <span class="text-sm">{optionCounts.get(attr.id) || 0} options</span>
+                        ) : (
+                          <span class="text-base-content/40">—</span>
+                        )}
+                      </td>
+                      <td>
+                        <span class="text-sm">
+                          {assignmentCounts.get(attr.id) || 0} product
+                          {assignmentCounts.get(attr.id) !== 1 ? 's' : ''}
+                        </span>
+                      </td>
+                      <td class="text-sm">{attr.sort_order}</td>
+                      <td class="text-right">
+                        <div class="join">
+                          <a
+                            href={`/admin/plugins/shop/settings/attributes/${attr.id}`}
+                            class="btn btn-sm join-item"
+                          >
+                            Edit
+                          </a>
+                          <button
+                            class="btn btn-sm btn-error join-item"
+                            data-delete-attribute={attr.id}
+                            data-attribute-name={attr.name}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {attributes.map(attr => (
-                      <tr>
-                        <td class="font-medium">
-                          <a href={`/admin/plugins/shop/settings/attributes/${attr.id}`}>{attr.name}</a>
-                        </td>
-                        <td>
-                          <span class="badge badge-ghost badge-sm">{typeLabels[attr.type] || attr.type}</span>
-                        </td>
-                        <td>
-                          {attr.type === 'select'
-                            ? <span class="text-sm">{optionCounts.get(attr.id) || 0} options</span>
-                            : <span class="text-base-content/40">—</span>
-                          }
-                        </td>
-                        <td>
-                          <span class="text-sm">{assignmentCounts.get(attr.id) || 0} product{assignmentCounts.get(attr.id) !== 1 ? 's' : ''}</span>
-                        </td>
-                        <td class="text-sm">{attr.sort_order}</td>
-                        <td class="text-right">
-                          <div class="join">
-                            <a href={`/admin/plugins/shop/settings/attributes/${attr.id}`} class="btn btn-sm join-item">Edit</a>
-                            <button
-                              class="btn btn-sm btn-error join-item"
-                              data-delete-attribute={attr.id}
-                              data-attribute-name={attr.name}
-                            >Delete</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
         }
       </div>
     </div>
@@ -113,11 +135,12 @@ const typeLabels: Record<string, string> = {
 </AdminLayout>
 
 <script is:inline>
-  document.querySelectorAll('[data-delete-attribute]').forEach(btn => {
+  document.querySelectorAll('[data-delete-attribute]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const id = btn.dataset.deleteAttribute;
       const name = btn.dataset.attributeName;
-      if (!confirm(`Delete attribute "${name}"? This will fail if it is assigned to any products.`)) return;
+      if (!confirm(`Delete attribute "${name}"? This will fail if it is assigned to any products.`))
+        return;
 
       const response = await fetch(`/api/plugins/shop/attributes/${id}`, {
         method: 'DELETE',

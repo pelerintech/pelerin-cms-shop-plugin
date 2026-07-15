@@ -11,10 +11,7 @@ test('src/db/schema.ts exists and uses sqliteTable from drizzle-orm/sqlite-core'
   );
   assert.ok(content.includes('sqliteTable'), 'schema.ts must use sqliteTable');
   // Must NOT import from astro:db — that would break tests
-  assert.ok(
-    !content.includes("from 'astro:db'"),
-    'schema.ts must NOT import from astro:db'
-  );
+  assert.ok(!content.includes("from 'astro:db'"), 'schema.ts must NOT import from astro:db');
 });
 
 test('products table object is exported and is a real drizzle table with columns', () => {
@@ -29,10 +26,24 @@ test('products table object is exported and is a real drizzle table with columns
 test('schema.ts exports all expected table objects', async () => {
   const mod = await import('../../src/db/schema.ts');
   const expected = [
-    'shop_settings', 'categories', 'products', 'product_images', 'product_variants',
-    'product_attributes', 'product_attribute_options', 'product_attribute_assignments',
-    'product_attribute_values', 'product_prices', 'translations', 'carts', 'cart_items',
-    'orders', 'order_items', 'order_status_history', 'vouchers', 'referral_codes',
+    'shop_settings',
+    'categories',
+    'products',
+    'product_images',
+    'product_variants',
+    'product_attributes',
+    'product_attribute_options',
+    'product_attribute_assignments',
+    'product_attribute_values',
+    'product_prices',
+    'translations',
+    'carts',
+    'cart_items',
+    'orders',
+    'order_items',
+    'order_status_history',
+    'vouchers',
+    'referral_codes',
   ];
   for (const name of expected) {
     assert.ok(mod[name], `schema.ts must export ${name}`);
