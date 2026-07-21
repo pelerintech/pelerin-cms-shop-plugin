@@ -34,12 +34,12 @@ import { getSetting, getSettingBool, getSettingNumber, upsertSetting } from './s
 
 // ── Valid status transitions (state machine) ──
 const VALID_TRANSITIONS: Record<string, readonly string[]> = {
-  pending: ['awaiting_payment', 'cancelled'],
+  pending: ['awaiting_payment', 'cancelled', 'processing'],
   awaiting_payment: ['paid', 'cancelled', 'pending'],
   paid: ['processing', 'cancelled', 'refund_requested'],
   processing: ['shipped', 'cancelled'],
-  shipped: ['delivered'],
-  delivered: ['refund_requested', 'partially_refunded', 'refunded'],
+  shipped: ['delivered', 'paid'],
+  delivered: ['refund_requested', 'partially_refunded', 'refunded', 'paid'],
   partially_refunded: ['refunded', 'refund_requested'],
   refund_requested: ['refunded'],
   cancelled: [],
@@ -73,13 +73,30 @@ export class RestockError extends Error {
   }
 }
 
-export function validateTransition(fromStatus: string, toStatus: string): void {
+const OFFLINE_DEFERRED_TRANSITIONS = new Set([
+  'pending->processing',
+  'shipped->paid',
+  'delivered->paid',
+]);
+
+export function validateTransition(
+  fromStatus: string,
+  toStatus: string,
+  paymentProvider?: string | null
+): void {
   if (fromStatus === toStatus) {
     throw new OrderTransitionError(`Cannot transition to the same status: ${fromStatus}`);
   }
   const allowed = VALID_TRANSITIONS[fromStatus];
   if (!allowed || !allowed.includes(toStatus)) {
     throw new OrderTransitionError(`Invalid status transition: ${fromStatus} → ${toStatus}`);
+  }
+  // Gate offline-deferred transitions to ramburs only
+  const key = `${fromStatus}->${toStatus}`;
+  if (OFFLINE_DEFERRED_TRANSITIONS.has(key) && paymentProvider !== 'ramburs') {
+    throw new OrderTransitionError(
+      `Transition ${fromStatus} → ${toStatus} is only allowed for ramburs orders`
+    );
   }
 }
 
@@ -326,7 +343,7 @@ export async function transitionOrderStatus(
     return;
   }
 
-  validateTransition(fromStatus, toStatus);
+  validateTransition(fromStatus, toStatus, order.payment_provider);
 
   await db.update(orders).set({ status: toStatus, updated_at: now }).where(eq(orders.id, orderId));
   await db.insert(order_status_history).values({

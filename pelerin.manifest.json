@@ -6,7 +6,10 @@
   "dbSeed": "./src/db/seed.ts",
   "publicPages": [],
   "adminPages": [
-    { "pattern": "/admin/plugins/shop", "entrypoint": "./src/pages/admin/index.astro" },
+    {
+      "pattern": "/admin/plugins/shop",
+      "entrypoint": "./src/pages/admin/index.astro"
+    },
     {
       "pattern": "/admin/plugins/shop/products",
       "entrypoint": "./src/pages/admin/products/index.astro"
@@ -31,7 +34,10 @@
       "pattern": "/admin/plugins/shop/categories/[id]",
       "entrypoint": "./src/pages/admin/categories/[id].astro"
     },
-    { "pattern": "/admin/plugins/shop/carts", "entrypoint": "./src/pages/admin/carts/index.astro" },
+    {
+      "pattern": "/admin/plugins/shop/carts",
+      "entrypoint": "./src/pages/admin/carts/index.astro"
+    },
     {
       "pattern": "/admin/plugins/shop/orders",
       "entrypoint": "./src/pages/admin/orders/index.astro"
@@ -99,6 +105,10 @@
     {
       "pattern": "/admin/plugins/shop/import",
       "entrypoint": "./src/pages/admin/import/index.astro"
+    },
+    {
+      "pattern": "/admin/plugins/shop/settings/payments/bank-transfer",
+      "entrypoint": "./src/pages/admin/settings/payments/bank-transfer.astro"
     }
   ],
   "apiEndpoints": [
@@ -142,7 +152,10 @@
       "pattern": "/api/plugins/shop/variants/[variantId]/attribute-values",
       "entrypoint": "./src/api/shop/variants/[variantId]/attribute-values.ts"
     },
-    { "pattern": "/api/plugins/shop/vouchers", "entrypoint": "./src/api/shop/vouchers/index.ts" },
+    {
+      "pattern": "/api/plugins/shop/vouchers",
+      "entrypoint": "./src/api/shop/vouchers/index.ts"
+    },
     {
       "pattern": "/api/plugins/shop/vouchers/[id]",
       "entrypoint": "./src/api/shop/vouchers/[id].ts"
@@ -159,7 +172,10 @@
       "pattern": "/api/plugins/shop/public/categories",
       "entrypoint": "./src/api/shop/public/categories/index.ts"
     },
-    { "pattern": "/api/plugins/shop/products", "entrypoint": "./src/api/shop/products/index.ts" },
+    {
+      "pattern": "/api/plugins/shop/products",
+      "entrypoint": "./src/api/shop/products/index.ts"
+    },
     {
       "pattern": "/api/plugins/shop/products/[id]",
       "entrypoint": "./src/api/shop/products/[id].ts"
@@ -236,8 +252,14 @@
       "pattern": "/api/plugins/shop/public/checkout/[orderId]/pay",
       "entrypoint": "./src/api/shop/public/checkout/[orderId]/pay.ts"
     },
-    { "pattern": "/api/plugins/shop/carts", "entrypoint": "./src/api/shop/carts/index.ts" },
-    { "pattern": "/api/plugins/shop/carts/[id]", "entrypoint": "./src/api/shop/carts/[id].ts" },
+    {
+      "pattern": "/api/plugins/shop/carts",
+      "entrypoint": "./src/api/shop/carts/index.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/carts/[id]",
+      "entrypoint": "./src/api/shop/carts/[id].ts"
+    },
     {
       "pattern": "/api/plugins/shop/webhooks/stripe",
       "entrypoint": "./src/api/shop/webhooks/stripe.ts"
@@ -266,8 +288,14 @@
       "pattern": "/api/plugins/shop/settings/currencies",
       "entrypoint": "./src/api/shop/settings/currencies.ts"
     },
-    { "pattern": "/api/plugins/shop/orders", "entrypoint": "./src/api/shop/orders/index.ts" },
-    { "pattern": "/api/plugins/shop/orders/[id]", "entrypoint": "./src/api/shop/orders/[id].ts" },
+    {
+      "pattern": "/api/plugins/shop/orders",
+      "entrypoint": "./src/api/shop/orders/index.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/orders/[id]",
+      "entrypoint": "./src/api/shop/orders/[id].ts"
+    },
     {
       "pattern": "/api/plugins/shop/orders/[id]/status",
       "entrypoint": "./src/api/shop/orders/[id]/status.ts"
@@ -315,23 +343,71 @@
     {
       "pattern": "/api/plugins/shop/settings/payments/euplatesc/test-result",
       "entrypoint": "./src/api/shop/settings/payments/euplatesc/test-result.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/settings/payments/bank-transfer",
+      "entrypoint": "./src/api/shop/settings/payments/bank-transfer.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/settings/payments/ramburs",
+      "entrypoint": "./src/api/shop/settings/payments/ramburs.ts"
     }
   ],
   "navItems": [
-    { "label": "Shop", "href": "/admin/plugins/shop", "icon": "shopping-cart" },
-    { "label": "Products", "href": "/admin/plugins/shop/products", "icon": "package" },
-    { "label": "Categories", "href": "/admin/plugins/shop/categories", "icon": "tag" },
-    { "label": "Orders", "href": "/admin/plugins/shop/orders", "icon": "clipboard-list" },
-    { "label": "Vouchers", "href": "/admin/plugins/shop/vouchers", "icon": "ticket" },
-    { "label": "Referral Codes", "href": "/admin/plugins/shop/referral-codes", "icon": "link" },
-    { "label": "Carts", "href": "/admin/plugins/shop/carts", "icon": "shopping-cart" },
-    { "label": "Payments", "href": "/admin/plugins/shop/settings/payments", "icon": "credit-card" },
+    {
+      "label": "Shop",
+      "href": "/admin/plugins/shop",
+      "icon": "shopping-cart"
+    },
+    {
+      "label": "Products",
+      "href": "/admin/plugins/shop/products",
+      "icon": "package"
+    },
+    {
+      "label": "Categories",
+      "href": "/admin/plugins/shop/categories",
+      "icon": "tag"
+    },
+    {
+      "label": "Orders",
+      "href": "/admin/plugins/shop/orders",
+      "icon": "clipboard-list"
+    },
+    {
+      "label": "Vouchers",
+      "href": "/admin/plugins/shop/vouchers",
+      "icon": "ticket"
+    },
+    {
+      "label": "Referral Codes",
+      "href": "/admin/plugins/shop/referral-codes",
+      "icon": "link"
+    },
+    {
+      "label": "Carts",
+      "href": "/admin/plugins/shop/carts",
+      "icon": "shopping-cart"
+    },
+    {
+      "label": "Payments",
+      "href": "/admin/plugins/shop/settings/payments",
+      "icon": "credit-card"
+    },
     {
       "label": "Attributes",
       "href": "/admin/plugins/shop/settings/attributes",
       "icon": "sliders-h"
     },
-    { "label": "Import", "href": "/admin/plugins/shop/import", "icon": "upload" },
-    { "label": "Settings", "href": "/admin/plugins/shop/settings/general", "icon": "cog" }
+    {
+      "label": "Import",
+      "href": "/admin/plugins/shop/import",
+      "icon": "upload"
+    },
+    {
+      "label": "Settings",
+      "href": "/admin/plugins/shop/settings/general",
+      "icon": "cog"
+    }
   ]
 }

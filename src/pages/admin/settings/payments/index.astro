@@ -44,6 +44,69 @@ const user = await sdk.auth.requireAdmin(Astro.request);
           </div>
         </div>
       </a>
+
+      <!-- Bank Transfer Card -->
+      <a
+        href="/admin/plugins/shop/settings/payments/bank-transfer"
+        class="card bg-base-200 hover:bg-base-300 transition-colors no-underline"
+      >
+        <div class="card-body">
+          <h2 class="card-title text-xl">🏦 Bank Transfer</h2>
+          <p class="text-base-content/70">Accept bank transfers (offline).</p>
+          <div class="card-actions justify-end mt-4">
+            <span class="btn btn-primary btn-sm">Configure</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- Ramburs Card (inline toggle) -->
+      <div class="card bg-base-200">
+        <div class="card-body">
+          <h2 class="card-title text-xl">💵 Ramburs</h2>
+          <p class="text-base-content/70">Cash or card on delivery / pickup (offline).</p>
+          <div class="card-actions justify-start mt-4">
+            <label class="label cursor-pointer gap-3">
+              <span class="label-text" id="ramburs-status">Loading...</span>
+              <input type="checkbox" id="ramburs-toggle" class="toggle toggle-primary" />
+            </label>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </AdminLayout>
+
+<script>
+  const toggle = document.getElementById('ramburs-toggle') as HTMLInputElement;
+  const statusEl = document.getElementById('ramburs-status') as HTMLSpanElement;
+
+  // Default: ramburs enabled (toggle on). The API endpoint confirms the state.
+  toggle.checked = true;
+  statusEl.textContent = 'Enabled (default)';
+
+  toggle.addEventListener('change', async () => {
+    const enabled = toggle.checked;
+    toggle.disabled = true;
+    statusEl.textContent = enabled ? 'Enabling...' : 'Disabling...';
+
+    try {
+      const res = await fetch('/api/plugins/shop/settings/payments/ramburs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      });
+      const b = await res.json();
+      if (b.success) {
+        statusEl.textContent = enabled ? 'Enabled' : 'Disabled';
+      } else {
+        toggle.checked = !enabled;
+        statusEl.textContent = 'Error';
+      }
+    } catch {
+      toggle.checked = !enabled;
+      statusEl.textContent = 'Error';
+    } finally {
+      toggle.disabled = false;
+    }
+  });
+</script>

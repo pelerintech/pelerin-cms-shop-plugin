@@ -50,7 +50,7 @@ test('accepts success_url and cancel_url, sets payment_provider', async () => {
       total: 6000,
       shipping_type: 'physical',
       status: 'awaiting_payment',
-      payment_provider: null,
+      payment_provider: 'euplatesc',
       payment_intent_id: null,
       transaction_id: null,
       voucher_code: null,
@@ -87,7 +87,6 @@ test('accepts success_url and cancel_url, sets payment_provider', async () => {
       url: URL,
       method: 'POST',
       body: {
-        provider: 'euplatesc',
         success_url: 'https://shop.example.com/success',
         cancel_url: 'https://shop.example.com/cart',
       },
@@ -99,11 +98,11 @@ test('accepts success_url and cancel_url, sets payment_provider', async () => {
     assert.equal(b.success, true);
     assert.ok(b.data?.redirect_url, 'should contain redirect_url');
 
-    // Verify payment_provider was set
+    // Verify payment_provider on order (should be unchanged)
     const { orders } = await import('../../../../../../src/db/schema.ts');
     const { eq } = await import('drizzle-orm');
     const [order] = await db.select().from(orders).where(eq(orders.id, 'order-1'));
-    assert.equal(order.payment_provider, 'euplatesc', 'payment_provider should be set');
+    assert.equal(order.payment_provider, 'euplatesc', 'payment_provider should be unchanged');
 
     // Verify redirect URL contains the correct ExtraData URLs (URL-encoded)
     const redirectUrlStr = b.data.redirect_url;
@@ -126,7 +125,7 @@ test('missing success_url/cancel_url → 422', async () => {
     const ctx = makeCtx({
       url: URL,
       method: 'POST',
-      body: { provider: 'euplatesc' },
+      body: {},
       params: { orderId: 'order-1' },
     });
     const res = await payMod.runPost({ db, sdk, ctx });

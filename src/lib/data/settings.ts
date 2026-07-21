@@ -169,3 +169,29 @@ export async function upsertSettingTyped(
   const serialized = typeof value === 'string' ? value : String(value);
   await upsertSetting(db, key, serialized);
 }
+
+/**
+ * Return the set of payment provider names that are currently enabled,
+ * derived from shop_settings. This is the DB-driven, future-proof
+ * alternative to iterating the in-memory provider registry.
+ *
+ * Rules match each provider's isConfigured() exactly:
+ *  stripe:   stripe_secret_key present
+ *  euplatesc: euplatesc_merchant_id + euplatesc_secret_key both present
+ *  bank_transfer: bank_transfer_beneficiary + bank_transfer_iban both present
+ *  ramburs:  ramburs_enabled !== 'false' (absent = true)
+ */
+export async function listEnabledPaymentProviders(db: LibSQLDatabase): Promise<string[]> {
+  const rows = await db.select().from(shop_settings);
+  const map = new Map(rows.map((r) => [r.key, r.value]));
+  const enabled: string[] = [];
+
+  if (map.get('stripe_secret_key')) enabled.push('stripe');
+  if (map.get('euplatesc_merchant_id') && map.get('euplatesc_secret_key'))
+    enabled.push('euplatesc');
+  if (map.get('bank_transfer_beneficiary') && map.get('bank_transfer_iban'))
+    enabled.push('bank_transfer');
+  if (map.get('ramburs_enabled') !== 'false') enabled.push('ramburs');
+
+  return enabled;
+}
