@@ -12,7 +12,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { ensureLoader } from '../../stubs/register.mjs';
-import { createTestDb, seedMinimal, buildOrderRow, orders, order_status_history } from '../../db/harness.ts';
+import {
+  createTestDb,
+  seedMinimal,
+  buildOrderRow,
+  orders,
+  order_status_history,
+} from '../../db/harness.ts';
 import { eq } from 'drizzle-orm';
 import {
   validateTransition,
@@ -211,22 +217,38 @@ test('full ramburs lifecycle chain produces four history rows', async () => {
 
     // Step 1: pending → processing
     await transitionOrderStatus(db, order.id, 'processing');
-    let updated = await db.select().from(orders).where(eq(orders.id, order.id)).then(r => r[0]);
+    let updated = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.id, order.id))
+      .then((r) => r[0]);
     assert.equal(updated.status, 'processing');
 
     // Step 2: processing → shipped
     await transitionOrderStatus(db, order.id, 'shipped');
-    updated = await db.select().from(orders).where(eq(orders.id, order.id)).then(r => r[0]);
+    updated = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.id, order.id))
+      .then((r) => r[0]);
     assert.equal(updated.status, 'shipped');
 
     // Step 3: shipped → delivered
     await transitionOrderStatus(db, order.id, 'delivered');
-    updated = await db.select().from(orders).where(eq(orders.id, order.id)).then(r => r[0]);
+    updated = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.id, order.id))
+      .then((r) => r[0]);
     assert.equal(updated.status, 'delivered');
 
     // Step 4: delivered → paid
     await transitionOrderStatus(db, order.id, 'paid');
-    updated = await db.select().from(orders).where(eq(orders.id, order.id)).then(r => r[0]);
+    updated = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.id, order.id))
+      .then((r) => r[0]);
     assert.equal(updated.status, 'paid');
 
     // Assert four history rows were created
