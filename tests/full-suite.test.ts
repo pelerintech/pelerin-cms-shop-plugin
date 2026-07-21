@@ -30,6 +30,7 @@ const TEST_FILES = [
   'tests/lib/data/restock.test.ts',
   'tests/lib/data/refund-accessor.test.ts',
   'tests/lib/data/order-number-unique.test.ts',
+  'tests/lib/data/public-products.test.ts',
   'tests/lib/data/unique-constraints.test.ts',
   'tests/lib/data/settings-typed.test.ts',
   'tests/lib/data/delete-product-cascade.test.ts',

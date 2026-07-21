@@ -24,6 +24,7 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       page: parseInt(url.searchParams.get('page') ?? '1') || 1,
       limit: parseInt(url.searchParams.get('limit') ?? '20') || 20,
       locale: url.searchParams.get('locale') || config.defaultLocale,
+      defaultLocale: config.defaultLocale,
       category_id: url.searchParams.get('category_id') ?? undefined,
       active:
         url.searchParams.get('active') !== null

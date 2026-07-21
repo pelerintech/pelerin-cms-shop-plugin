@@ -27,10 +27,13 @@ for (const c of catList) {
   categoryNameMap.set(c.id, c.name);
 }
 
-// Use accessor for paginated list with filters
+// Use accessor for paginated list with filters. Pass defaultLocale so the
+// accessor skips re-fetching shop config (we already have it above).
 const result = await listProducts(sdk.db, {
   category_id: filterCategory || undefined,
   active: filterActive === 'true' ? true : filterActive === 'false' ? false : undefined,
+  locale: shopConfig.defaultLocale,
+  defaultLocale: shopConfig.defaultLocale,
   page,
   limit,
 });

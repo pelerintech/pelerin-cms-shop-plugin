@@ -1,7 +1,11 @@
 import { test } from 'node:test';
 import { ensureLoader } from '../../../../stubs/register.mjs';
 import { matrix, assert, createTestDb, seedMinimal, makeFakeSdk, makeCtx } from '../../_matrix.ts';
-import { categories, translations as harnessTranslations } from '../../../../db/harness.ts';
+import {
+  categories,
+  insertFixture,
+  translations as harnessTranslations,
+} from '../../../../db/harness.ts';
 
 ensureLoader();
 const { runGet } = await import('../../../../../src/api/shop/public/products/index.ts');
@@ -25,6 +29,84 @@ test('GET error-wrap → 500', () =>
 
 // ── Slug resolution scenarios ──
 
+// ── Pagination scenarios ──
+
+test('GET with ?page=1&limit=5 returns paginated response with total, page, limit', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: buildUrl({ page: '1', limit: '5', currency: 'RON', locale: 'ro' }),
+    });
+    const res = await runGet({ db, sdk, ctx });
+    assert.equal(res.status, 200);
+    const b = await res.json();
+    assert.equal(b.success, true);
+    assert.equal(b.page, 1, 'page should be 1');
+    assert.equal(b.limit, 5, 'limit should be 5');
+    assert.equal(typeof b.total, 'number', 'total should be a number');
+    assert.ok(b.total > 0, 'total should be > 0');
+    assert.ok(Array.isArray(b.data), 'data should be an array');
+    assert.ok(b.data.length <= 5, 'data should have at most 5 items');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('GET with ?limit=999 caps at 100', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: buildUrl({ limit: '999', currency: 'RON', locale: 'ro' }),
+    });
+    const res = await runGet({ db, sdk, ctx });
+    assert.equal(res.status, 200);
+    const b = await res.json();
+    assert.equal(b.limit, 100, 'limit should be capped at 100');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('GET with ?page=2&limit=1 returns second page', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: buildUrl({ page: '2', limit: '1', currency: 'RON', locale: 'ro' }),
+    });
+    const res = await runGet({ db, sdk, ctx });
+    assert.equal(res.status, 200);
+    const b = await res.json();
+    assert.equal(b.page, 2);
+    assert.equal(b.limit, 1);
+    assert.ok(b.data.length <= 1, 'second page should have at most 1 item');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('GET with ?page=0 defaults page to 1', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: buildUrl({ page: '0', currency: 'RON', locale: 'ro' }),
+    });
+    const res = await runGet({ db, sdk, ctx });
+    assert.equal(res.status, 200);
+    const b = await res.json();
+    assert.equal(b.page, 1, 'page 0 should default to 1');
+  } finally {
+    await cleanup();
+  }
+});
+
 test('GET products ?slug=programming-book&locale=en&currency=RON → 200, single object with localized name/description', async () => {
   const { db, cleanup } = await createTestDb();
   try {
@@ -46,6 +128,7 @@ test('GET products ?slug=programming-book&locale=en&currency=RON → 200, single
       'An excellent book',
       'description should be localized from translation'
     );
+    assert.ok(Array.isArray(b.data.images), 'slug response should have images array');
   } finally {
     await cleanup();
   }

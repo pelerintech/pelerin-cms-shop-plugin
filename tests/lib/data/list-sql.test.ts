@@ -221,6 +221,49 @@ test('listProducts active filter pushes to SQL', async () => {
   }
 });
 
+test('listProducts defaultLocale param skips redundant getShopConfig and matches the fetch path (parity)', async () => {
+  // Callers that already hold a ShopConfig (API handlers, admin pages) pass
+  // `defaultLocale` so the accessor doesn't re-fetch shop settings. This test
+  // asserts the two paths converge on identical results, for both the default
+  // locale and a non-default locale (translation overlay branch).
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+
+    for (const locale of ['ro', 'en']) {
+      // Path A: caller passes defaultLocale (skips getShopConfig inside).
+      const withParam = await listProducts(db, { locale, defaultLocale: 'ro', limit: 50 });
+      // Path B: caller omits defaultLocale (accessor fetches it via getShopConfig).
+      const withoutParam = await listProducts(db, { locale, limit: 50 });
+
+      assert.strictEqual(withParam.total, withoutParam.total, `total matches for locale=${locale}`);
+      assert.strictEqual(withParam.page, withoutParam.page, `page matches for locale=${locale}`);
+      assert.strictEqual(withParam.limit, withoutParam.limit, `limit matches for locale=${locale}`);
+      assert.strictEqual(
+        withParam.products.length,
+        withoutParam.products.length,
+        `product count matches for locale=${locale}`
+      );
+      // Row-level parity (same ids, same localized name/slug/description).
+      const a = withParam.products.map((p: any) => p.id).sort();
+      const b = withoutParam.products.map((p: any) => p.id).sort();
+      assert.deepStrictEqual(a, b, `product ids match for locale=${locale}`);
+      for (const p of withParam.products) {
+        const q = withoutParam.products.find((x: any) => x.id === p.id)!;
+        assert.strictEqual(p.name, q.name, `name matches for ${p.id} locale=${locale}`);
+        assert.strictEqual(p.slug, q.slug, `slug matches for ${p.id} locale=${locale}`);
+        assert.strictEqual(
+          p.description,
+          q.description,
+          `description matches for ${p.id} locale=${locale}`
+        );
+      }
+    }
+  } finally {
+    await cleanup();
+  }
+});
+
 // ── listCarts / listVouchers / listReferrals (array shape preserved; WHERE/ORDER in SQL) ──
 
 test('listCarts pushes userId + abandonedSince filters to SQL (array shape preserved)', async () => {
