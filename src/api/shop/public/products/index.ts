@@ -2,56 +2,13 @@ import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import {
   listProducts,
-  getProductWithPrices,
   resolveProductBySlug,
   resolveCategoryBySlug,
   SlugCollisionError,
 } from '../../../../lib/data/products';
+import { batchEnrichPublicProducts } from '../../../../lib/data/public-products';
 import { getShopConfig } from '../../../../lib/data/settings';
 import type { HandlerDeps } from '../../../../lib/handler-types';
-
-function computeGross(
-  priceNet: number,
-  vatRate: number | null
-): {
-  price_net: number;
-  price_gross: number;
-  vat_amount: number;
-} {
-  const effectiveVatRate = vatRate ?? 0;
-  const gross = Math.round(priceNet * (1 + effectiveVatRate) * 100) / 100;
-  return {
-    price_net: priceNet,
-    price_gross: gross,
-    vat_amount: Math.round((gross - priceNet) * 100) / 100,
-  };
-}
-
-async function enrichProduct(
-  db: any,
-  p: any,
-  locale: string,
-  currency: string
-): Promise<any | null> {
-  const withPrices = await getProductWithPrices(db, p.id, locale);
-  if (!withPrices) return null;
-  const price = withPrices.prices.find((pr) => pr.currency === currency);
-  if (!price) return null;
-  return {
-    id: p.id,
-    sku: p.sku,
-    name: withPrices.name,
-    description: withPrices.description,
-    slug: withPrices.slug,
-    type: p.type,
-    has_variants: p.has_variants,
-    vat_rate: p.vat_rate,
-    stock: p.stock,
-    category_id: p.category_id,
-    ...computeGross(price.price_net, p.vat_rate),
-    currency,
-  };
-}
 
 export const GET: APIRoute = (context) => {
   const sdk = createPluginContext();
@@ -68,7 +25,7 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     const categorySlug = url.searchParams.get('categorySlug');
     const categoryId = url.searchParams.get('categoryId') || undefined;
 
-    // Slug resolution mode: return a single product.
+    // Slug resolution mode: return a single enriched product.
     if (slug) {
       const result = await resolveProductBySlug(db, slug, locale);
       if (result === null) {
@@ -83,14 +40,14 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
           { status: 409, headers: { 'Content-Type': 'application/json' } }
         );
       }
-      const enriched = await enrichProduct(db, result.product, locale, currency);
-      if (!enriched) {
+      const enriched = await batchEnrichPublicProducts(db, [result.product], { currency, sdk });
+      if (enriched.length === 0) {
         return new Response(JSON.stringify({ success: false, error: 'Product not found' }), {
           status: 404,
           headers: { 'Content-Type': 'application/json' },
         });
       }
-      return new Response(JSON.stringify({ success: true, data: enriched }), {
+      return new Response(JSON.stringify({ success: true, data: enriched[0] }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -115,41 +72,35 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       resolvedCategoryId = catResult.category.id;
     }
 
-    // List mode.
+    // Pagination params (default page=1, limit=20, max 100).
+    const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1') || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') ?? '20') || 20));
+
+    // List mode with pagination.
     const result = await listProducts(db, {
-      page: 1,
-      limit: 100,
+      page,
+      limit,
       locale,
+      defaultLocale: config.defaultLocale,
       category_id: resolvedCategoryId,
       active: true,
     });
 
-    const enriched: any[] = [];
-    for (const p of result.products) {
-      const withPrices = await getProductWithPrices(db, p.id, locale);
-      if (!withPrices) continue;
-      const price = withPrices.prices.find((pr) => pr.currency === currency);
-      if (!price) continue;
-      enriched.push({
-        id: p.id,
-        sku: p.sku,
-        name: withPrices.name,
-        description: withPrices.description,
-        slug: withPrices.slug,
-        type: p.type,
-        has_variants: p.has_variants,
-        vat_rate: p.vat_rate,
-        stock: p.stock,
-        category_id: p.category_id,
-        ...computeGross(price.price_net, p.vat_rate),
-        currency,
-      });
-    }
+    const enriched = await batchEnrichPublicProducts(db, result.products, { currency, sdk });
 
-    return new Response(JSON.stringify({ success: true, data: enriched }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data: enriched,
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   } catch (err: any) {
     if (err instanceof SlugCollisionError) {
       return new Response(

@@ -40,6 +40,12 @@ export interface ListProductsOptions {
   page?: number;
   limit?: number;
   locale?: string;
+  /** The shop's default locale, used to resolve `locale` when omitted and to
+   * decide whether the translation overlay applies. Callers that already hold
+   * a `ShopConfig` (e.g. an API handler that read it for `defaultCurrency`)
+   * should pass this to avoid a redundant `getShopConfig` fetch inside this
+   * function. When omitted, `getShopConfig` is called to fetch it. */
+  defaultLocale?: string;
   category_id?: string;
   active?: boolean;
   search?: string;
@@ -58,8 +64,10 @@ export async function listProducts(
 ): Promise<ListProductsResult> {
   const page = Math.max(1, opts.page ?? 1);
   const limit = Math.min(100, Math.max(1, opts.limit ?? 20));
-  const config = await getShopConfig(db);
-  const locale = opts.locale ?? config.defaultLocale;
+  // Avoid a redundant getShopConfig fetch when the caller already knows the
+  // default locale (e.g. API handlers that read shop config for currency).
+  const defaultLocale = opts.defaultLocale ?? (await getShopConfig(db)).defaultLocale;
+  const locale = opts.locale ?? defaultLocale;
 
   // Build WHERE in SQL (r17 Task 9) — no full-table load.
   const conditions: any[] = [];
@@ -89,7 +97,7 @@ export async function listProducts(
   // column (a vestige — set false on create, overridden at read).
   await applyDerivedHasVariants(db, paged);
 
-  if (productIds.length > 0 && locale !== config.defaultLocale) {
+  if (productIds.length > 0 && locale !== defaultLocale) {
     const transRows = await db
       .select()
       .from(translations)
