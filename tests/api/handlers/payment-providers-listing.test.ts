@@ -1,5 +1,5 @@
 /**
- * Tests for the DB-driven GET /api/plugins/shop/payment-providers endpoint.
+ * Tests for the DB-driven GET /api/plugins/shop/public/payment-providers endpoint.
  *
  * The endpoint reads the enabled set from shop_settings via
  * listEnabledPaymentProviders(db), NOT from the in-memory provider registry.
@@ -22,9 +22,9 @@ ensureLoader();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const HANDLER_PATH = resolve(__dirname, '../../../src/api/shop/payment-providers/index.ts');
+const HANDLER_PATH = resolve(__dirname, '../../../src/api/shop/public/payment-providers/index.ts');
 
-describe('GET /api/plugins/shop/payment-providers — DB-driven listing', () => {
+describe('GET /api/plugins/shop/public/payment-providers — DB-driven listing', () => {
   let db: LibSQLDatabase;
   let runGet: (opts: any) => Promise<Response>;
 
@@ -32,7 +32,7 @@ describe('GET /api/plugins/shop/payment-providers — DB-driven listing', () => 
     const harness = await createTestDb();
     db = harness.db;
     await resetDb(db);
-    const mod = await import('../../../src/api/shop/payment-providers/index.ts');
+    const mod = await import('../../../src/api/shop/public/payment-providers/index.ts');
     runGet = mod.runGet;
   });
 

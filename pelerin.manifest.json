@@ -325,8 +325,8 @@
       "entrypoint": "./src/api/shop/import/prices.ts"
     },
     {
-      "pattern": "/api/plugins/shop/payment-providers",
-      "entrypoint": "./src/api/shop/payment-providers/index.ts"
+      "pattern": "/api/plugins/shop/public/payment-providers",
+      "entrypoint": "./src/api/shop/public/payment-providers/index.ts"
     },
     {
       "pattern": "/api/plugins/shop/orders/[id]/create-payment",

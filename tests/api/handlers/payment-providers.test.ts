@@ -33,7 +33,7 @@ describe('GET /payment-providers — DB-driven listing (legacy regression)', () 
       { id: 's2', key: 'euplatesc_secret_key', value: 'AA4A81EE58A1D74DE6E02DF2C1CE9982780F95DC' },
     ]);
 
-    const { runGet } = await import('../../../src/api/shop/payment-providers/index.ts');
+    const { runGet } = await import('../../../src/api/shop/public/payment-providers/index.ts');
 
     const fakeCtx = {
       params: {},
@@ -58,7 +58,7 @@ describe('GET /payment-providers — DB-driven listing (legacy regression)', () 
   });
 
   it('returns 200 (no auth required — public endpoint)', async () => {
-    const { runGet } = await import('../../../src/api/shop/payment-providers/index.ts');
+    const { runGet } = await import('../../../src/api/shop/public/payment-providers/index.ts');
 
     const fakeCtx = {
       params: {},
@@ -68,6 +68,8 @@ describe('GET /payment-providers — DB-driven listing (legacy regression)', () 
     const fakeSdk = { auth: {} };
 
     const response = await runGet({ db, sdk: fakeSdk, ctx: fakeCtx });
-    assert.strictEqual(response.status, 200, 'Public endpoint must return 200 without auth');
+    assert.strictEqual(response.status, 200);
+    const data = await response.json();
+    assert.strictEqual(data.success, true);
   });
 });

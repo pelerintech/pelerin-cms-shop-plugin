@@ -1,7 +1,7 @@
 /**
  * Payment providers listing endpoint — DB-driven, no in-memory registry.
  *
- * GET /api/plugins/shop/payment-providers
+ * GET /api/plugins/shop/public/payment-providers
  * Returns the set of currently-enabled payment methods, derived from
  * shop_settings via listEnabledPaymentProviders(db).
  *
@@ -13,8 +13,8 @@
  */
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import type { HandlerDeps } from '../../../lib/handler-types';
-import { listEnabledPaymentProviders } from '../../../lib/data/settings';
+import type { HandlerDeps } from '../../../../lib/handler-types';
+import { listEnabledPaymentProviders } from '../../../../lib/data/settings';
 
 export const GET: APIRoute = (context) => {
   const sdk = createPluginContext();
