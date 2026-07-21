@@ -55,6 +55,7 @@ function validCheckoutBody() {
     shipping_country: null,
     currency: 'RON',
     referral_code: null,
+    provider: 'ramburs',
   };
 }
 

@@ -62,6 +62,7 @@ function validCheckoutBody() {
     shipping_country: null,
     currency: 'RON',
     referral_code: null,
+    provider: 'ramburs',
   };
 }
 
@@ -80,7 +81,7 @@ async function seedStripeCredentials(db: any) {
     .values([{ id: 's-stripe-key', key: 'stripe_secret_key', value: 'sk_test_fake_key' }]);
 }
 
-test('only euPlatesc configured → payment_providers is ["euplatesc"]', async () => {
+test('only euPlatesc configured → payment_providers includes euplatesc and ramburs', async () => {
   const { db, cleanup } = await createTestDb();
   try {
     const f = await seedMinimal(db);
@@ -98,17 +99,15 @@ test('only euPlatesc configured → payment_providers is ["euplatesc"]', async (
     assert.equal(res.status, 201);
     const b = await res.json();
     assert.equal(b.success, true);
-    assert.deepStrictEqual(
-      b.data.payment_providers,
-      ['euplatesc'],
-      'should only list euPlatesc, not Stripe'
-    );
+    assert.ok(b.data.payment_providers.includes('euplatesc'));
+    assert.ok(b.data.payment_providers.includes('ramburs'));
+    assert.ok(!b.data.payment_providers.includes('stripe'));
   } finally {
     await cleanup();
   }
 });
 
-test('only Stripe configured → payment_providers is ["stripe"]', async () => {
+test('only Stripe configured → payment_providers includes stripe and ramburs', async () => {
   const { db, cleanup } = await createTestDb();
   try {
     const f = await seedMinimal(db);
@@ -126,17 +125,15 @@ test('only Stripe configured → payment_providers is ["stripe"]', async () => {
     assert.equal(res.status, 201);
     const b = await res.json();
     assert.equal(b.success, true);
-    assert.deepStrictEqual(
-      b.data.payment_providers,
-      ['stripe'],
-      'should only list Stripe, not euPlatesc'
-    );
+    assert.ok(b.data.payment_providers.includes('stripe'));
+    assert.ok(b.data.payment_providers.includes('ramburs'));
+    assert.ok(!b.data.payment_providers.includes('euplatesc'));
   } finally {
     await cleanup();
   }
 });
 
-test('both configured → payment_providers has both', async () => {
+test('both configured → payment_providers includes stripe, euplatesc, and ramburs', async () => {
   const { db, cleanup } = await createTestDb();
   try {
     const f = await seedMinimal(db);
@@ -154,15 +151,15 @@ test('both configured → payment_providers has both', async () => {
     assert.equal(res.status, 201);
     const b = await res.json();
     assert.equal(b.success, true);
-    assert.ok(Array.isArray(b.data.payment_providers));
     assert.ok(b.data.payment_providers.includes('stripe'));
     assert.ok(b.data.payment_providers.includes('euplatesc'));
+    assert.ok(b.data.payment_providers.includes('ramburs'));
   } finally {
     await cleanup();
   }
 });
 
-test('none configured → payment_providers is empty array', async () => {
+test('none configured → payment_providers has only ramburs (default enabled)', async () => {
   const { db, cleanup } = await createTestDb();
   try {
     const f = await seedMinimal(db);
@@ -179,11 +176,7 @@ test('none configured → payment_providers is empty array', async () => {
     assert.equal(res.status, 201);
     const b = await res.json();
     assert.equal(b.success, true);
-    assert.deepStrictEqual(
-      b.data.payment_providers,
-      [],
-      'should be empty when no providers configured'
-    );
+    assert.deepStrictEqual(b.data.payment_providers, ['ramburs'], 'ramburs is enabled by default');
   } finally {
     await cleanup();
   }

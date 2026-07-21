@@ -9,13 +9,15 @@ import {
 import { createOrder } from '../../../../lib/data/orders';
 import { getVoucherByCode, incrementVoucherUsage } from '../../../../lib/data/vouchers';
 import { computeCartTotals } from '../../../../lib/cart-totals';
-import { getShopConfig } from '../../../../lib/data/settings';
+import { getShopConfig, getSetting } from '../../../../lib/data/settings';
 import { z } from 'zod';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 import { listProviders } from '../../../../providers/payment/registry';
 // Import provider modules to ensure they are registered
 import '../../../../providers/payment/stripe';
 import '../../../../providers/payment/euplatesc';
+import '../../../../providers/payment/bank_transfer';
+import '../../../../providers/payment/ramburs';
 
 const CheckoutSchema = z
   .object({
@@ -40,6 +42,7 @@ const CheckoutSchema = z
     shipping_country: z.string().nullable().default(null),
     currency: z.string().min(1).optional(),
     referral_code: z.string().nullable().default(null),
+    provider: z.string().min(1, { message: 'provider is required' }),
   })
   .superRefine((data, ctx) => {
     if (data.customer_type === 'company') {
@@ -118,6 +121,28 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
 
     const data = parsed.data;
     const currency = data.currency ?? config.defaultCurrency;
+
+    // Validate the provider against the runtime configured list
+    const configuredProviders = (
+      await Promise.all(
+        listProviders().map(async (p) => ({
+          name: p.name,
+          configured: await p.isConfigured(db),
+        }))
+      )
+    )
+      .filter((p) => p.configured)
+      .map((p) => p.name);
+
+    if (!configuredProviders.includes(data.provider)) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Payment provider "${data.provider}" is not available`,
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Stock re-validation via accessor
     try {
@@ -222,6 +247,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       shipping_vat_number: data.billing_vat_number,
       shipping_same_as_billing: data.shipping_same_as_billing,
       cart_id: cart.id,
+      payment_provider: data.provider,
       items: totals.items.map((line: any) => ({
         product_id: line.product_id,
         variant_id: line.variant_id,
@@ -244,14 +270,22 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (setCookie) headers['Set-Cookie'] = setCookie;
 
-    // Dynamic provider list — only include providers that are configured
-    const configuredProviders = (
-      await Promise.all(
-        listProviders().map(async (p) => ({ name: p.name, configured: await p.isConfigured(db) }))
-      )
-    )
-      .filter((p) => p.configured)
-      .map((p) => p.name);
+    // Build the payment response object
+    const payment: Record<string, any> = { provider: data.provider };
+    if (data.provider === 'bank_transfer') {
+      const ben = await getSetting(db, 'bank_transfer_beneficiary');
+      const iban = await getSetting(db, 'bank_transfer_iban');
+      const bankName = await getSetting(db, 'bank_transfer_bank_name');
+      const refNote = await getSetting(db, 'bank_transfer_reference_note');
+      const instructions: Record<string, any> = {
+        beneficiary: ben,
+        iban,
+        reference: order.order_number,
+      };
+      if (bankName) instructions.bank_name = bankName;
+      if (refNote) instructions.reference_note = refNote;
+      payment.instructions = instructions;
+    }
 
     return new Response(
       JSON.stringify({
@@ -261,6 +295,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
           order_number: order.order_number,
           totals,
           payment_providers: configuredProviders,
+          payment,
         },
       }),
       { status: 201, headers }

@@ -1,0 +1,160 @@
+---
+// Admin: Bank Transfer payment settings
+// Route: /admin/plugins/shop/settings/payments/bank-transfer
+import AdminLayout from 'pelerin:admin-layout';
+import { createPluginContext } from 'pelerin:plugin-sdk';
+
+const sdk = createPluginContext();
+const user = await sdk.auth.requireAdmin(Astro.request);
+---
+
+<AdminLayout
+  title="Bank Transfer Settings"
+  currentPath="/admin/plugins/shop/settings/payments/bank-transfer"
+  user={user}
+>
+  <div class="col-span-12 p-6">
+    <h1 class="text-2xl font-bold mb-6">Bank Transfer Settings</h1>
+
+    <form id="bank-transfer-settings-form" class="space-y-4">
+      <div class="form-control">
+        <label class="label" for="beneficiary">
+          <span class="label-text">Beneficiary <span class="text-error">*</span></span>
+        </label>
+        <input
+          type="text"
+          id="beneficiary"
+          name="beneficiary"
+          class="input input-bordered w-full"
+          placeholder="S.C. Pelerin S.R.L."
+          required
+        />
+        <span data-field="beneficiary" class="text-error text-sm hidden"></span>
+      </div>
+
+      <div class="form-control">
+        <label class="label" for="iban">
+          <span class="label-text">IBAN <span class="text-error">*</span></span>
+        </label>
+        <input
+          type="text"
+          id="iban"
+          name="iban"
+          class="input input-bordered w-full"
+          placeholder="RO49AAAA1B31007593840000"
+          required
+        />
+        <span data-field="iban" class="text-error text-sm hidden"></span>
+      </div>
+
+      <div class="form-control">
+        <label class="label" for="bank_name">
+          <span class="label-text">Bank Name</span>
+        </label>
+        <input
+          type="text"
+          id="bank_name"
+          name="bank_name"
+          class="input input-bordered w-full"
+          placeholder="Banca Comercială Română"
+        />
+      </div>
+
+      <div class="form-control">
+        <label class="label" for="reference_note">
+          <span class="label-text">Reference Note</span>
+        </label>
+        <textarea
+          id="reference_note"
+          name="reference_note"
+          class="textarea textarea-bordered w-full"
+          placeholder="Use order number as reference"
+          rows="3"></textarea>
+      </div>
+
+      <div class="form-control mt-6">
+        <button type="submit" class="btn btn-primary" id="save-btn">Save Settings</button>
+      </div>
+    </form>
+  </div>
+</AdminLayout>
+
+<script>
+  const form = document.getElementById('bank-transfer-settings-form') as HTMLFormElement;
+  const saveBtn = document.getElementById('save-btn') as HTMLButtonElement;
+
+  // Load current settings
+  async function loadSettings() {
+    try {
+      const res = await fetch('/api/plugins/shop/settings/payments/bank-transfer');
+      if (!res.ok) return;
+      const b = await res.json();
+      if (!b.success) return;
+      const data = b.data;
+      (document.getElementById('beneficiary') as HTMLInputElement).value = data.beneficiary || '';
+      (document.getElementById('iban') as HTMLInputElement).value = data.iban || '';
+      (document.getElementById('bank_name') as HTMLInputElement).value = data.bank_name || '';
+      (document.getElementById('reference_note') as HTMLTextAreaElement).value =
+        data.reference_note || '';
+    } catch {}
+  }
+
+  loadSettings();
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+
+    // Clear previous errors
+    document.querySelectorAll('[data-field]').forEach((el) => {
+      el.classList.add('hidden');
+    });
+
+    try {
+      const payload = {
+        beneficiary: (document.getElementById('beneficiary') as HTMLInputElement).value,
+        iban: (document.getElementById('iban') as HTMLInputElement).value,
+        bank_name: (document.getElementById('bank_name') as HTMLInputElement).value,
+        reference_note: (document.getElementById('reference_note') as HTMLTextAreaElement).value,
+      };
+
+      const res = await fetch('/api/plugins/shop/settings/payments/bank-transfer', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const b = await res.json();
+
+      if (res.ok && b.success) {
+        saveBtn.textContent = 'Saved!';
+        setTimeout(() => {
+          saveBtn.textContent = 'Save Settings';
+          saveBtn.disabled = false;
+        }, 2000);
+      } else if (b.fields) {
+        for (const [field, message] of Object.entries(b.fields)) {
+          const el = document.querySelector(`[data-field="${field}"]`);
+          if (el) {
+            el.textContent = message as string;
+            el.classList.remove('hidden');
+          }
+        }
+        saveBtn.textContent = 'Save Settings';
+        saveBtn.disabled = false;
+      } else {
+        saveBtn.textContent = 'Error — try again';
+        setTimeout(() => {
+          saveBtn.textContent = 'Save Settings';
+          saveBtn.disabled = false;
+        }, 2000);
+      }
+    } catch {
+      saveBtn.textContent = 'Error — try again';
+      setTimeout(() => {
+        saveBtn.textContent = 'Save Settings';
+        saveBtn.disabled = false;
+      }, 2000);
+    }
+  });
+</script>
