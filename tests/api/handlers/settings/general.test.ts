@@ -38,6 +38,20 @@ test('PUT validation-fail → 422', () =>
     invalidBody: { shop_name: 12345 /* number, not string */ },
   }));
 
+test('PUT rejects string-typed padding (current form behavior)', () =>
+  matrix.validationFail({
+    run: runPut,
+    url: base,
+    invalidBody: { order_number_padding: '5' },
+  }));
+
+test('PUT rejects string-typed year (current form behavior)', () =>
+  matrix.validationFail({
+    run: runPut,
+    url: base,
+    invalidBody: { order_number_year: 'true' },
+  }));
+
 test('PUT happy-path → 200, success', () =>
   matrix.happyPath({
     run: runPut,

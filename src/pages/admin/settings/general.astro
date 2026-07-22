@@ -164,11 +164,8 @@ const user = await sdk.auth.requireAdmin(Astro.request);
     formData.forEach(function (value, key) {
       if (value) body[key] = value;
     });
-    if (form.order_number_year.checked) {
-      body.order_number_year = 'true';
-    } else {
-      body.order_number_year = 'false';
-    }
+    body.order_number_padding = parseInt(body.order_number_padding, 10) || 1;
+    body.order_number_year = form.order_number_year.checked;
 
     var errorEl = document.getElementById('form-error');
     var successEl = document.getElementById('form-success');

@@ -2,7 +2,6 @@ import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import {
   getSetting,
-  upsertSetting,
   upsertSettingTyped,
   getShopConfig,
   deleteSetting,
@@ -15,7 +14,6 @@ const SETTINGS_KEYS = [
   'order_number_prefix',
   'order_number_year',
   'order_number_padding',
-  'default_currency',
 ];
 
 const GeneralSettingsSchema = z.object({
@@ -23,7 +21,6 @@ const GeneralSettingsSchema = z.object({
   order_number_prefix: z.string().optional(),
   order_number_year: z.boolean().optional(),
   order_number_padding: z.number().int().min(1).optional(),
-  default_currency: z.string().optional(),
 });
 
 export const GET: APIRoute = (context) => {
