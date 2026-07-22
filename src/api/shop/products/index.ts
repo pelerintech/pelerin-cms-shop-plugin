@@ -1,6 +1,10 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { listProducts, createProduct } from '../../../lib/data/products';
+import {
+  listProducts,
+  createProduct,
+  updateProductWithTranslations,
+} from '../../../lib/data/products';
 import { getShopConfig } from '../../../lib/data/settings';
 import { CreateProductSchema } from '../../../schemas/product.schema';
 import type { HandlerDeps } from '../../../lib/handler-types';
@@ -70,6 +74,9 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       );
     }
     const id = await createProduct(db, parsed.data);
+    const config = await getShopConfig(db);
+    const knownLocaleCodes = new Set(config.locales.filter((l) => !l.isDefault).map((l) => l.code));
+    await updateProductWithTranslations(db, id, parsed.data, body, knownLocaleCodes);
     return new Response(JSON.stringify({ success: true, data: { id, ...parsed.data } }), {
       status: 201,
       headers: { 'Content-Type': 'application/json' },
