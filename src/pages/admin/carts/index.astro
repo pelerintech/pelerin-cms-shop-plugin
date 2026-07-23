@@ -58,17 +58,36 @@ for (const cart of cartList) {
   <div class="col-span-12 p-6">
     <h1 class="text-2xl font-bold mb-4">Carts</h1>
 
-    <div class="mb-4 flex gap-2 items-center">
-      <label class="text-sm">Show carts inactive for:</label>
-      <select id="abandoned-filter" class="select select-bordered select-sm">
-        <option value="all" {!abandonedSince ? 'selected' : ''}>All open carts</option>
-        <option value="1" {abandonedSince === '1' ? 'selected' : ''}>1 hour</option>
-        <option value="6" {abandonedSince === '6' ? 'selected' : ''}>6 hours</option>
-        <option value="24" {abandonedSince === '24' ? 'selected' : ''}>24 hours</option>
-        <option value="72" {abandonedSince === '72' ? 'selected' : ''}>3 days</option>
-        <option value="168" {abandonedSince === '168' ? 'selected' : ''}>7 days</option>
-      </select>
-    </div>
+    <!-- Filters -->
+    <form method="GET" class="flex gap-4 mb-6 flex-wrap items-end">
+      <div class="form-control">
+        <label class="label"><span class="label-text">Show carts inactive for:</span></label>
+        <select name="abandoned_since" class="select select-bordered">
+          <option value="" {!abandonedSince ? 'selected' : ''}>All open carts</option>
+          <option value="1" {abandonedSince === '1' ? 'selected' : ''}>1 hour</option>
+          <option value="6" {abandonedSince === '6' ? 'selected' : ''}>6 hours</option>
+          <option value="24" {abandonedSince === '24' ? 'selected' : ''}>24 hours</option>
+          <option value="72" {abandonedSince === '72' ? 'selected' : ''}>3 days</option>
+          <option value="168" {abandonedSince === '168' ? 'selected' : ''}>7 days</option>
+        </select>
+      </div>
+      <div class="form-control">
+        <label class="label"><span class="label-text opacity-0">&nbsp;</span></label>
+        <button type="submit" class="btn btn-outline">Filter</button>
+      </div>
+      {
+        abandonedSince && (
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text opacity-0">&nbsp;</span>
+            </label>
+            <a href="/admin/plugins/shop/carts" class="btn btn-ghost">
+              Clear
+            </a>
+          </div>
+        )
+      }
+    </form>
 
     <div class="overflow-x-auto">
       <table class="table table-zebra w-full">
@@ -158,14 +177,3 @@ for (const cart of cartList) {
     </div>
   </div>
 </AdminLayout>
-
-<script is:inline>
-  const filter = document.getElementById('abandoned-filter');
-  filter.addEventListener('change', () => {
-    const params = new URLSearchParams();
-    if (filter.value !== 'all') {
-      params.set('abandoned_since', filter.value);
-    }
-    location.search = params.toString();
-  });
-</script>
