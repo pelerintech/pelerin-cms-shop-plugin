@@ -6,6 +6,7 @@ import {
   OrderTransitionError,
 } from '../../../../lib/data/orders';
 import { UpdateOrderStatusSchema } from '../../../../schemas/order.schema';
+import { buildOrderEventPayload } from '../../../../lib/event-payload';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 
 export const PUT: APIRoute = (context) => {
@@ -51,6 +52,20 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
         });
       }
       throw err;
+    }
+
+    // Fire status-specific event
+    const STATUS_EVENT_MAP: Record<string, string> = {
+      paid: 'shop.order.paid',
+      shipped: 'shop.order.shipped',
+    };
+    const eventName = STATUS_EVENT_MAP[status];
+    if (eventName) {
+      const updated = await getOrderWithItems(db, orderId);
+      if (updated) {
+        const payload = await buildOrderEventPayload(db, orderId, eventName);
+        sdk.events.publish(eventName, payload);
+      }
     }
 
     const updated = await getOrderWithItems(db, orderId);

@@ -13,6 +13,7 @@ import {
 } from '../../../../db/harness.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { eq } from 'drizzle-orm';
+import { makeFakeSdk } from '../../../helpers.ts';
 
 ensureLoader();
 
@@ -152,11 +153,7 @@ describe('refund endpoint — euPlatesc-first ordering', () => {
       }),
     } as any;
 
-    const fakeSdk = {
-      auth: { requireAdmin: async () => {} },
-    };
-
-    const response = await runPut({ db, sdk: fakeSdk, ctx: fakeCtx });
+    const response = await runPut({ db, sdk: makeFakeSdk(), ctx: fakeCtx });
     const data = await response.json();
 
     assert.strictEqual(
@@ -208,12 +205,8 @@ describe('refund endpoint — euPlatesc-first ordering', () => {
       }),
     } as any;
 
-    const fakeSdk = {
-      auth: { requireAdmin: async () => {} },
-    };
-
     try {
-      await runPut({ db, sdk: fakeSdk, ctx: fakeCtx });
+      await runPut({ db, sdk: makeFakeSdk(), ctx: fakeCtx });
     } catch {
       // May fail due to FK constraints — that's OK for this test
     }

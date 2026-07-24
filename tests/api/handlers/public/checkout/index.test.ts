@@ -101,6 +101,12 @@ test('POST happy-path → 201, order created', async () => {
     assert.ok(b.data.order_id, 'order_id present');
     assert.ok(b.data.order_number, 'order_number present');
     assert.ok(Array.isArray(b.data.payment_providers));
+
+    // Event assertion: shop.order.confirmed must have been published
+    const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
+    const confirmedCall = calls.find((c) => c.event === 'shop.order.confirmed');
+    assert.ok(confirmedCall, 'shop.order.confirmed was published');
+    assert.ok(confirmedCall.payload.data.order.order_number, 'payload contains order_number');
   } finally {
     await cleanup();
   }

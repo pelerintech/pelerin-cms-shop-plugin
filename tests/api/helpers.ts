@@ -59,6 +59,8 @@ export function makeFakeSdk(opts: FakeSdkOptions = {}): any {
   const uploadResult = opts.storage?.uploadResult;
   const uploadThrows = opts.storage?.uploadThrows === true;
 
+  const publishCalls: Array<{ event: string; payload: Record<string, unknown> }> = [];
+
   return {
     auth: {
       requireAdmin: async (_req: any) => {
@@ -89,6 +91,13 @@ export function makeFakeSdk(opts: FakeSdkOptions = {}): any {
       deleteCalls,
     },
     webhooks: { trigger: async () => {} },
+    events: {
+      publish(event: string, payload: Record<string, unknown>) {
+        publishCalls.push({ event, payload });
+      },
+      subscribe: () => () => {},
+      publishCalls,
+    },
   };
 }
 

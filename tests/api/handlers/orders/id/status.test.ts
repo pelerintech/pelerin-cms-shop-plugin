@@ -101,7 +101,7 @@ test('PUT happy-path → 200, status updated', async () => {
   try {
     const f = await seedMinimal(db);
     const order = await seedOrder(db, f);
-    // pending → awaiting_payment → paid (valid chain); here just awaiting_payment
+    // pending → awaiting_payment (non-event status)
     const sdk = makeFakeSdk();
     const ctx = makeCtx({
       url: base + order.id,
@@ -114,6 +114,97 @@ test('PUT happy-path → 200, status updated', async () => {
     const b = await jsonBody(res);
     assert.equal(b.success, true);
     assert.equal(b.data.status, 'awaiting_payment');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('PUT to paid → publishes shop.order.paid event', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const order = await seedOrder(db, f, 'ORD-PAID');
+    // First transition to awaiting_payment (valid: pending → awaiting_payment → paid)
+    await transitionOrderStatus(db, order.id, 'awaiting_payment');
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: base + order.id,
+      body: { status: 'paid' },
+      params: { id: order.id },
+      method: 'PUT',
+    });
+    const res = await runPut({ db, sdk, ctx });
+    assert.equal(res.status, 200);
+
+    const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
+    const paidCall = calls.find((c) => c.event === 'shop.order.paid');
+    assert.ok(paidCall, 'shop.order.paid was published');
+    assert.equal(paidCall.payload.event, 'shop.order.paid');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('PUT to shipped → publishes shop.order.shipped event', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const order = await seedOrder(db, f, 'ORD-SHIP');
+    // Move through the chain: pending → awaiting_payment → paid → processing → shipped
+    await transitionOrderStatus(db, order.id, 'awaiting_payment');
+    await transitionOrderStatus(db, order.id, 'paid');
+    await transitionOrderStatus(db, order.id, 'processing');
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: base + order.id,
+      body: { status: 'shipped' },
+      params: { id: order.id },
+      method: 'PUT',
+    });
+    const res = await runPut({ db, sdk, ctx });
+    assert.equal(res.status, 200);
+
+    const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
+    const shippedCall = calls.find((c) => c.event === 'shop.order.shipped');
+    assert.ok(shippedCall, 'shop.order.shipped was published');
+    assert.equal(shippedCall.payload.event, 'shop.order.shipped');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('PUT to processing → does NOT publish any order event', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const order = await seedOrder(db, f, 'ORD-PRO');
+    // Move through the chain to paid
+    await transitionOrderStatus(db, order.id, 'awaiting_payment');
+    await transitionOrderStatus(db, order.id, 'paid');
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: base + order.id,
+      body: { status: 'processing' },
+      params: { id: order.id },
+      method: 'PUT',
+    });
+    const res = await runPut({ db, sdk, ctx });
+    assert.equal(res.status, 200);
+
+    const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
+    const orderCalls = calls.filter(
+      (c) =>
+        c.event === 'shop.order.paid' ||
+        c.event === 'shop.order.shipped' ||
+        c.event === 'shop.order.cancelled' ||
+        c.event === 'shop.order.refunded' ||
+        c.event === 'shop.order.confirmed'
+    );
+    assert.equal(
+      orderCalls.length,
+      0,
+      'No order lifecycle events should be published for processing'
+    );
   } finally {
     await cleanup();
   }

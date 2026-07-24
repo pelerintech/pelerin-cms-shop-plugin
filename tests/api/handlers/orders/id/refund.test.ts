@@ -118,7 +118,7 @@ test('PUT validation-fail → 422 (missing order_item_id)', () =>
     invalidBody: { refunds: [{ quantity: 1 }] },
   }));
 
-test('(a) refund qty 1 of 2 → 200, partially_refunded, stock +1, order_refunds row', async () => {
+test('(a) refund qty 1 of 2 → 200, partially_refunded, stock +1, order_refunds row, event published', async () => {
   const { db, cleanup } = await createTestDb();
   try {
     const f = await seedMinimal(db);
@@ -142,6 +142,13 @@ test('(a) refund qty 1 of 2 → 200, partially_refunded, stock +1, order_refunds
     assert.equal(b.success, true);
     assert.equal(b.data.order.status, 'partially_refunded');
 
+    // Assert event was published
+    const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
+    const refundedCall = calls.find((c) => c.event === 'shop.order.refunded');
+    assert.ok(refundedCall, 'shop.order.refunded was published');
+    assert.equal(refundedCall.payload.event, 'shop.order.refunded');
+    assert.equal(refundedCall.payload.data.refund_amount, 5000);
+
     const refunds = await db
       .select()
       .from(order_refunds)
@@ -151,6 +158,39 @@ test('(a) refund qty 1 of 2 → 200, partially_refunded, stock +1, order_refunds
 
     const [pAfter] = await db.select().from(products).where(eq(products.id, f.simpleProductId));
     assert.equal(pAfter.stock, 99, 'stock +1');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('(b-refunded) full refund → event published with refund_notes', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const order = await seedDeliveredOrder(db, f, 'ORD-RH-FULL', 'cart-refund-full');
+    const oi = await db.select().from(order_items).where(eq(order_items.order_id, order.id));
+    const itemId = oi[0].id;
+
+    // Refund all 2 → should reach refunded status
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: base + order.id,
+      body: {
+        refunds: [{ order_item_id: itemId, quantity: 2, amount: 10000 }],
+        notes: 'full refund',
+      },
+      params: { id: order.id },
+      method: 'PUT',
+    });
+    const res = await runPut({ db, sdk, ctx });
+    assert.equal(res.status, 200);
+    const b = await jsonBody(res);
+    assert.equal(b.data.order.status, 'refunded');
+
+    const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
+    const refundedCall = calls.find((c) => c.event === 'shop.order.refunded');
+    assert.ok(refundedCall, 'shop.order.refunded was published');
+    assert.equal(refundedCall.payload.data.refund_notes, 'full refund');
   } finally {
     await cleanup();
   }
@@ -234,7 +274,7 @@ test('(c) refund qty > remaining → 422, no write', async () => {
   }
 });
 
-test('(d) cancelled order → 409 BEFORE any refund insert/restock/write', async () => {
+test('(d) cancelled order → 409 BEFORE any refund insert/restock/write, no event', async () => {
   const { db, cleanup } = await createTestDb();
   try {
     const f = await seedMinimal(db);
@@ -244,17 +284,20 @@ test('(d) cancelled order → 409 BEFORE any refund insert/restock/write', async
     // Force to cancelled (non-refundable).
     await db.update(orders).set({ status: 'cancelled' }).where(eq(orders.id, order.id));
 
-    const res = await runPut({
-      db,
-      sdk: makeFakeSdk(),
-      ctx: makeCtx({
-        url: base + order.id,
-        body: { refunds: [{ order_item_id: itemId, quantity: 1, amount: 100 }] },
-        params: { id: order.id },
-        method: 'PUT',
-      }),
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: base + order.id,
+      body: { refunds: [{ order_item_id: itemId, quantity: 1, amount: 100 }] },
+      params: { id: order.id },
+      method: 'PUT',
     });
+    const res = await runPut({ db, sdk, ctx });
     assert.equal(res.status, 409);
+
+    // No event should be published
+    const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
+    const refundedCall = calls.find((c) => c.event === 'shop.order.refunded');
+    assert.ok(!refundedCall, 'shop.order.refunded should NOT be published on failed refund');
 
     const refunds = await db
       .select()

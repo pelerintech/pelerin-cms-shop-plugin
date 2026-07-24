@@ -1,6 +1,8 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { handleWebhook } from '../../../providers/payment/stripe';
+import { handleWebhook as realHandleWebhook } from '../../../providers/payment/stripe';
+import { buildOrderEventPayload } from '../../../lib/event-payload';
+import type { HandlerDeps } from '../../../lib/handler-types';
 
 /**
  * Stripe webhook endpoint — receives events from Stripe.
@@ -8,9 +10,23 @@ import { handleWebhook } from '../../../providers/payment/stripe';
  * Uses request.text() to preserve raw body for signature validation.
  */
 export const POST: APIRoute = async ({ request }) => {
+  const sdk = createPluginContext();
+  return runPost({ db: sdk.db, sdk, ctx: { request } as any });
+};
+
+export async function runPost(
+  { db, sdk, ctx }: HandlerDeps,
+  injectedHandleWebhook: typeof realHandleWebhook = realHandleWebhook
+): Promise<Response> {
   try {
-    const sdk = createPluginContext();
-    const result = await handleWebhook(sdk.db, request);
+    const result = await injectedHandleWebhook(db, ctx.request);
+
+    // Fire event if payment was confirmed
+    if (result.status === 'paid' && result.order_id) {
+      const payload = await buildOrderEventPayload(db, result.order_id, 'shop.order.paid');
+      sdk.events.publish('shop.order.paid', payload);
+    }
+
     return new Response(JSON.stringify({ success: true, data: result }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -25,4 +41,4 @@ export const POST: APIRoute = async ({ request }) => {
       headers: { 'Content-Type': 'application/json' },
     });
   }
-};
+}
