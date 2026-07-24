@@ -198,6 +198,11 @@ const TEST_FILES = [
   'tests/pages/admin-order-detail-script-syntax.test.ts',
   // ── r27-manifest: bank-transfer route registration ──
   'tests/manifest/bank-transfer-route.test.ts',
+  // ── r30: order lifecycle events ──
+  'tests/lib/event-payload.test.ts',
+  'tests/api/handlers/orders/id/reemit-event.test.ts',
+  'tests/api/handlers/webhooks/stripe.test.ts',
+  'tests/pages/admin-order-reemit.test.ts',
 ];
 
 test('full test suite passes (node --test <all test files>)', () => {

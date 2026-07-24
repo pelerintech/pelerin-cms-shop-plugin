@@ -90,7 +90,7 @@ async function seedOrder(db: any, f: any, orderNumber = 'ORD-C', cartId = 'cart-
 test('PUT auth-fail → 401', () =>
   matrix.adminAuthFail({ run: runPut, url: base + 'x', params: { id: 'x' } }));
 
-test('PUT happy-path → 200, status cancelled', async () => {
+test('PUT happy-path → 200, status cancelled, event published', async () => {
   const { db, cleanup } = await createTestDb();
   try {
     const f = await seedMinimal(db);
@@ -102,6 +102,13 @@ test('PUT happy-path → 200, status cancelled', async () => {
     const b = await jsonBody(res);
     assert.equal(b.success, true);
     assert.equal(b.data.status, 'cancelled');
+
+    // Assert event was published
+    const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
+    const cancelledCall = calls.find((c) => c.event === 'shop.order.cancelled');
+    assert.ok(cancelledCall, 'shop.order.cancelled was published');
+    assert.equal(cancelledCall.payload.event, 'shop.order.cancelled');
+    assert.ok(cancelledCall.payload.data.order.id, 'payload contains order data');
   } finally {
     await cleanup();
   }
@@ -122,7 +129,7 @@ test('PUT 404: unknown id → 404', async () => {
   }
 });
 
-test('PUT 409: non-cancellable state → 409', async () => {
+test('PUT 409: non-cancellable state → 409, no event', async () => {
   const { db, cleanup } = await createTestDb();
   try {
     const f = await seedMinimal(db);
@@ -139,6 +146,11 @@ test('PUT 409: non-cancellable state → 409', async () => {
     assert.equal(res.status, 409);
     const b = await jsonBody(res);
     assert.equal(b.success, false);
+
+    // No event should be published
+    const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
+    const cancelledCall = calls.find((c) => c.event === 'shop.order.cancelled');
+    assert.ok(!cancelledCall, 'shop.order.cancelled should NOT be published on failed cancel');
   } finally {
     await cleanup();
   }

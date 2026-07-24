@@ -10,6 +10,7 @@ import { createOrder } from '../../../../lib/data/orders';
 import { getVoucherByCode, incrementVoucherUsage } from '../../../../lib/data/vouchers';
 import { computeCartTotals } from '../../../../lib/cart-totals';
 import { getShopConfig, getSetting } from '../../../../lib/data/settings';
+import { buildOrderEventPayload } from '../../../../lib/event-payload';
 import { z } from 'zod';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 import { listProviders } from '../../../../providers/payment/registry';
@@ -260,6 +261,10 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
         currency,
       })),
     });
+
+    // Fire shop.order.confirmed event
+    const eventPayload = await buildOrderEventPayload(db, order.id, 'shop.order.confirmed');
+    sdk.events.publish('shop.order.confirmed', eventPayload);
 
     // Increment voucher usage if applied
     if (cart.applied_voucher_code) {

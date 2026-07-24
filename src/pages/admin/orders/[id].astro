@@ -320,10 +320,72 @@ const orderId = Astro.params.id;
       (historyRows || '<tr><td colspan="3">No history</td></tr>') +
       '</tbody></table></div></div>';
 
+    // Re-emit Events card
+    var reemitButtons = [];
+    reemitButtons.push({ event: 'shop.order.confirmed', label: 'Re-emit confirmed event' });
+    if (
+      [
+        'paid',
+        'processing',
+        'shipped',
+        'delivered',
+        'partially_refunded',
+        'refunded',
+        'cancelled',
+      ].includes(order.status)
+    ) {
+      reemitButtons.push({ event: 'shop.order.paid', label: 'Re-emit paid event' });
+    }
+    if (['shipped', 'delivered', 'partially_refunded', 'refunded'].includes(order.status)) {
+      reemitButtons.push({ event: 'shop.order.shipped', label: 'Re-emit shipped event' });
+    }
+    if (order.status === 'cancelled') {
+      reemitButtons.push({ event: 'shop.order.cancelled', label: 'Re-emit cancelled event' });
+    }
+    if (['refunded', 'partially_refunded'].includes(order.status)) {
+      reemitButtons.push({ event: 'shop.order.refunded', label: 'Re-emit refunded event' });
+    }
+
+    html +=
+      '<div class="card bg-base-100 shadow mb-6"><div class="card-body">' +
+      '<h2 class="card-title text-lg mb-4">Re-emit Events</h2>' +
+      '<p class="text-sm text-gray-500 mb-4">Manually re-publish order lifecycle events for integration testing.</p>' +
+      '<div class="flex flex-wrap gap-2">' +
+      reemitButtons
+        .map(function (b) {
+          return (
+            '<button class="btn btn-sm btn-outline" onclick="reemitEvent(\'' +
+            b.event +
+            '\')">' +
+            b.label +
+            '</button>'
+          );
+        })
+        .join('') +
+      '</div></div></div>';
+
     document.getElementById('order-detail').innerHTML = html;
     // Store order data for client functions
     window.__currentOrderData = order;
   }
+
+  window.reemitEvent = async function (eventName) {
+    try {
+      var res = await fetch('/api/plugins/shop/orders/' + CODE_ID + '/reemit-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: eventName }),
+      });
+      var json = await res.json();
+      if (json.success) {
+        alert('Event "' + eventName + '" re-emitted successfully');
+      } else {
+        alert(json.error || 'Failed to re-emit event');
+      }
+    } catch (err) {
+      alert('Error: ' + (err.message || 'unknown'));
+    }
+  };
 
   window.openStatusModal = function () {
     document.getElementById('status-modal').classList.remove('hidden');

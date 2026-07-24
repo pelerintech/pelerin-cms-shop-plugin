@@ -351,6 +351,10 @@
     {
       "pattern": "/api/plugins/shop/settings/payments/ramburs",
       "entrypoint": "./src/api/shop/settings/payments/ramburs.ts"
+    },
+    {
+      "pattern": "/api/plugins/shop/orders/[id]/reemit-event",
+      "entrypoint": "./src/api/shop/orders/[id]/reemit-event.ts"
     }
   ],
   "navItems": [
