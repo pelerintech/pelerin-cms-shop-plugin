@@ -4,6 +4,13 @@
   "version": "1.0.0",
   "dbConfig": "./src/db/schema.ts",
   "dbSeed": "./src/db/seed.ts",
+  "publishEvents": [
+    "shop.order.confirmed",
+    "shop.order.paid",
+    "shop.order.shipped",
+    "shop.order.cancelled",
+    "shop.order.refunded"
+  ],
   "publicPages": [],
   "adminPages": [
     {
