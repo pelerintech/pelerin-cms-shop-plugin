@@ -156,6 +156,7 @@ export interface CreateOrderInput {
   shipping_same_as_billing: boolean;
   payment_provider?: string | null;
   notes?: string | null;
+  metadata?: string | null;
   cart_id?: string | null;
   items: CreateOrderItemInput[];
 }
@@ -234,6 +235,7 @@ export async function createOrder(
           shipping_same_as_billing: input.shipping_same_as_billing,
           payment_provider: input.payment_provider ?? null,
           notes: input.notes ?? null,
+          metadata: input.metadata ?? null,
           created_at: now,
           updated_at: now,
         });
@@ -487,6 +489,8 @@ export interface ListOrdersOptions {
   search?: string;
   sort?: string;
   dir?: 'asc' | 'desc';
+  userId?: string;
+  email?: string;
 }
 
 export interface ListOrdersResult {
@@ -528,6 +532,12 @@ export async function listOrders(
     let toStr = opts.to;
     if (!/T/.test(toStr)) toStr = toStr + 'T23:59:59.999Z';
     conditions.push(lte(orders.created_at, new Date(toStr)));
+  }
+  if (opts.userId) {
+    conditions.push(eq(orders.user_id, opts.userId));
+  }
+  if (opts.email) {
+    conditions.push(eq(orders.customer_email, opts.email));
   }
   if (opts.search) {
     const s = `%${opts.search.toLowerCase()}%`;

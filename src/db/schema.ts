@@ -289,6 +289,7 @@ export const orders = sqliteTable('orders', {
   refund_notes: text('refund_notes'),
   refunded_at: dateType('refunded_at'),
   notes: text('notes'),
+  metadata: text('metadata'),
   created_at: dateType('created_at').notNull(),
   updated_at: dateType('updated_at').notNull(),
 });

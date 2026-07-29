@@ -260,6 +260,10 @@
       "entrypoint": "./src/api/shop/public/checkout/[orderId]/pay.ts"
     },
     {
+      "pattern": "/api/plugins/shop/public/orders",
+      "entrypoint": "./src/api/shop/public/orders/index.ts"
+    },
+    {
       "pattern": "/api/plugins/shop/carts",
       "entrypoint": "./src/api/shop/carts/index.ts"
     },

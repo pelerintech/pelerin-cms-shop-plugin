@@ -312,6 +312,22 @@ const orderId = Astro.params.id;
         : '') +
       '</div></div>';
 
+    // Metadata
+    if (order.metadata) {
+      var formattedMeta = (function () {
+        try {
+          return JSON.stringify(JSON.parse(order.metadata), null, 2);
+        } catch (e) {
+          return order.metadata;
+        }
+      })();
+      html +=
+        '<div class="card bg-base-100 shadow mb-6"><div class="card-body"><h2 class="card-title text-lg">Metadata</h2>' +
+        '<pre class="bg-base-200 p-3 rounded text-sm overflow-x-auto">' +
+        htmlEscape(formattedMeta) +
+        '</pre></div></div>';
+    }
+
     // Status History
     html +=
       '<div class="card bg-base-100 shadow mb-6"><div class="card-body"><h2 class="card-title text-lg">Status History</h2>' +
@@ -518,6 +534,12 @@ const orderId = Astro.params.id;
       alert(json.error || 'Failed to record refund');
     }
   };
+
+  function htmlEscape(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+  }
 
   loadOrder();
 </script>

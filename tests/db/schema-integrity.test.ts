@@ -78,6 +78,14 @@ describe('schema integrity', () => {
     assert.equal(violations.length, 0, violations.join('\n'));
   });
 
+  test('orders table has metadata column (nullable text)', () => {
+    const ordersTable = (schema as any).orders;
+    assert.ok(ordersTable, 'orders table exists');
+    assert.ok(ordersTable.metadata, 'orders.metadata column exists');
+    assert.equal(ordersTable.metadata.columnType, 'SQLiteText', 'orders.metadata is SQLiteText');
+    assert.equal(ordersTable.metadata.notNull, false, 'orders.metadata is nullable');
+  });
+
   test('every table with created_at or updated_at uses dateType for both', () => {
     const violations: string[] = [];
     for (const [name, table] of tableEntries) {

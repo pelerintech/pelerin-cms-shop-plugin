@@ -44,6 +44,24 @@ const CheckoutSchema = z
     currency: z.string().min(1).optional(),
     referral_code: z.string().nullable().default(null),
     provider: z.string().min(1, { message: 'provider is required' }),
+    notes: z.string().nullable().default(null),
+    metadata: z
+      .string()
+      .nullable()
+      .default(null)
+      .refine(
+        (val) =>
+          val === null ||
+          (() => {
+            try {
+              JSON.parse(val);
+              return true;
+            } catch {
+              return false;
+            }
+          })(),
+        { message: 'metadata must be valid JSON or null' }
+      ),
   })
   .superRefine((data, ctx) => {
     if (data.customer_type === 'company') {
@@ -247,6 +265,8 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       shipping_company: data.billing_company,
       shipping_vat_number: data.billing_vat_number,
       shipping_same_as_billing: data.shipping_same_as_billing,
+      notes: data.notes ?? null,
+      metadata: data.metadata ?? null,
       cart_id: cart.id,
       payment_provider: data.provider,
       items: totals.items.map((line: any) => ({
