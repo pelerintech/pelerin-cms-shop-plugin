@@ -49,6 +49,8 @@ export async function buildOrderEventPayload(
         payment_provider: order.payment_provider,
         shipping_type: order.shipping_type,
         shipping_method: order.shipping_method,
+        user_id: order.user_id ?? null,
+        metadata: order.metadata ?? null,
         voucher_code: order.voucher_code,
         referral_code: order.referral_code,
         notes: order.notes,

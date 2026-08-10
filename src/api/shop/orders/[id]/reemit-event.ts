@@ -24,6 +24,7 @@ const STATUS_MUST_HAVE_PASSED: Record<string, readonly string[]> = {
   'shop.order.shipped': ['shipped', 'delivered', 'partially_refunded', 'refunded'],
   'shop.order.cancelled': ['cancelled'],
   'shop.order.refunded': ['refunded', 'partially_refunded'],
+  'shop.order.invoice': [], // any status — consumer is idempotent, manual button
 };
 
 const VALID_EVENTS = Object.keys(STATUS_MUST_HAVE_PASSED);

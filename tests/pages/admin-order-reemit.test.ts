@@ -21,6 +21,12 @@ test('admin order detail page contains re-emit events section', () => {
   assert.match(pageContent, /Re-emit confirmed event/, 'Page must have re-emit confirmed button');
   assert.match(pageContent, /Re-emit paid event/, 'Page must have re-emit paid button');
   assert.match(pageContent, /Re-emit shipped event/, 'Page must have re-emit shipped button');
+  assert.match(
+    pageContent,
+    /shop\.order\.invoice/,
+    'Page must reference shop.order.invoice in reemitButtons'
+  );
+  assert.match(pageContent, /Emit invoice event/, 'Page must have an "Emit invoice event" button');
 });
 
 test('admin order detail page calls reemit API endpoint', () => {

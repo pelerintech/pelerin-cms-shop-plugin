@@ -339,6 +339,7 @@ const orderId = Astro.params.id;
     // Re-emit Events card
     var reemitButtons = [];
     reemitButtons.push({ event: 'shop.order.confirmed', label: 'Re-emit confirmed event' });
+    reemitButtons.push({ event: 'shop.order.invoice', label: 'Emit invoice event' });
     if (
       [
         'paid',

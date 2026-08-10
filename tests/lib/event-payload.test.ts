@@ -178,6 +178,42 @@ test('buildOrderEventPayload - Scenario E: shop.order.refunded has refund_amount
   await db.$client.close();
 });
 
+test('buildOrderEventPayload - Scenario G: user_id and metadata included when set', async () => {
+  const { db } = await createTestDb();
+  const orderId = 'order-user-meta';
+  await insertFixture(
+    db,
+    'orders',
+    buildOrderRow({
+      id: orderId,
+      user_id: 'user-123',
+      metadata: '{"pickup_point":"Bucharest East"}',
+    })
+  );
+
+  const payload = await buildOrderEventPayload(db, orderId, 'shop.order.confirmed');
+  assert.equal(payload.data.order.user_id, 'user-123', 'user_id is carried through');
+  assert.equal(
+    payload.data.order.metadata,
+    '{"pickup_point":"Bucharest East"}',
+    'metadata is carried through'
+  );
+
+  await db.$client.close();
+});
+
+test('buildOrderEventPayload - Scenario H: user_id and metadata are null when absent', async () => {
+  const { db } = await createTestDb();
+  const orderId = 'order-no-user';
+  await insertFixture(db, 'orders', buildOrderRow({ id: orderId }));
+
+  const payload = await buildOrderEventPayload(db, orderId, 'shop.order.confirmed');
+  assert.equal(payload.data.order.user_id, null, 'user_id is null for guest order');
+  assert.equal(payload.data.order.metadata, null, 'metadata is null when absent');
+
+  await db.$client.close();
+});
+
 test('buildOrderEventPayload - Scenario F: non-existent orderId throws', async () => {
   const { db } = await createTestDb();
   await assert.rejects(

@@ -198,6 +198,49 @@ test('POST event does not match status → 422', async () => {
   }
 });
 
+test('POST invoice event allowed at any status → 200, event published with payload', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    // paid order
+    const orderPaid = await seedOrderWithStatus(db, f, 'paid', 'ORD-RE-INV-PAID');
+    const mod = await import('../../../../../src/api/shop/orders/[id]/reemit-event.ts');
+    const sdk = makeFakeSdk();
+    const ctxPaid = makeCtx({
+      url: base + orderPaid.id + '/reemit-event',
+      body: { event: 'shop.order.invoice' },
+      params: { id: orderPaid.id },
+      method: 'POST',
+    });
+    const resPaid = await mod.runPost({ db, sdk, ctx: ctxPaid });
+    assert.equal(resPaid.status, 200);
+    const bPaid = await jsonBody(resPaid);
+    assert.equal(bPaid.success, true);
+
+    const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
+    const invoiceCall = calls.find((c) => c.event === 'shop.order.invoice');
+    assert.ok(invoiceCall, 'shop.order.invoice was published');
+    assert.equal(invoiceCall.payload.event, 'shop.order.invoice');
+    assert.ok('user_id' in invoiceCall.payload.data.order, 'payload carries user_id');
+    assert.ok('metadata' in invoiceCall.payload.data.order, 'payload carries metadata');
+
+    // non-paid status still allowed (always-allowed)
+    const orderPending = await seedOrderWithStatus(db, f, 'pending', 'ORD-RE-INV-PEND');
+    const ctxPend = makeCtx({
+      url: base + orderPending.id + '/reemit-event',
+      body: { event: 'shop.order.invoice' },
+      params: { id: orderPending.id },
+      method: 'POST',
+    });
+    const resPend = await mod.runPost({ db, sdk, ctx: ctxPend });
+    assert.equal(resPend.status, 200);
+    const bPend = await jsonBody(resPend);
+    assert.equal(bPend.success, true);
+  } finally {
+    await cleanup();
+  }
+});
+
 test('POST invalid event name → 422', async () => {
   const { db, cleanup } = await createTestDb();
   try {
