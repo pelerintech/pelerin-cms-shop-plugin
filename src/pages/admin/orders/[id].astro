@@ -206,6 +206,7 @@ const orderId = Astro.params.id;
       '<p>' +
       order.billing_address +
       '</p>' +
+      (order.billing_address_extra ? '<p>' + order.billing_address_extra + '</p>' : '') +
       '<p>' +
       order.billing_city +
       ', ' +
@@ -236,6 +237,7 @@ const orderId = Astro.params.id;
           '<p>' +
           (order.shipping_address || '—') +
           '</p>' +
+          (order.shipping_address_extra ? '<p>' + order.shipping_address_extra + '</p>' : '') +
           '<p>' +
           (order.shipping_city || '—') +
           (order.shipping_county ? ', ' + order.shipping_county : '') +

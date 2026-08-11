@@ -30,6 +30,7 @@ const CheckoutSchema = z
     billing_company: z.string().nullable().default(null),
     billing_vat_number: z.string().nullable().default(null),
     billing_address_line_1: z.string().min(1),
+    billing_address_extra: z.string().nullable().default(null),
     billing_city: z.string().min(1),
     billing_state: z.string().min(1),
     billing_postal_code: z.string().min(1),
@@ -37,6 +38,7 @@ const CheckoutSchema = z
     shipping_same_as_billing: z.boolean().default(false),
     shipping_type: z.enum(['physical', 'digital', 'pickup']),
     shipping_address_line_1: z.string().nullable().default(null),
+    shipping_address_extra: z.string().nullable().default(null),
     shipping_city: z.string().nullable().default(null),
     shipping_state: z.string().nullable().default(null),
     shipping_postal_code: z.string().nullable().default(null),
@@ -225,6 +227,9 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     const shippingCountry = data.shipping_same_as_billing
       ? data.billing_country
       : (data.shipping_country ?? data.billing_country);
+    const shippingAddressExtra = data.shipping_same_as_billing
+      ? (data.billing_address_extra ?? null)
+      : (data.shipping_address_extra ?? null ?? data.billing_address_extra ?? null);
 
     // Create the order via accessor (handles items, stock decrement, cart clear).
     // createOrder generates its own order_number (transactional, with UNIQUE retry).
@@ -247,6 +252,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       billing_first_name: billingFirstName,
       billing_last_name: billingLastName,
       billing_address: data.billing_address_line_1,
+      billing_address_extra: data.billing_address_extra ?? null,
       billing_city: data.billing_city,
       billing_postal_code: data.billing_postal_code,
       billing_country: data.billing_country,
@@ -257,6 +263,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       shipping_first_name: shippingFirstName,
       shipping_last_name: shippingLastName,
       shipping_address: shippingAddressLine1,
+      shipping_address_extra: shippingAddressExtra,
       shipping_city: shippingCity,
       shipping_postal_code: shippingPostalCode,
       shipping_country: shippingCountry,

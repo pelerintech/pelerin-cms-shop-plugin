@@ -34,6 +34,24 @@ test('transitions map includes pending in awaiting_payment', () => {
   );
 });
 
+test('billing card renders order.billing_address_extra', () => {
+  const source = getPageSource();
+  assert.match(
+    source,
+    /order\.billing_address_extra/,
+    'page must render order.billing_address_extra in the Billing address card'
+  );
+});
+
+test('shipping card renders order.shipping_address_extra', () => {
+  const source = getPageSource();
+  assert.match(
+    source,
+    /order\.shipping_address_extra/,
+    'page must render order.shipping_address_extra in the Shipping address card'
+  );
+});
+
 test('refund modal sends { refunds: [...] } format', () => {
   const source = getPageSource();
   // The refund modal should use the new { refunds: [...] } format
