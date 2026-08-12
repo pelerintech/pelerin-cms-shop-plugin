@@ -7,6 +7,7 @@ import {
   addCartItem,
   updateCartItem,
   deleteCartItem,
+  clearCart,
 } from '../../../src/lib/data/cart.ts';
 import { carts, products, product_variants } from '../../../src/db/schema.ts';
 import { eq } from 'drizzle-orm';
@@ -268,6 +269,123 @@ test('addCartItem requires a variant when the product has actual variant rows, e
       (err: any) => err.code === 'variant_required',
       'product with actual variant rows must require a variant_id (column is ignored)'
     );
+  } finally {
+    await cleanup();
+  }
+});
+
+// ── New: empty-cart cleanup clears applied codes (shop-r35) ──
+
+/** Create a cart with applied voucher + referral codes and n items. */
+async function makeCartWithCodesAndItems(
+  db: any,
+  f: any,
+  n: number,
+  id = 'cart-codes'
+): Promise<{ cartId: string; itemIds: string[] }> {
+  const now = new Date();
+  const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  await insertFixture(db, 'carts', {
+    id,
+    session_id: 'sess-' + id,
+    user_id: null,
+    applied_voucher_code: 'PCT20',
+    applied_referral_code: 'PARTNER10',
+    converted_at: null,
+    expires_at: expires,
+    created_at: now,
+    updated_at: now,
+  });
+  const itemIds: string[] = [];
+  for (let i = 0; i < n; i++) {
+    const itemId = `${id}-item-${i}`;
+    await insertFixture(db, 'cart_items', {
+      id: itemId,
+      cart_id: id,
+      product_id: f.simpleProductId,
+      variant_id: null,
+      quantity: 1,
+    });
+    itemIds.push(itemId);
+  }
+  return { cartId: id, itemIds };
+}
+
+test('deleteCartItem clears applied codes when it removes the LAST item', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const { cartId, itemIds } = await makeCartWithCodesAndItems(db, f, 1);
+
+    await deleteCartItem(db, cartId, itemIds[0]);
+
+    const [cart] = await db.select().from(carts).where(eq(carts.id, cartId));
+    assert.equal(cart.applied_voucher_code, null, 'voucher code should be cleared');
+    assert.equal(cart.applied_referral_code, null, 'referral code should be cleared');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('deleteCartItem keeps applied codes when items remain', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const { cartId, itemIds } = await makeCartWithCodesAndItems(db, f, 2);
+
+    await deleteCartItem(db, cartId, itemIds[0]);
+
+    const [cart] = await db.select().from(carts).where(eq(carts.id, cartId));
+    assert.equal(cart.applied_voucher_code, 'PCT20', 'voucher code should remain');
+    assert.equal(cart.applied_referral_code, 'PARTNER10', 'referral code should remain');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('clearCart clears applied voucher and referral codes', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const { cartId } = await makeCartWithCodesAndItems(db, f, 2);
+
+    await clearCart(db, cartId);
+
+    const [cart] = await db.select().from(carts).where(eq(carts.id, cartId));
+    assert.equal(cart.applied_voucher_code, null, 'voucher code should be cleared');
+    assert.equal(cart.applied_referral_code, null, 'referral code should be cleared');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('updateCartItem with quantity 0 clears applied codes when it removes the LAST item', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const { cartId, itemIds } = await makeCartWithCodesAndItems(db, f, 1);
+
+    await updateCartItem(db, cartId, itemIds[0], 0);
+
+    const [cart] = await db.select().from(carts).where(eq(carts.id, cartId));
+    assert.equal(cart.applied_voucher_code, null, 'voucher code should be cleared');
+    assert.equal(cart.applied_referral_code, null, 'referral code should be cleared');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('updateCartItem with quantity 0 keeps applied codes when items remain', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const { cartId, itemIds } = await makeCartWithCodesAndItems(db, f, 2);
+
+    await updateCartItem(db, cartId, itemIds[0], 0);
+
+    const [cart] = await db.select().from(carts).where(eq(carts.id, cartId));
+    assert.equal(cart.applied_voucher_code, 'PCT20', 'voucher code should remain');
+    assert.equal(cart.applied_referral_code, 'PARTNER10', 'referral code should remain');
   } finally {
     await cleanup();
   }

@@ -92,9 +92,7 @@ test('create, edit, add-option, and delete-option for a global attribute', async
   await page.goto(`${SHOP}/${id}`); // fresh navigation → delete listeners attached
   await expect(page.locator('#options-list')).toContainText(`e2e-val-${stamp}`);
   page.once('dialog', (d) => d.accept());
-  await page
-    .locator(`[data-option-id]:has-text("e2e-val-${stamp}") [data-delete-option]`)
-    .click();
+  await page.locator(`[data-option-id]:has-text("e2e-val-${stamp}") [data-delete-option]`).click();
   await page.waitForLoadState('load');
   await expect(page.locator('#options-list')).not.toContainText(`e2e-val-${stamp}`, {
     timeout: 20_000,

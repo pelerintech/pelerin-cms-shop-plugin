@@ -9,6 +9,7 @@ import {
 import { createOrder } from '../../../../lib/data/orders';
 import { getVoucherByCode, incrementVoucherUsage } from '../../../../lib/data/vouchers';
 import { computeCartTotals } from '../../../../lib/cart-totals';
+import { evaluateCartDiscount } from '../../../../lib/cart-discount';
 import { getShopConfig, getSetting } from '../../../../lib/data/settings';
 import { buildOrderEventPayload } from '../../../../lib/event-payload';
 import { z } from 'zod';
@@ -190,19 +191,10 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     const enrichedResult = await getCartWithItems(db, cart.id, currency);
     const cartItemInputs = enrichedResult?.items ?? [];
 
-    // Compute discount from applied voucher
-    let discountAmount = 0;
-    if (cart.applied_voucher_code) {
-      const voucher = await getVoucherByCode(db, cart.applied_voucher_code);
-      if (voucher && voucher.active) {
-        const baseTotals = computeCartTotals(cartItemInputs as any, currency);
-        if (voucher.type === 'fixed_amount')
-          discountAmount = Math.min(voucher.value ?? 0, baseTotals.subtotal_net);
-        else if (voucher.type === 'percentage')
-          discountAmount =
-            Math.round(baseTotals.subtotal_net * ((voucher.value ?? 0) / 100) * 100) / 100;
-      }
-    }
+    // Compute discount from the shared evaluation — same status + math the cart
+    // response uses, so checkout can never diverge from display.
+    const evalResult = await evaluateCartDiscount(db, cart, cartItemInputs, currency);
+    const discountAmount = evalResult.discount_amount;
 
     const totals = computeCartTotals(cartItemInputs as any, currency, 0, discountAmount);
 

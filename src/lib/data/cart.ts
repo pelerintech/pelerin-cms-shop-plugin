@@ -374,13 +374,29 @@ export async function updateCartItem(
 
   if (quantity === 0) {
     await db.delete(cart_items).where(eq(cart_items.id, itemId));
+    await clearAppliedCodesIfEmpty(db, cartId);
     return { removed: true };
   }
   await db.update(cart_items).set({ quantity }).where(eq(cart_items.id, itemId));
   return { removed: false };
 }
 
-/** Delete a cart item. */
+/** If a cart has no remaining items, null its applied voucher/referral codes.
+ * Enforces the "empty cart ⇒ no applied codes" invariant on every item-removal
+ * path (deleteCartItem, updateCartItem with quantity 0, checkout cart clear). */
+async function clearAppliedCodesIfEmpty(db: LibSQLDatabase, cartId: string): Promise<void> {
+  const [remaining] = await db
+    .select({ count: count() })
+    .from(cart_items)
+    .where(eq(cart_items.cart_id, cartId));
+  if ((remaining?.count ?? 0) === 0) {
+    await setCartVoucher(db, cartId, null);
+    await setCartReferral(db, cartId, null);
+  }
+}
+
+/** Delete a cart item. If it was the last item, the applied voucher/referral
+ * codes are cleared too (empty cart = no applied codes). */
 export async function deleteCartItem(
   db: LibSQLDatabase,
   cartId: string,
@@ -390,11 +406,14 @@ export async function deleteCartItem(
   const item = items.find((i) => i.cart_id === cartId);
   if (!item) throw new CartItemError('Cart item not found', 'not_found');
   await db.delete(cart_items).where(eq(cart_items.id, itemId));
+  await clearAppliedCodesIfEmpty(db, cartId);
 }
 
-/** Clear all items from a cart. */
+/** Clear all items from a cart, and the applied voucher/referral codes with them. */
 export async function clearCart(db: LibSQLDatabase, cartId: string): Promise<void> {
   await db.delete(cart_items).where(eq(cart_items.cart_id, cartId));
+  await setCartVoucher(db, cartId, null);
+  await setCartReferral(db, cartId, null);
 }
 
 /** Set or remove the applied voucher code on a cart. */

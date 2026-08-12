@@ -20,15 +20,22 @@ import {
 } from '../../../src/db/schema.ts';
 import { eq } from 'drizzle-orm';
 
-async function makeCartWithItem(db: any, f: any, cartId = 'cart-o', productId?: string, qty = 2) {
+async function makeCartWithItem(
+  db: any,
+  f: any,
+  cartId = 'cart-o',
+  productId?: string,
+  qty = 2,
+  codes: { voucher?: string; referral?: string } = {}
+) {
   const now = new Date();
   const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   await insertFixture(db, 'carts', {
     id: cartId,
     session_id: 'sess-' + cartId,
     user_id: null,
-    applied_voucher_code: null,
-    applied_referral_code: null,
+    applied_voucher_code: codes.voucher ?? null,
+    applied_referral_code: codes.referral ?? null,
     converted_at: null,
     expires_at: expires,
     created_at: now,
@@ -48,8 +55,12 @@ test('createOrder creates an order with status pending, snapshotted items, decre
   const { db, cleanup } = await createTestDb();
   try {
     const f = await seedMinimal(db);
-    // simple product has stock=100
-    const cartId = await makeCartWithItem(db, f, 'cart-1', f.simpleProductId, 2);
+    // simple product has stock=100; the cart carries applied voucher+referral
+    // codes that must be cleared when createOrder empties the cart
+    const cartId = await makeCartWithItem(db, f, 'cart-1', f.simpleProductId, 2, {
+      voucher: 'PCT20',
+      referral: 'PARTNER10',
+    });
 
     const order = await createOrder(db, {
       order_number: 'ORD-1',
@@ -101,9 +112,19 @@ test('createOrder creates an order with status pending, snapshotted items, decre
     const [prod] = await db.select().from(products).where(eq(products.id, f.simpleProductId));
     assert.strictEqual(prod.stock, 98, 'stock must be decremented by ordered quantity');
 
-    // Cart cleared (converted_at set, items deleted)
+    // Cart cleared (converted_at set, items deleted, applied codes nulled)
     const [cart] = await db.select().from(carts).where(eq(carts.id, cartId));
     assert.ok(cart.converted_at, 'cart must be marked converted');
+    assert.equal(
+      cart.applied_voucher_code,
+      null,
+      'cart is emptied by createOrder, so the applied voucher must be cleared'
+    );
+    assert.equal(
+      cart.applied_referral_code,
+      null,
+      'cart is emptied by createOrder, so the applied referral must be cleared'
+    );
     const remainingItems = await db.select().from(cart_items).where(eq(cart_items.cart_id, cartId));
     assert.strictEqual(remainingItems.length, 0, 'cart items must be deleted');
   } finally {

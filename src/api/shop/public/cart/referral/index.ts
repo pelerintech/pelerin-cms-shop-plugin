@@ -51,6 +51,27 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     const result = await getCartWithItems(db, cart.id, config.defaultCurrency);
     const items = result?.items ?? [];
 
+    // Consistency with the voucher apply endpoint: a code can only be applied
+    // to a non-empty cart (empty cart ⇒ no applied codes invariant).
+    if (items.length === 0) {
+      return new Response(JSON.stringify({ success: false, error: 'Cart is empty' }), {
+        status: 422,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    // Voucher-over-referral precedence: a referral applied alongside a voucher
+    // would be reported as `superseded_by_voucher` (discount 0) everywhere else,
+    // so accepting it here would advertise a discount that is never honored.
+    if (cart.applied_voucher_code) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'A voucher is already applied — referral discount cannot be combined with it',
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     let discountAmount = 0;
     if (referral.discount_type && referral.discount_value !== null) {
       const baseTotals = computeCartTotals(items as any, config.defaultCurrency);

@@ -53,6 +53,7 @@ const TEST_FILES = [
   'tests/lib/stock-decrement.test.ts',
   'tests/lib/order-transitions.test.ts',
   'tests/lib/cart-clear.test.ts',
+  'tests/lib/cart-discount.test.ts',
   'tests/lib/variant-matrix.test.ts',
   'tests/lib/csv-parser.test.ts',
   'tests/lib/import-products.test.ts',

@@ -9,6 +9,8 @@ import {
   makeCtx,
 } from '../../../_matrix.ts';
 import { insertFixture } from '../../../../../db/harness.ts';
+import { carts } from '../../../../../../src/db/schema.ts';
+import { eq } from 'drizzle-orm';
 
 ensureLoader();
 const { runPut, runDelete } =
@@ -18,7 +20,13 @@ const URL = (itemId: string) => `http://localhost/api/plugins/shop/public/cart/i
 
 // Seed a cart with one item tied to a known session id, return a ctx-maker that
 // sends the matching cookie so getOrCreateCart reuses the existing cart.
-async function seedCartWithItem(db: any, f: any, itemId = 'ci-1', qty = 2) {
+async function seedCartWithItem(
+  db: any,
+  f: any,
+  itemId = 'ci-1',
+  qty = 2,
+  codes: { voucher?: string; referral?: string } = {}
+) {
   const now = new Date();
   const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   const sessionId = 'sess-test-1';
@@ -27,8 +35,8 @@ async function seedCartWithItem(db: any, f: any, itemId = 'ci-1', qty = 2) {
     id: cartId,
     session_id: sessionId,
     user_id: null,
-    applied_voucher_code: null,
-    applied_referral_code: null,
+    applied_voucher_code: codes.voucher ?? null,
+    applied_referral_code: codes.referral ?? null,
     converted_at: null,
     expires_at: expires,
     created_at: now,
@@ -105,6 +113,29 @@ test('PUT error-wrap → 500', () =>
     body: { quantity: 5 },
   }));
 
+test('PUT quantity 0 on the last item → applied codes cleared (empty cart invariant)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const { sessionId, itemId, cartId } = await seedCartWithItem(db, f, 'ci-last', 1, {
+      voucher: 'PCT20',
+      referral: 'PARTNER10',
+    });
+    const sdk = makeFakeSdk({ user: null });
+    const ctx = ctxWithCookie(URL(itemId), sessionId, { itemId }, { quantity: 0 }, 'PUT');
+    const res = await runPut({ db, sdk, ctx });
+    assert.equal(res.status, 200);
+    const b = await res.json();
+    assert.equal(b.success, true);
+    assert.equal(b.data.removed, true);
+    const [cart] = await db.select().from(carts).where(eq(carts.id, cartId));
+    assert.equal(cart.applied_voucher_code, null, 'voucher code should be cleared');
+    assert.equal(cart.applied_referral_code, null, 'referral code should be cleared');
+  } finally {
+    await cleanup();
+  }
+});
+
 test('DELETE happy-path → 200, removed true', async () => {
   const { db, cleanup } = await createTestDb();
   try {
@@ -129,3 +160,101 @@ test('DELETE error-wrap → 500', () =>
     method: 'DELETE',
     params: { itemId: 'any' },
   }));
+
+test('DELETE last item → applied codes cleared (shop-r35)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const now = new Date();
+    const sessionId = 'sess-last-item';
+    const cartId = 'cart-last-item';
+    await insertFixture(db, 'carts', {
+      id: cartId,
+      session_id: sessionId,
+      user_id: null,
+      applied_voucher_code: 'PCT20',
+      applied_referral_code: 'PARTNER10',
+      converted_at: null,
+      expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+      created_at: now,
+      updated_at: now,
+    });
+    await insertFixture(db, 'cart_items', {
+      id: 'ci-last',
+      cart_id: cartId,
+      product_id: f.simpleProductId,
+      variant_id: null,
+      quantity: 1,
+    });
+
+    const sdk = makeFakeSdk({ user: null });
+    const ctx = ctxWithCookie(
+      URL('ci-last'),
+      sessionId,
+      { itemId: 'ci-last' },
+      undefined,
+      'DELETE'
+    );
+    const res = await runDelete({ db, sdk, ctx });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.success, true);
+
+    const [cart] = await db.select().from(carts).where(eq(carts.id, cartId));
+    assert.equal(cart.applied_voucher_code, null, 'voucher code should be cleared');
+    assert.equal(cart.applied_referral_code, null, 'referral code should be cleared');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('DELETE non-last item → applied codes kept (shop-r35)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const now = new Date();
+    const sessionId = 'sess-keep-item';
+    const cartId = 'cart-keep-item';
+    await insertFixture(db, 'carts', {
+      id: cartId,
+      session_id: sessionId,
+      user_id: null,
+      applied_voucher_code: 'PCT20',
+      applied_referral_code: null,
+      converted_at: null,
+      expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+      created_at: now,
+      updated_at: now,
+    });
+    await insertFixture(db, 'cart_items', {
+      id: 'ci-keep-1',
+      cart_id: cartId,
+      product_id: f.simpleProductId,
+      variant_id: null,
+      quantity: 1,
+    });
+    await insertFixture(db, 'cart_items', {
+      id: 'ci-keep-2',
+      cart_id: cartId,
+      product_id: f.simpleProductId,
+      variant_id: null,
+      quantity: 1,
+    });
+
+    const sdk = makeFakeSdk({ user: null });
+    const ctx = ctxWithCookie(
+      URL('ci-keep-1'),
+      sessionId,
+      { itemId: 'ci-keep-1' },
+      undefined,
+      'DELETE'
+    );
+    const res = await runDelete({ db, sdk, ctx });
+    assert.equal(res.status, 200);
+
+    const [cart] = await db.select().from(carts).where(eq(carts.id, cartId));
+    assert.equal(cart.applied_voucher_code, 'PCT20', 'voucher code should remain');
+  } finally {
+    await cleanup();
+  }
+});

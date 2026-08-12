@@ -271,10 +271,21 @@ export async function createOrder(
         // In-transaction stock re-validation + atomic decrement (single UPDATE per item).
         await decrementStock(tx, orderId);
 
-        // Clear the source cart (if provided)
+        // Clear the source cart (if provided). The cart is emptied here, so its
+        // applied voucher/referral codes must go too — an empty cart must never
+        // carry codes that silently reactivate on the next item added (r35
+        // "empty cart ⇒ no applied codes" invariant). The order row already has
+        // voucher_code/referral_code snapshotted for attribution by the caller.
         if (input.cart_id) {
+          await tx
+            .update(carts)
+            .set({
+              converted_at: now,
+              applied_voucher_code: null,
+              applied_referral_code: null,
+            })
+            .where(eq(carts.id, input.cart_id));
           await tx.delete(cart_items).where(eq(cart_items.cart_id, input.cart_id));
-          await tx.update(carts).set({ converted_at: now }).where(eq(carts.id, input.cart_id));
         }
 
         return { id: orderId, order_number: orderNumber, status: 'pending' };
