@@ -221,7 +221,13 @@ const typeOptions = [
   }
 </AdminLayout>
 
-<script is:inline>
+<script>
+  import {
+    buildAttributeUpdatePayload,
+    buildAttributeOptionPayload,
+    attributeFormResponse,
+  } from '../../../../lib/client/attribute-form';
+
   const form = document.getElementById('attribute-form');
   const errorMessage = document.getElementById('error-message');
   const errorText = document.getElementById('error-text');
@@ -232,16 +238,12 @@ const typeOptions = [
     e.preventDefault();
     errorMessage.classList.add('hidden');
 
-    const formData = new FormData(form);
-    const body: Record<string, any> = {};
-
-    for (const [key, value] of formData.entries()) {
-      if (key === 'sort_order') {
-        body[key] = parseInt(value as string) || 0;
-      } else if (key !== 'type') {
-        body[key] = value;
-      }
+    const fields = {} as Record<string, string>;
+    for (const [key, value] of new FormData(form).entries()) {
+      fields[key] = String(value);
     }
+
+    const body = buildAttributeUpdatePayload(fields);
 
     const response = await fetch(`/api/plugins/shop/attributes/${attributeId}`, {
       method: 'PUT',
@@ -250,11 +252,12 @@ const typeOptions = [
     });
 
     const data = await response.json();
+    const result = attributeFormResponse(data);
 
-    if (data.success) {
+    if (result.ok) {
       window.location.reload();
     } else {
-      errorText.textContent = data.error || 'Failed to update attribute';
+      errorText.textContent = result.errorMessage || 'Failed to update attribute';
       errorMessage.classList.remove('hidden');
     }
   });
@@ -269,12 +272,11 @@ const typeOptions = [
       e.preventDefault();
       if (optionError) optionError.classList.add('hidden');
 
-      const formData = new FormData(addOptionForm);
-      const body: Record<string, any> = {
-        value: formData.get('value'),
-        label: formData.get('label'),
-        sort_order: parseInt(formData.get('sort_order') as string) || 0,
-      };
+      const fields = {} as Record<string, string>;
+      for (const [key, value] of new FormData(addOptionForm).entries()) {
+        fields[key] = String(value);
+      }
+      const body = buildAttributeOptionPayload(fields);
 
       const response = await fetch(`/api/plugins/shop/attributes/${attributeId}/options`, {
         method: 'POST',
@@ -283,14 +285,13 @@ const typeOptions = [
       });
 
       const data = await response.json();
+      const result = attributeFormResponse(data);
 
-      if (data.success) {
+      if (result.ok) {
         window.location.reload();
-      } else {
-        if (optionError && optionErrorText) {
-          optionErrorText.textContent = data.error || 'Failed to add option';
-          optionError.classList.remove('hidden');
-        }
+      } else if (optionError && optionErrorText) {
+        optionErrorText.textContent = result.errorMessage || 'Failed to add option';
+        optionError.classList.remove('hidden');
       }
     });
   }

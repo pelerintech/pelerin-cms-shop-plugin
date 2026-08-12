@@ -48,6 +48,8 @@ const TEST_FILES = [
   'tests/lib/data/catalog.test.ts',
   'tests/lib/data/vouchers-referrals-settings.test.ts',
   'tests/lib/order-number.test.ts',
+  'tests/lib/client/attribute-form.test.ts',
+  'tests/pages/inline-script-plain-js.test.ts',
   'tests/lib/stock-decrement.test.ts',
   'tests/lib/order-transitions.test.ts',
   'tests/lib/cart-clear.test.ts',

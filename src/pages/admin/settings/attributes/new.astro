@@ -91,25 +91,28 @@ const typeOptions = [
   </div>
 </AdminLayout>
 
-<script is:inline>
+<script>
+  import {
+    buildAttributeSavePayload,
+    attributeFormResponse,
+  } from '../../../../lib/client/attribute-form';
+
   const form = document.getElementById('attribute-form');
   const errorMessage = document.getElementById('error-message');
   const errorText = document.getElementById('error-text');
+  const defaultLocale = form.dataset.defaultLocale || 'ro';
+  const otherLocaleCodes = JSON.parse(form.dataset.localeCodes || '[]');
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     errorMessage.classList.add('hidden');
 
-    const formData = new FormData(form);
-    const body: Record<string, any> = {};
-
-    for (const [key, value] of formData.entries()) {
-      if (key === 'sort_order') {
-        body[key] = parseInt(value as string) || 0;
-      } else {
-        body[key] = value;
-      }
+    const fields = {} as Record<string, string>;
+    for (const [key, value] of new FormData(form).entries()) {
+      fields[key] = String(value);
     }
+
+    const body = buildAttributeSavePayload(fields, { defaultLocale, otherLocaleCodes });
 
     const response = await fetch('/api/plugins/shop/attributes', {
       method: 'POST',
@@ -118,17 +121,16 @@ const typeOptions = [
     });
 
     const data = await response.json();
+    const result = attributeFormResponse(data);
 
-    if (data.success) {
-      window.location.href = `/admin/plugins/shop/settings/attributes/${data.data.id}`;
+    if (result.ok) {
+      window.location.href = `/admin/plugins/shop/settings/attributes/${result.redirectId}`;
     } else {
-      errorText.textContent = data.error || 'Failed to create attribute';
+      errorText.textContent = result.errorMessage || 'Failed to create attribute';
       errorMessage.classList.remove('hidden');
-      if (data.fields) {
-        for (const [field, msg] of Object.entries(data.fields)) {
-          const el = form.querySelector(`[data-field="${field}"]`);
-          if (el) el.textContent = msg;
-        }
+      for (const [field, msg] of Object.entries(result.fieldErrors)) {
+        const el = form.querySelector(`[data-field="${field}"]`);
+        if (el) el.textContent = msg;
       }
     }
   });
