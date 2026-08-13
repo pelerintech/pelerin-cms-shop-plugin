@@ -62,8 +62,8 @@ export const categories = sqliteTable(
     description: text('description'),
     slug: text('slug').notNull().unique(),
     sort_order: integer('sort_order').notNull(),
-    created_at: dateType('created_at'),
-    updated_at: dateType('updated_at'),
+    created_at: dateType('created_at').notNull(),
+    updated_at: dateType('updated_at').notNull(),
   },
   (table) => ({
     categories_parent_id_idx: index('categories_parent_id_idx').on(table.parent_id),
@@ -83,7 +83,7 @@ export const products = sqliteTable('products', {
   description: text('description'),
   slug: text('slug').notNull().unique(),
   created_at: dateType('created_at').notNull(),
-  updated_at: dateType('updated_at'),
+  updated_at: dateType('updated_at').notNull(),
 });
 
 export const product_images = sqliteTable(
