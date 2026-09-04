@@ -31,8 +31,18 @@ jobs:
       - run: npm install
       - name: Lint
         run: npm run lint
-      - name: Gitleaks
-        uses: zricethezav/gitleaks-action@v2
+      - name: Gitleaks (OSS CLI)
+        env:
+          GITLEAKS_VERSION: 8.30.1
+        shell: bash
+        run: |
+          # Run the gitleaks CLI directly, not the license-gated gitleaks-action
+          # (the Action requires a GITLEAKS_LICENSE secret for orgs; the MIT
+          # CLI binary does not). Pin the version for reproducibility.
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o /tmp/gitleaks.tgz
+          tar -xzf /tmp/gitleaks.tgz -C /tmp gitleaks
+          chmod +x /tmp/gitleaks
+          /tmp/gitleaks detect --source . --redact --no-banner --exit-code=1
       - name: npm audit
         continue-on-error: true
         run: npm audit --audit-level=low
