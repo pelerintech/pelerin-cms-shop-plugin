@@ -12,11 +12,12 @@
  *  - `sku` is required for import (the upsert key) — unlike the UI where SKU is
  *    optional. Whitespace-only sku is treated as missing.
  */
+import type { AnyRow } from '../lib/types.ts';
 import { z } from 'zod';
 
 /** Trim a string and return undefined when empty, so optional fields stay absent. */
 function trimOptional(val: unknown): string | undefined {
-  if (typeof val !== 'string') return val as any;
+  if (typeof val !== 'string') return val as AnyRow;
   const t = val.trim();
   return t === '' ? undefined : t;
 }

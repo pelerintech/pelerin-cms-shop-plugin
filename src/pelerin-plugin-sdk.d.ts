@@ -5,6 +5,8 @@
  *
  * Keep this minimal — only the parts of the SDK that the plugin actually uses.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any -- ambient CMS SDK stub; the real
+   types live in the CMS, not the plugin, so these boundaries must be `any`. */
 declare module 'pelerin:plugin-sdk' {
   /**
    * Minimal shape of LibSQLDatabase from drizzle-orm.

@@ -1,3 +1,4 @@
+import { errorFields } from '../../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getProvider } from '../../../../../providers/payment/registry';
@@ -16,7 +17,7 @@ export const POST: APIRoute = (context) => {
   return runPost({ db: sdk.db, sdk, ctx: context });
 };
 
-export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
+export async function runPost({ db, ctx }: HandlerDeps): Promise<Response> {
   try {
     const orderId = ctx.params.orderId!;
     const body = await ctx.request.json();
@@ -123,10 +124,13 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

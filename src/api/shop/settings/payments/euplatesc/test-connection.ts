@@ -1,3 +1,4 @@
+import { errorFields } from '../../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getSetting } from '../../../../../lib/data/settings';
@@ -71,11 +72,11 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return new Response(
       JSON.stringify({
         success: false,
-        error: `Failed to reach euPlatesc: ${err.message}`,
+        error: `Failed to reach euPlatesc: ${errorFields(err).message}`,
       }),
       { status: 502, headers: { 'Content-Type': 'application/json' } }
     );

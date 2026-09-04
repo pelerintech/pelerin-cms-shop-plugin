@@ -10,6 +10,7 @@
  * objects are structural (name-bound), so a `db` from astro:db queries them
  * identically to a `db` from the test harness.
  */
+import type { AnyRecord } from '../types.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { inArray, eq } from 'drizzle-orm';
 import {
@@ -106,7 +107,7 @@ export async function getAttribute(
     const translated = transRows.find(
       (t) => t.entity_type === 'product_attribute' && t.locale === locale && t.name
     );
-    if (translated) name = translated.name;
+    if (translated) name = translated.name!;
   }
 
   let option_count: number | null = null;
@@ -182,7 +183,7 @@ export async function updateAttribute(
     }
   }
 
-  const updateData: Record<string, any> = {};
+  const updateData: AnyRecord = {};
   if (input.name !== undefined) updateData.name = input.name;
   if (input.type !== undefined) updateData.type = input.type;
   if (input.sort_order !== undefined) updateData.sort_order = input.sort_order;

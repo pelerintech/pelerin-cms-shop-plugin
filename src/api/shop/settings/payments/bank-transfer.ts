@@ -6,6 +6,7 @@
  *
  * Both endpoints are admin-guarded.
  */
+import { errorFields } from '../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getSetting, upsertSetting } from '../../../../lib/data/settings';
@@ -88,10 +89,13 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

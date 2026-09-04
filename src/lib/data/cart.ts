@@ -2,8 +2,9 @@
  * Data accessors for cart and cart items.
  * Uses inArray/eq — never the sql IN-join idiom.
  */
+import type { AnyRow, WhereCondition } from '../types.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import { inArray, eq, and, isNull, lt, desc, count } from 'drizzle-orm';
+import { inArray, eq, and, lt, desc, count } from 'drizzle-orm';
 import {
   carts,
   cart_items,
@@ -117,14 +118,14 @@ export async function getCartWithItems(
   const items = await db.select().from(cart_items).where(eq(cart_items.cart_id, cartId));
   if (items.length === 0) return { cart, items: [] };
 
-  const enriched = await enrichCartItems(db, items as any[], currency);
+  const enriched = await enrichCartItems(db, items as AnyRow[], currency);
   return { cart, items: enriched };
 }
 
 /** Enrich raw cart_item rows with product name, price, variant attributes. */
 export async function enrichCartItems(
   db: LibSQLDatabase,
-  items: any[],
+  items: AnyRow[],
   currency: string
 ): Promise<EnrichedCartItem[]> {
   if (items.length === 0) return [];
@@ -132,13 +133,13 @@ export async function enrichCartItems(
   const productIds = [...new Set(items.filter((i) => i.product_id).map((i) => i.product_id))];
   const variantIds = [...new Set(items.filter((i) => i.variant_id).map((i) => i.variant_id))];
 
-  let productMap = new Map<string, any>();
+  const productMap = new Map<string, AnyRow>();
   if (productIds.length > 0) {
     const prods = await db.select().from(products).where(inArray(products.id, productIds));
     for (const p of prods) productMap.set(p.id, p);
   }
 
-  let variantMap = new Map<string, any>();
+  const variantMap = new Map<string, AnyRow>();
   if (variantIds.length > 0) {
     const vars = await db
       .select()
@@ -157,7 +158,7 @@ export async function enrichCartItems(
     const variantVav = vavRows.filter((v) => v.entity_type === 'variant');
 
     const assignmentIds = Array.from(new Set(variantVav.map((v) => v.assignment_id)));
-    const assignmentsMap = new Map<string, any>();
+    const assignmentsMap = new Map<string, AnyRow>();
     if (assignmentIds.length > 0) {
       const assignments = await db
         .select()
@@ -169,7 +170,7 @@ export async function enrichCartItems(
     const attributeIds = Array.from(
       new Set(Array.from(assignmentsMap.values()).map((a) => a.attribute_id))
     );
-    const attributesMap = new Map<string, any>();
+    const attributesMap = new Map<string, AnyRow>();
     if (attributeIds.length > 0) {
       const attrs = await db
         .select()
@@ -301,7 +302,7 @@ export async function addCartItem(
   if (!product) throw new CartItemError('Product not found', 'product_not_found');
   if (!product.active) throw new CartItemError('Product not available', 'product_not_found');
 
-  let availableStock: number | null = null;
+  let availableStock: number | null;
   if (input.variant_id) {
     const [variant] = await db
       .select()
@@ -453,7 +454,7 @@ export async function listCarts(
   // r17 Task 9 (list-accessors-sql): push WHERE/ORDER to SQL always; push
   // LIMIT/OFFSET + COUNT(*) when pagination args are present. No-arg/array shape
   // preserved for the admin list API endpoint backward compatibility.
-  const conditions: any[] = [];
+  const conditions: WhereCondition[] = [];
   if (opts.userId) conditions.push(eq(carts.user_id, opts.userId));
   if (opts.abandonedSinceHours) {
     const cutoff = new Date(Date.now() - opts.abandonedSinceHours * 60 * 60 * 1000);

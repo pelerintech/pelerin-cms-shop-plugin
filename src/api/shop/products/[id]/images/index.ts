@@ -1,3 +1,5 @@
+import type { AnyRow } from '../../../../../lib/types.ts';
+import { errorFields } from '../../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listProductImage, createProductImage } from '../../../../../lib/data/products';
@@ -22,11 +24,14 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: err.status ?? 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status: errorFields(err).status ?? 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -48,7 +53,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       );
     }
     const buf = Buffer.from(await file.arrayBuffer());
-    const key = buildProductImageKey(productId, (file as any).name || 'upload.bin');
+    const key = buildProductImageKey(productId, (file as AnyRow).name || 'upload.bin');
     const mime = file.type || 'application/octet-stream';
     // Storage-before-DB (design D7): if upload throws, return 5xx and write NOTHING.
     const up = await sdk.storage.upload(buf, key, mime);
@@ -59,7 +64,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       size: buf.length,
       width: up.width ?? null,
       height: up.height ?? null,
-      original_filename: (file as any).name ?? null,
+      original_filename: (file as AnyRow).name ?? null,
       alt: null,
       sort_order: 0,
     });
@@ -68,10 +73,13 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       status: 201,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: err.status ?? 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status: errorFields(err).status ?? 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

@@ -1,3 +1,5 @@
+import type { LooseBody } from '../../../../lib/types.ts';
+import { errorFields } from '../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { recordLineItemRefund, getOrderWithItems, RefundError } from '../../../../lib/data/orders';
@@ -23,7 +25,7 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     await sdk.auth.requireAdmin(ctx.request);
 
     const orderId = ctx.params.id!;
-    let body: any;
+    let body: LooseBody;
     try {
       body = await ctx.request.json();
     } catch {
@@ -71,7 +73,7 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       const provider = getProvider('euplatesc');
       if (provider && result.order.transaction_id) {
         // Compute refund amount from line items (sum of amount for each refund line)
-        const refundAmount = parsed.data.refunds.reduce((sum: number, line: any) => {
+        const refundAmount = parsed.data.refunds.reduce((sum: number, line) => {
           return sum + (line.amount ?? 0);
         }, 0);
         // Derive reason from notes
@@ -99,16 +101,16 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       // Fire shop.order.refunded event
       const refundPayload = await buildOrderEventPayload(db, orderId, 'shop.order.refunded');
       sdk.events.publish('shop.order.refunded', refundPayload);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // If euPlatesc refund already succeeded but internal DB failed, return reconciliation info
       if (euplatescRefunded) {
         console.error(
-          `[euPlatesc refund] epid=${euplatescEpid} succeeded but internal update failed: ${err.message}`
+          `[euPlatesc refund] epid=${euplatescEpid} succeeded but internal update failed: ${errorFields(err).message}`
         );
         return new Response(
           JSON.stringify({
             success: false,
-            error: `euPlatesc refund succeeded (epid: ${euplatescEpid}) but internal order update failed: ${err.message}. Please reconcile manually.`,
+            error: `euPlatesc refund succeeded (epid: ${euplatescEpid}) but internal order update failed: ${errorFields(err).message}. Please reconcile manually.`,
           }),
           {
             status: 500,
@@ -117,7 +119,7 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
         );
       }
       if (err instanceof RefundError) {
-        return new Response(JSON.stringify({ success: false, error: err.message }), {
+        return new Response(JSON.stringify({ success: false, error: errorFields(err).message }), {
           status: 422,
           headers: { 'Content-Type': 'application/json' },
         });
@@ -137,11 +139,14 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  } catch (err: any) {
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

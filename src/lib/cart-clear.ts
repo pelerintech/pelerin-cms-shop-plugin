@@ -1,6 +1,6 @@
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { eq } from 'drizzle-orm';
-import { orders, carts, cart_items } from '../db/schema.ts';
+import { orders, carts } from '../db/schema.ts';
 import { markCartConverted, clearCart } from './data/cart.ts';
 
 /**

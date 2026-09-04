@@ -1,3 +1,4 @@
+import { errorFields } from '../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import {
@@ -49,12 +50,15 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  } catch (err: any) {
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -81,11 +85,14 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       status: 201,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

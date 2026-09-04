@@ -1,4 +1,6 @@
+import { errorFields } from '../../lib/errors.ts';
 import Stripe from 'stripe';
+import type { AnyRow } from '../../lib/types.ts';
 import { sql } from 'drizzle-orm';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { orders } from '../../db/schema';
@@ -20,7 +22,7 @@ async function getStripeClient(db: LibSQLDatabase): Promise<Stripe | null> {
   if (!encryptedKey) return null;
   const secretKey = decryptIfNeeded(encryptedKey);
   return new Stripe(secretKey, {
-    apiVersion: '2025-06-16.acacia' as any,
+    apiVersion: '2025-06-16.acacia' as AnyRow,
   });
 }
 
@@ -88,12 +90,14 @@ async function handleWebhook(db: LibSQLDatabase, request: Request): Promise<Webh
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(body, signature, decryptIfNeeded(webhookSecret));
-  } catch (err: any) {
-    throw new Error(`Invalid Stripe webhook signature: ${err.message}`);
+  } catch (err: unknown) {
+    throw new Error(`Invalid Stripe webhook signature: ${errorFields(err).message}`, {
+      cause: err,
+    });
   }
 
   // Find the order by client_reference_id from the session
-  const session = event.data.object as any;
+  const session = event.data.object as AnyRow;
   const orderId = session.client_reference_id ?? session.metadata?.order_id;
 
   if (!orderId) {

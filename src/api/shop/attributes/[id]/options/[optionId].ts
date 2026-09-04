@@ -1,3 +1,4 @@
+import { errorFields } from '../../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { UpdateAttributeOptionSchema } from '../../../../../schemas/product.schema';
@@ -46,12 +47,15 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -79,18 +83,21 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof OptionError) {
-      return new Response(JSON.stringify({ success: false, error: err.message }), {
+      return new Response(JSON.stringify({ success: false, error: errorFields(err).message }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -105,18 +112,21 @@ export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof OptionError) {
-      const status = err.code === 'in_use' ? 409 : 404;
-      return new Response(JSON.stringify({ success: false, error: err.message }), {
+      const status = errorFields(err).code === 'in_use' ? 409 : 404;
+      return new Response(JSON.stringify({ success: false, error: errorFields(err).message }), {
         status,
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

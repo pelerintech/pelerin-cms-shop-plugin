@@ -11,6 +11,16 @@ export default tseslint.config(
     rules: {
       'prefer-const': 'warn',
       'no-console': 'off',
+      // Keep the rule as an error; only the deliberate `_`-prefix convention
+      // (payment-provider injected params: _db/_order/_amount/_reason) is exempt.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
     },
   },
   {

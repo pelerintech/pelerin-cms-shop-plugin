@@ -24,7 +24,7 @@ export function escapeCsvCell(value: unknown): string {
   const formulaPrefix = str.length > 0 && FORMULA_CHARS.has(str[0]);
 
   // Double internal double-quotes (RFC 4180).
-  let escaped = str.replace(/"/g, '""');
+  const escaped = str.replace(/"/g, '""');
 
   if (formulaPrefix) {
     // Prepend a single quote to neutralize formula evaluation. The prefix is the

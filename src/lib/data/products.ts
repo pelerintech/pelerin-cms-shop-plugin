@@ -2,8 +2,9 @@
  * Data accessors for the product catalog: products, categories, prices, translations, images.
  * Uses inArray/eq — never the sql IN-join idiom.
  */
+import type { AnyRow, AnyRecord, WhereCondition } from '../types.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import { inArray, eq, and, isNull, asc, desc, count, or, like } from 'drizzle-orm';
+import { inArray, eq, and, asc, desc, count, or, like } from 'drizzle-orm';
 import {
   products,
   categories,
@@ -70,7 +71,7 @@ export async function listProducts(
   const locale = opts.locale ?? defaultLocale;
 
   // Build WHERE in SQL (r17 Task 9) — no full-table load.
-  const conditions: any[] = [];
+  const conditions: WhereCondition[] = [];
   if (opts.category_id) conditions.push(eq(products.category_id, opts.category_id));
   if (opts.active !== undefined) conditions.push(eq(products.active, opts.active));
   if (opts.search) {
@@ -110,9 +111,9 @@ export async function listProducts(
     for (const p of paged) {
       const t = transMap.get(p.id);
       if (t) {
-        (p as any).name = t.name ?? p.name;
-        (p as any).description = t.description ?? p.description;
-        (p as any).slug = t.slug ?? p.slug;
+        (p as AnyRow).name = t.name ?? p.name;
+        (p as AnyRow).description = t.description ?? p.description;
+        (p as AnyRow).slug = t.slug ?? p.slug;
       }
     }
   }
@@ -180,10 +181,12 @@ export async function getProductWithPrices(
       : [];
   const variantById = new Map<string, typeof variantPrices>();
   for (const vp of variantPrices) {
-    if (!variantById.has(vp.variant_id)) {
-      variantById.set(vp.variant_id, []);
+    const vid = vp.variant_id;
+    if (!vid) continue;
+    if (!variantById.has(vid)) {
+      variantById.set(vid, []);
     }
-    variantById.get(vp.variant_id)!.push(vp);
+    variantById.get(vid)!.push(vp);
   }
   const variants = variantRows.map((v) => ({
     id: v.id,
@@ -255,7 +258,7 @@ async function countProductVariants(
  * Derive `has_variants` on a list of product rows from actual variant rows
  * (batched query), overriding the DB column.
  */
-async function applyDerivedHasVariants(db: LibSQLDatabase, rows: any[]): Promise<void> {
+async function applyDerivedHasVariants(db: LibSQLDatabase, rows: AnyRow[]): Promise<void> {
   const ids = rows.map((r) => r.id);
   if (ids.length === 0) return;
   const counts = await countProductVariants(db, ids);
@@ -321,7 +324,7 @@ export async function updateProduct(
   id: string,
   input: UpdateProductInput
 ): Promise<void> {
-  const updateData: Record<string, any> = { updated_at: new Date() };
+  const updateData: AnyRecord = { updated_at: new Date() };
   for (const [k, v] of Object.entries(input)) {
     if (v !== undefined) updateData[k] = v;
   }
@@ -344,7 +347,7 @@ export async function updateProductWithTranslations(
   db: LibSQLDatabase,
   id: string,
   productInput: UpdateProductInput,
-  rawBody: Record<string, any>,
+  rawBody: AnyRecord,
   knownLocaleCodes: Set<string>
 ): Promise<void> {
   await updateProduct(db, id, productInput);
@@ -360,7 +363,7 @@ export async function updateProductWithTranslations(
       const suffix = key.slice(field.length + 1); // e.g. "name_en" -> "en"
       if (key === `${field}_${suffix}` && knownLocaleCodes.has(suffix)) {
         if (!localeData[suffix]) localeData[suffix] = {};
-        localeData[suffix][field] = value || null;
+        (localeData[suffix] as Record<string, string | null>)[field] = value || null;
       }
     }
   }
@@ -467,14 +470,14 @@ export async function listCategories(
   const config = await getShopConfig(db);
 
   // Build WHERE clause for search (pushed to SQL, r24)
-  const conditions: any[] = [];
+  const conditions: WhereCondition[] = [];
   if (opts.search) {
     const s = `%${opts.search.toLowerCase()}%`;
     conditions.push(or(like(categories.name, s), like(categories.slug, s)));
   }
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  let rows = await db.select().from(categories).where(where).orderBy(asc(categories.sort_order));
+  const rows = await db.select().from(categories).where(where).orderBy(asc(categories.sort_order));
 
   if (locale !== config.defaultLocale) {
     const ids = rows.map((r) => r.id);
@@ -491,9 +494,9 @@ export async function listCategories(
       for (const r of rows) {
         const t = transMap.get(r.id);
         if (t) {
-          (r as any).name = t.name ?? r.name;
-          (r as any).description = t.description ?? r.description;
-          (r as any).slug = t.slug ?? r.slug;
+          (r as AnyRow).name = t.name ?? r.name;
+          (r as AnyRow).description = t.description ?? r.description;
+          (r as AnyRow).slug = t.slug ?? r.slug;
         }
       }
     }
@@ -543,7 +546,7 @@ export async function createCategory(
 export async function updateCategory(
   db: LibSQLDatabase,
   id: string,
-  input: Record<string, any>
+  input: AnyRecord
 ): Promise<void> {
   await db
     .update(categories)
@@ -564,8 +567,8 @@ export async function updateCategory(
 export async function updateCategoryWithTranslations(
   db: LibSQLDatabase,
   id: string,
-  categoryInput: Record<string, any>,
-  rawBody: Record<string, any>,
+  categoryInput: AnyRecord,
+  rawBody: AnyRecord,
   knownLocaleCodes: Set<string>
 ): Promise<void> {
   await updateCategory(db, id, categoryInput);
@@ -581,7 +584,7 @@ export async function updateCategoryWithTranslations(
       const suffix = key.slice(field.length + 1); // e.g. "name_ro" -> "ro"
       if (key === `${field}_${suffix}` && knownLocaleCodes.has(suffix)) {
         if (!localeData[suffix]) localeData[suffix] = {};
-        localeData[suffix][field] = value || null;
+        (localeData[suffix] as Record<string, string | null>)[field] = value || null;
       }
     }
   }
@@ -644,11 +647,17 @@ export async function deleteCategory(db: LibSQLDatabase, id: string): Promise<vo
 
 // ── Prices ──
 
-export async function listPricesForProduct(db: LibSQLDatabase, productId: string): Promise<any[]> {
+export async function listPricesForProduct(
+  db: LibSQLDatabase,
+  productId: string
+): Promise<(typeof product_prices.$inferSelect)[]> {
   return await db.select().from(product_prices).where(eq(product_prices.product_id, productId));
 }
 
-export async function listPricesForVariant(db: LibSQLDatabase, variantId: string): Promise<any[]> {
+export async function listPricesForVariant(
+  db: LibSQLDatabase,
+  variantId: string
+): Promise<(typeof product_prices.$inferSelect)[]> {
   return await db.select().from(product_prices).where(eq(product_prices.variant_id, variantId));
 }
 
@@ -662,7 +671,7 @@ export async function upsertPrice(
   }
 ): Promise<void> {
   // Check if price exists
-  let existing: any[] = [];
+  let existing: (typeof product_prices.$inferSelect)[] = [];
   if (input.variant_id) {
     existing = await db
       .select()
@@ -703,7 +712,7 @@ export async function listTranslations(
   db: LibSQLDatabase,
   entityType: string,
   entityId: string
-): Promise<any[]> {
+): Promise<(typeof translations.$inferSelect)[]> {
   const rows = await db
     .select()
     .from(translations)
@@ -717,7 +726,7 @@ export async function listTranslationsByEntityIds(
   db: LibSQLDatabase,
   entityType: string,
   entityIds: string[]
-): Promise<any[]> {
+): Promise<(typeof translations.$inferSelect)[]> {
   if (entityIds.length === 0) return [];
   const rows = await db
     .select()
@@ -731,7 +740,7 @@ export async function getTranslation(
   entityType: string,
   entityId: string,
   locale: string
-): Promise<any | null> {
+): Promise<AnyRow | null> {
   const rows = await db
     .select()
     .from(translations)
@@ -803,7 +812,7 @@ export async function listProductImage(
   db: LibSQLDatabase,
   sdk: { storage: { getUrl: (key: string) => string } },
   productId: string
-): Promise<any[]> {
+): Promise<AnyRow[]> {
   const rows = await db
     .select()
     .from(product_images)

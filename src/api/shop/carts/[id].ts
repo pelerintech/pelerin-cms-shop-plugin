@@ -1,3 +1,5 @@
+import type { AnyRow } from '../../../lib/types.ts';
+import { errorFields } from '../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getCartWithItems } from '../../../lib/data/cart';
@@ -24,7 +26,7 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       });
     }
 
-    const totals = computeCartTotals(result.items as any, config.defaultCurrency, 0, 0);
+    const totals = computeCartTotals(result.items as AnyRow, config.defaultCurrency, 0, 0);
     const ageMs = Date.now() - new Date(result.cart.created_at).getTime();
     const ageHours = Math.floor(ageMs / (1000 * 60 * 60 * 1000));
 
@@ -46,11 +48,14 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
-  } catch (err: any) {
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

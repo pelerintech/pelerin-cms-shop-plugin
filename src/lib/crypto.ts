@@ -2,11 +2,11 @@
  * Encryption utilities matching the CMS crypto module.
  * Uses AES-256-GCM via Node's built-in crypto.
  */
+import type { AnyRow } from './types.ts';
 import crypto from 'node:crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_BYTES = 12;
-const AUTH_TAG_BYTES = 16;
 
 function deriveKey(secret: string): Buffer {
   return crypto.createHash('sha256').update(secret).digest();
@@ -14,11 +14,12 @@ function deriveKey(secret: string): Buffer {
 
 function getEncryptionKey(): Buffer {
   const dedicated =
-    (import.meta as any).env?.WEBHOOK_ENCRYPTION_KEY ?? process.env.WEBHOOK_ENCRYPTION_KEY;
+    (import.meta as AnyRow).env?.WEBHOOK_ENCRYPTION_KEY ?? process.env.WEBHOOK_ENCRYPTION_KEY;
 
   if (dedicated) return deriveKey(dedicated);
 
-  const fallback = (import.meta as any).env?.BETTER_AUTH_SECRET ?? process.env.BETTER_AUTH_SECRET;
+  const fallback =
+    (import.meta as AnyRow).env?.BETTER_AUTH_SECRET ?? process.env.BETTER_AUTH_SECRET;
 
   if (fallback) return deriveKey(fallback);
 

@@ -1,3 +1,4 @@
+import { errorFields } from '../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import {
@@ -109,16 +110,19 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof SlugCollisionError) {
       return new Response(
-        JSON.stringify({ success: false, error: `Slug collision: ${err.message}` }),
+        JSON.stringify({ success: false, error: `Slug collision: ${errorFields(err).message}` }),
         { status: 409, headers: { 'Content-Type': 'application/json' } }
       );
     }
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

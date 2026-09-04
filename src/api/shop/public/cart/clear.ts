@@ -1,3 +1,4 @@
+import { errorFields } from '../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getOrCreateCart } from '../../../../lib/cart-session';
@@ -24,10 +25,13 @@ export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response
         headers,
       }
     );
-  } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

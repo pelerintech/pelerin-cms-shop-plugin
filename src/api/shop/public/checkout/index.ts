@@ -1,3 +1,5 @@
+import type { AnyRow, AnyRecord } from '../../../../lib/types.ts';
+import { errorFields } from '../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getOrCreateCart } from '../../../../lib/cart-session';
@@ -169,7 +171,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     // Stock re-validation via accessor
     try {
       await validateCartStock(db, items);
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (e instanceof StockValidationError) {
         return new Response(
           JSON.stringify({
@@ -196,7 +198,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     const evalResult = await evaluateCartDiscount(db, cart, cartItemInputs, currency);
     const discountAmount = evalResult.discount_amount;
 
-    const totals = computeCartTotals(cartItemInputs as any, currency, 0, discountAmount);
+    const totals = computeCartTotals(cartItemInputs as AnyRow, currency, 0, discountAmount);
 
     // Build name parts
     const nameParts = data.billing_name.trim().split(/\s+/);
@@ -221,7 +223,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       : (data.shipping_country ?? data.billing_country);
     const shippingAddressExtra = data.shipping_same_as_billing
       ? (data.billing_address_extra ?? null)
-      : (data.shipping_address_extra ?? null ?? data.billing_address_extra ?? null);
+      : (data.shipping_address_extra ?? data.billing_address_extra ?? null);
 
     // Create the order via accessor (handles items, stock decrement, cart clear).
     // createOrder generates its own order_number (transactional, with UNIQUE retry).
@@ -268,7 +270,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       metadata: data.metadata ?? null,
       cart_id: cart.id,
       payment_provider: data.provider,
-      items: totals.items.map((line: any) => ({
+      items: totals.items.map((line) => ({
         product_id: line.product_id,
         variant_id: line.variant_id,
         product_name: line.product_name,
@@ -295,13 +297,13 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     if (setCookie) headers['Set-Cookie'] = setCookie;
 
     // Build the payment response object
-    const payment: Record<string, any> = { provider: data.provider };
+    const payment: AnyRecord = { provider: data.provider };
     if (data.provider === 'bank_transfer') {
       const ben = await getSetting(db, 'bank_transfer_beneficiary');
       const iban = await getSetting(db, 'bank_transfer_iban');
       const bankName = await getSetting(db, 'bank_transfer_bank_name');
       const refNote = await getSetting(db, 'bank_transfer_reference_note');
-      const instructions: Record<string, any> = {
+      const instructions: AnyRecord = {
         beneficiary: ben,
         iban,
         reference: order.order_number,
@@ -324,10 +326,13 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       }),
       { status: 201, headers }
     );
-  } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

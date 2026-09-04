@@ -1,9 +1,10 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getSetting, upsertSetting } from '../../../../lib/data/settings';
-import { encrypt, decryptIfNeeded } from '../../../../lib/crypto';
+import { encrypt } from '../../../../lib/crypto';
 import { StripeSettingsSchema } from '../../../../schemas/settings.schema';
 import type { HandlerDeps } from '../../../../lib/handler-types';
+import type { LooseBody } from '../../../../lib/types';
 
 const SETTINGS_KEYS = ['stripe_publishable_key', 'stripe_secret_key', 'stripe_webhook_secret'];
 
@@ -61,7 +62,7 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     });
   }
 
-  let body: any;
+  let body: LooseBody;
   try {
     body = await ctx.request.json();
   } catch {

@@ -12,7 +12,7 @@
  * Idempotent: running twice doesn't break things.
  */
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import {
   products,
   categories,

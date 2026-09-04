@@ -189,8 +189,10 @@ export async function batchEnrichPublicProducts(
   // Group in-memory
   const pricesByProduct = new Map<string, (typeof prodPrices)[number][]>();
   for (const pp of prodPrices) {
-    if (!pricesByProduct.has(pp.product_id)) pricesByProduct.set(pp.product_id, []);
-    pricesByProduct.get(pp.product_id)!.push(pp);
+    const pid = pp.product_id;
+    if (!pid) continue;
+    if (!pricesByProduct.has(pid)) pricesByProduct.set(pid, []);
+    pricesByProduct.get(pid)!.push(pp);
   }
 
   const variantsByProduct = new Map<string, (typeof variants)[number][]>();
@@ -201,8 +203,10 @@ export async function batchEnrichPublicProducts(
 
   const pricesByVariant = new Map<string, (typeof varPrices)[number][]>();
   for (const vp of varPrices) {
-    if (!pricesByVariant.has(vp.variant_id)) pricesByVariant.set(vp.variant_id, []);
-    pricesByVariant.get(vp.variant_id)!.push(vp);
+    const vid = vp.variant_id;
+    if (!vid) continue;
+    if (!pricesByVariant.has(vid)) pricesByVariant.set(vid, []);
+    pricesByVariant.get(vid)!.push(vp);
   }
 
   const imagesByProduct = new Map<string, (typeof images)[number][]>();

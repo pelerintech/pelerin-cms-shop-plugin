@@ -2,6 +2,7 @@
  * Data accessors for referral codes.
  * Uses eq — never the sql IN-join idiom.
  */
+import type { AnyRecord, WhereCondition } from '../types.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { eq, desc, and, count, like, or, inArray, notInArray } from 'drizzle-orm';
 import { referral_codes, orders } from '../../db/schema.ts';
@@ -48,7 +49,7 @@ export async function listReferrals(
   // r17 Task 9 (list-accessors-sql): push WHERE/ORDER to SQL always; push
   // LIMIT/OFFSET + COUNT(*) when pagination args are present. No-arg array shape
   // preserved for the admin list API endpoint backward compatibility.
-  const conditions: any[] = [];
+  const conditions: WhereCondition[] = [];
   if (opts.active !== undefined) conditions.push(eq(referral_codes.active, opts.active));
   if (opts.search) {
     const s = `%${opts.search.toLowerCase()}%`;
@@ -132,7 +133,7 @@ export async function updateReferral(
 ): Promise<ReferralRow> {
   const [existing] = await db.select().from(referral_codes).where(eq(referral_codes.id, id));
   if (!existing) throw new ReferralError('Referral not found');
-  const updateData: Record<string, any> = { updated_at: new Date() };
+  const updateData: AnyRecord = { updated_at: new Date() };
   for (const [k, v] of Object.entries(input)) {
     if (v !== undefined) updateData[k] = v;
   }
@@ -166,7 +167,7 @@ export async function countOrdersByReferralCodes(
     .groupBy(orders.referral_code);
 
   for (const row of rows) {
-    result.set(row.referral_code, Number(row.cnt));
+    if (row.referral_code) result.set(row.referral_code, Number(row.cnt));
   }
   return result;
 }

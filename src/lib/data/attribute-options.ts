@@ -2,6 +2,7 @@
  * Data accessors for attribute options (select-type attribute values).
  * Uses inArray/eq — never the sql IN-join idiom.
  */
+import type { AnyRecord } from '../types.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { inArray, eq } from 'drizzle-orm';
 import {
@@ -90,7 +91,7 @@ export async function getOption(
     const translated = transRows.find(
       (t) => t.entity_type === 'product_attribute_option' && t.locale === locale && t.label
     );
-    if (translated) label = translated.label;
+    if (translated) label = translated.label!;
   }
   return {
     id: opt.id,
@@ -144,7 +145,7 @@ export async function updateOption(
     .where(eq(product_attribute_options.id, optionId));
   if (!existing) throw new OptionError('Option not found', 'not_found');
 
-  const updateData: Record<string, any> = {};
+  const updateData: AnyRecord = {};
   if (input.value !== undefined) updateData.value = input.value;
   if (input.sort_order !== undefined) updateData.sort_order = input.sort_order;
   if (Object.keys(updateData).length > 0) {

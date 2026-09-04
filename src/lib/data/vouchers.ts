@@ -2,6 +2,7 @@
  * Data accessors for vouchers.
  * Uses eq — never the sql IN-join idiom.
  */
+import type { AnyRecord, WhereCondition } from '../types.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { eq, desc, and, count, like, or } from 'drizzle-orm';
 import { vouchers } from '../../db/schema.ts';
@@ -54,7 +55,7 @@ export async function listVouchers(
   // the caller never holds more than one page in Node memory. The no-arg array
   // shape is preserved for backward compatibility with the admin list API
   // endpoint (whose handler tests assert `data` is an array).
-  const conditions: any[] = [];
+  const conditions: WhereCondition[] = [];
   if (opts.active !== undefined) conditions.push(eq(vouchers.active, opts.active));
   if (opts.search) {
     const s = `%${opts.search.toLowerCase()}%`;
@@ -145,7 +146,7 @@ export async function updateVoucher(
 ): Promise<VoucherRow> {
   const [existing] = await db.select().from(vouchers).where(eq(vouchers.id, id));
   if (!existing) throw new VoucherError('Voucher not found');
-  const updateData: Record<string, any> = { updated_at: new Date() };
+  const updateData: AnyRecord = { updated_at: new Date() };
   for (const [k, v] of Object.entries(input)) {
     if (v !== undefined) updateData[k] = v;
   }

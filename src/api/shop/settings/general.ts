@@ -1,3 +1,4 @@
+import type { AnyRecord, LooseBody } from '../../../lib/types.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import {
@@ -43,7 +44,7 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     });
   }
 
-  const settings: Record<string, any> = {};
+  const settings: AnyRecord = {};
   for (const key of SETTINGS_KEYS) {
     settings[key] = await getSetting(db, key);
   }
@@ -69,7 +70,7 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     });
   }
 
-  let body: any;
+  let body: LooseBody;
   try {
     body = await ctx.request.json();
   } catch {

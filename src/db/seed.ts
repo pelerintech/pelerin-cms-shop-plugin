@@ -4,8 +4,9 @@
  * is always predictable.
  */
 import { sql } from 'drizzle-orm';
+import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 
-export default async function seed(db: any) {
+export default async function seed(db: LibSQLDatabase) {
   console.log('[Plugin:pelerin_ro_shop] Seeding...');
 
   const now = new Date().toISOString();

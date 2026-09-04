@@ -1,3 +1,4 @@
+import { errorFields } from '../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listOrders } from '../../../lib/data/orders';
@@ -63,12 +64,12 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
         'Content-Disposition': 'attachment; filename="orders.csv"',
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     // r17 Task 11: a CSV client always gets CSV — return text/csv with a single
     // error row rather than a JSON body on the error path.
-    const msg = escapeCsvCell(err?.message || 'Server Error');
+    const msg = escapeCsvCell(errorFields(err).message || 'Server Error');
     return new Response(`error\n${msg}`, {
-      status: err?.status ?? 500,
+      status: errorFields(err).status ?? 500,
       headers: { 'Content-Type': 'text/csv' },
     });
   }

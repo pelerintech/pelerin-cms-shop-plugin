@@ -1,3 +1,5 @@
+import { errorFields } from '../../../../lib/errors.ts';
+import type { AnyDb } from '../../../../lib/types.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import {
@@ -44,7 +46,7 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     // Restock all line items + transition to cancelled, atomically. If the
     // transition throws, the restock is rolled back (no stock restored for an
     // order that didn't actually cancel).
-    await db.transaction(async (tx) => {
+    await db.transaction(async (tx: AnyDb) => {
       await restockOrderItems(tx, orderId);
       await transitionOrderStatus(tx, orderId, 'cancelled', 'Order cancelled by admin', 'admin');
     });
@@ -59,11 +61,14 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

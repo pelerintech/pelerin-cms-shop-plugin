@@ -1,3 +1,5 @@
+import type { AnyRow } from '../../../../../lib/types.ts';
+import { errorFields } from '../../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { UpdateVariantSchema } from '../../../../../schemas/product.schema';
@@ -25,7 +27,7 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       sku?: string | null;
       stock?: number | null;
       active?: boolean;
-      field_values?: any[];
+      field_values?: AnyRow[];
       prices?: { currency: string; price_net: number | null }[];
     } = {};
     const variantResult = UpdateVariantSchema.safeParse(body);
@@ -47,18 +49,21 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof VariantError) {
-      return new Response(JSON.stringify({ success: false, error: err.message }), {
+      return new Response(JSON.stringify({ success: false, error: errorFields(err).message }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -73,17 +78,20 @@ export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof VariantError) {
-      return new Response(JSON.stringify({ success: false, error: err.message }), {
+      return new Response(JSON.stringify({ success: false, error: errorFields(err).message }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

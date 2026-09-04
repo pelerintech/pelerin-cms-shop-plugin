@@ -92,10 +92,14 @@ export async function getShopConfig(db: LibSQLDatabase): Promise<{
   let currencies: CurrencyItem[] = [];
   try {
     locales = JSON.parse(settings.locales || '[]');
-  } catch {}
+  } catch {
+    // ignore malformed locales JSON — fall back to empty list
+  }
   try {
     currencies = JSON.parse(settings.currencies || '[]');
-  } catch {}
+  } catch {
+    // ignore malformed currencies JSON — fall back to empty list
+  }
 
   // Derive default from isDefault flag; fall back to old key for backward compat.
   // When no config exists at all, return empty string — callers should handle this.

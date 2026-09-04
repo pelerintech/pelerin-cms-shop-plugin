@@ -8,13 +8,14 @@
  * unit-tested with a fake `sdk`, a fake `ctx`, and either a seeded harness `db`
  * or a poison-db proxy.
  *
- * `any` types for `sdk` and `ctx` are deliberate: importing the real types from
- * `pelerin:plugin-sdk` or `astro` would reintroduce the virtual-module
- * dependency into the tested code path. Type safety is provided by the
- * handler's own usage; test correctness is verified by behavior, not types.
+ * `db`, `sdk`, and `ctx` are typed via the `lib/types` boundary aliases (Db/Sdk/Ctx): importing the real types from
+ * `pelerin:plugin-sdk` or `astro` would reintroduce the virtual-module dependency into the tested code path.
+ * Type safety is provided by the handler's own usage; test correctness is verified by behavior, not types.
  */
+import type { Db, Sdk, Ctx } from './types.ts';
+
 export interface HandlerDeps {
-  db: any;
-  sdk: any;
-  ctx: any;
+  db: Db;
+  sdk: Sdk;
+  ctx: Ctx;
 }

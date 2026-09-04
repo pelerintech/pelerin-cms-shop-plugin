@@ -1,3 +1,4 @@
+import { errorFields } from '../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import {
@@ -7,6 +8,8 @@ import {
   deletePrice,
 } from '../../../../lib/data/products';
 import { listVariantIdsForProduct } from '../../../../lib/data/variants';
+import { product_prices } from '../../../../db/schema';
+import type { AnyRecord } from '../../../../lib/types.ts';
 import { BulkUpsertPricesSchema, CreatePriceSchema } from '../../../../schemas/product.schema';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 
@@ -36,7 +39,7 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     const productId = ctx.params.id!;
     const prices = await listPricesForProduct(db, productId);
     const variantIds = await listVariantIdsForProduct(db, productId);
-    const variantPrices: any[] = [];
+    const variantPrices: (typeof product_prices.$inferSelect)[] = [];
     for (const vid of variantIds) {
       const vp = await listPricesForVariant(db, vid);
       variantPrices.push(...vp);
@@ -45,11 +48,14 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: err.status ?? 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status: errorFields(err).status ?? 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -87,11 +93,14 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       status: 201,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: err.status ?? 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status: errorFields(err).status ?? 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -102,7 +111,7 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     // Accept either { prices: [...] } (bulk) or a single price object.
     const payload = Array.isArray(body?.prices) ? { prices: body.prices } : { prices: [body] };
     // Normalize product_id from the route when missing.
-    payload.prices = payload.prices.map((p: any) => ({
+    payload.prices = payload.prices.map((p: AnyRecord) => ({
       ...p,
       product_id: p.product_id ?? ctx.params.id!,
     }));
@@ -129,11 +138,14 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: err.status ?? 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status: errorFields(err).status ?? 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -147,10 +159,13 @@ export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: err.status ?? 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status: errorFields(err).status ?? 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

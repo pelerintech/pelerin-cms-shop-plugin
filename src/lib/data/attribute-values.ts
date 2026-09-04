@@ -12,7 +12,6 @@ import {
   product_attribute_values,
   product_attribute_assignments,
   product_attributes,
-  product_attribute_options,
   translations,
 } from '../../db/schema.ts';
 

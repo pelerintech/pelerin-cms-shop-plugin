@@ -1,3 +1,4 @@
+import { errorFields } from '../../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { CreateAttributeOptionSchema } from '../../../../../schemas/product.schema';
@@ -30,18 +31,21 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    if (err instanceof OptionError && err.code === 'not_found') {
-      return new Response(JSON.stringify({ success: false, error: err.message }), {
+  } catch (err: unknown) {
+    if (err instanceof OptionError && errorFields(err).code === 'not_found') {
+      return new Response(JSON.stringify({ success: false, error: errorFields(err).message }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -71,18 +75,21 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       status: 201,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof OptionError) {
-      const status = err.code === 'not_found' ? 404 : 422;
-      return new Response(JSON.stringify({ success: false, error: err.message }), {
+      const status = errorFields(err).code === 'not_found' ? 404 : 422;
+      return new Response(JSON.stringify({ success: false, error: errorFields(err).message }), {
         status,
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

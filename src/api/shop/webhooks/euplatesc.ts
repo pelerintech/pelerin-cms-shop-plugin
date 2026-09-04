@@ -3,6 +3,7 @@ import { createPluginContext } from 'pelerin:plugin-sdk';
 import { handleWebhook } from '../../../providers/payment/euplatesc';
 import { buildOrderEventPayload } from '../../../lib/event-payload';
 import type { HandlerDeps } from '../../../lib/handler-types';
+import type { Ctx } from '../../../lib/types';
 
 /**
  * euPlatesc IPN (Instant Payment Notification) endpoint.
@@ -14,7 +15,7 @@ import type { HandlerDeps } from '../../../lib/handler-types';
  */
 export const POST: APIRoute = async ({ request }) => {
   const sdk = createPluginContext();
-  return runPost({ db: sdk.db, sdk, ctx: { request } as any });
+  return runPost({ db: sdk.db, sdk, ctx: { request } as Ctx });
 };
 
 export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> {

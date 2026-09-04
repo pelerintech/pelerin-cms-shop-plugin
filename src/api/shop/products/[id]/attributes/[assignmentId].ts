@@ -1,3 +1,4 @@
+import { errorFields } from '../../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import {
@@ -22,23 +23,26 @@ export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof AssignmentConflictError) {
       const codeMap: Record<string, number> = {
         not_found: 404,
         has_variants: 409,
         conflict: 409,
       };
-      const status = codeMap[err.code] ?? 409;
-      return new Response(JSON.stringify({ success: false, error: err.message }), {
+      const status = codeMap[errorFields(err).code ?? ''] ?? 409;
+      return new Response(JSON.stringify({ success: false, error: errorFields(err).message }), {
         status,
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

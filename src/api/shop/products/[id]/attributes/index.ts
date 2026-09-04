@@ -1,3 +1,5 @@
+import { errorFields } from '../../../../../lib/errors.ts';
+import type { AnyRecord } from '../../../../../lib/types.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { CreateAttributeAssignmentSchema } from '../../../../../schemas/product.schema';
@@ -34,12 +36,15 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -85,7 +90,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       }),
       { status: 201, headers: { 'Content-Type': 'application/json' } }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof AssignmentConflictError) {
       const codeMap: Record<string, number> = {
         not_found: 404,
@@ -94,20 +99,23 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
         has_variants: 409,
         conflict: 409,
       };
-      const status = codeMap[err.code] ?? 409;
-      const body: any = { success: false, error: err.message };
-      if (err.code === 'invalid_dimension') {
-        body.fields = { offered_option_ids: err.message };
+      const status = codeMap[errorFields(err).code ?? ''] ?? 409;
+      const body: AnyRecord = { success: false, error: errorFields(err).message };
+      if (errorFields(err).code === 'invalid_dimension') {
+        body.fields = { offered_option_ids: errorFields(err).message };
       }
       return new Response(JSON.stringify(body), {
         status,
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

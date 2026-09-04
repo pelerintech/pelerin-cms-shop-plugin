@@ -10,11 +10,11 @@
  *   - Resolution-time: >1 translation match for (entity_type, locale, slug) → throw SlugCollisionError.
  *   - Write-time: upsertTranslationWithSlugGuard checks before writing.
  */
+import type { AnyRow } from '../types.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { eq, and, isNotNull } from 'drizzle-orm';
 import { categories, products, translations } from '../../db/schema.ts';
 import { getCategoryById, getProductWithPrices } from './products.ts';
-import { getShopConfig } from './settings.ts';
 
 // ── Error type ──
 
@@ -43,7 +43,7 @@ async function findTranslationBySlug(
   entityType: string,
   slug: string,
   locale: string
-): Promise<any[]> {
+): Promise<AnyRow[]> {
   return db
     .select()
     .from(translations)
@@ -68,7 +68,7 @@ export async function resolveCategoryBySlug(
   db: LibSQLDatabase,
   slug: string,
   locale: string
-): Promise<{ category: any; source: 'translation' | 'default' } | null> {
+): Promise<{ category: AnyRow; source: 'translation' | 'default' } | null> {
   // 1. Try translations table first.
   const transRows = await findTranslationBySlug(db, 'category', slug, locale);
   if (transRows.length > 1) {
@@ -83,9 +83,9 @@ export async function resolveCategoryBySlug(
     const cat = await getCategoryById(db, transRows[0].entity_id);
     if (cat) {
       // Overlay localized fields (name, description, slug) onto the result.
-      (cat as any).name = transRows[0].name ?? cat.name;
-      (cat as any).description = transRows[0].description ?? cat.description;
-      (cat as any).slug = transRows[0].slug ?? cat.slug;
+      (cat as AnyRow).name = transRows[0].name ?? cat.name;
+      (cat as AnyRow).description = transRows[0].description ?? cat.description;
+      (cat as AnyRow).slug = transRows[0].slug ?? cat.slug;
       return { category: cat, source: 'translation' };
     }
   }
@@ -111,7 +111,7 @@ export async function resolveProductBySlug(
   db: LibSQLDatabase,
   slug: string,
   locale: string
-): Promise<{ product: any; source: 'translation' | 'default' } | null> {
+): Promise<{ product: AnyRow; source: 'translation' | 'default' } | null> {
   // 1. Try translations table first.
   const transRows = await findTranslationBySlug(db, 'product', slug, locale);
   if (transRows.length > 1) {
@@ -126,9 +126,9 @@ export async function resolveProductBySlug(
     const product = await getProductWithPrices(db, transRows[0].entity_id, locale);
     if (product) {
       // Overlay localized fields onto the result.
-      (product as any).name = transRows[0].name ?? product.name;
-      (product as any).description = transRows[0].description ?? product.description;
-      (product as any).slug = transRows[0].slug ?? product.slug;
+      (product as AnyRow).name = transRows[0].name ?? product.name;
+      (product as AnyRow).description = transRows[0].description ?? product.description;
+      (product as AnyRow).slug = transRows[0].slug ?? product.slug;
       return { product, source: 'translation' };
     }
   }

@@ -1,3 +1,4 @@
+import type { Sdk, AnyRow } from './types.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { getCartBySession, createCart, linkCartToUser } from './data/cart.ts';
 
@@ -17,7 +18,7 @@ function parseCookie(cookieHeader: string | null, name: string): string | null {
 }
 
 export interface CartSession {
-  cart: any;
+  cart: AnyRow;
   sessionId: string;
   setCookie: string | null;
 }
@@ -31,7 +32,7 @@ export interface CartSession {
  */
 export async function getOrCreateCart(
   db: LibSQLDatabase,
-  sdk: any,
+  sdk: Sdk,
   request: Request
 ): Promise<CartSession> {
   const cookieHeader = request.headers.get('cookie');
@@ -43,8 +44,8 @@ export async function getOrCreateCart(
       try {
         const user = await sdk.auth.getUser(request);
         if (user && !cart.user_id) {
-          await linkCartToUser(db, cart.id, (user as any).id);
-          cart.user_id = (user as any).id;
+          await linkCartToUser(db, cart.id, (user as AnyRow).id);
+          cart.user_id = (user as AnyRow).id;
         }
       } catch {
         // Not authenticated — fine for guest carts
@@ -59,8 +60,8 @@ export async function getOrCreateCart(
   try {
     const user = await sdk.auth.getUser(request);
     if (user) {
-      await linkCartToUser(db, newCart.id, (user as any).id);
-      newCart.user_id = (user as any).id;
+      await linkCartToUser(db, newCart.id, (user as AnyRow).id);
+      newCart.user_id = (user as AnyRow).id;
     }
   } catch {
     // Not authenticated — fine

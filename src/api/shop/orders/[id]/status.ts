@@ -1,3 +1,5 @@
+import type { LooseBody } from '../../../../lib/types.ts';
+import { errorFields } from '../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import {
@@ -19,7 +21,7 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     await sdk.auth.requireAdmin(ctx.request);
 
     const orderId = ctx.params.id!;
-    let body: any;
+    let body: LooseBody;
     try {
       body = await ctx.request.json();
     } catch {
@@ -44,9 +46,9 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     const { status, note } = parsed.data;
     try {
       await transitionOrderStatus(db, orderId, status, note ?? undefined, 'admin');
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof OrderTransitionError) {
-        return new Response(JSON.stringify({ success: false, error: err.message }), {
+        return new Response(JSON.stringify({ success: false, error: errorFields(err).message }), {
           status: 409,
           headers: { 'Content-Type': 'application/json' },
         });
@@ -73,11 +75,14 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

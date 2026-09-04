@@ -1,3 +1,5 @@
+import type { LooseBody } from '../../../../lib/types.ts';
+import { errorFields } from '../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getOrderWithItems } from '../../../../lib/data/orders';
@@ -48,7 +50,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     await sdk.auth.requireAdmin(ctx.request);
 
     const orderId = ctx.params.id!;
-    let body: any;
+    let body: LooseBody;
     try {
       body = await ctx.request.json();
     } catch {
@@ -103,11 +105,14 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

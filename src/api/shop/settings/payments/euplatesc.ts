@@ -4,6 +4,7 @@ import { getSetting, upsertSetting } from '../../../../lib/data/settings';
 import { encrypt } from '../../../../lib/crypto';
 import { EuplatescSettingsSchema } from '../../../../schemas/settings.schema';
 import type { HandlerDeps } from '../../../../lib/handler-types';
+import type { LooseBody } from '../../../../lib/types';
 
 const SETTINGS_KEYS = [
   'euplatesc_merchant_id',
@@ -67,7 +68,7 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     });
   }
 
-  let body: any;
+  let body: LooseBody;
   try {
     body = await ctx.request.json();
   } catch {

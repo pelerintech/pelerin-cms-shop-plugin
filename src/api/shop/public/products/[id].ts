@@ -1,17 +1,6 @@
+import { errorFields } from '../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { eq, inArray } from 'drizzle-orm';
-import {
-  products,
-  product_prices,
-  product_variants,
-  product_images,
-  product_attribute_assignments,
-  product_attribute_values,
-  product_attribute_options,
-  product_attributes,
-  translations,
-} from '../../../../db/schema';
 import { getProductWithPrices, listProductImage } from '../../../../lib/data/products';
 import { listVariants } from '../../../../lib/data/variants';
 import { getShopConfig } from '../../../../lib/data/settings';
@@ -50,10 +39,13 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
-  } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

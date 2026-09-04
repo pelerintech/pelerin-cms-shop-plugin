@@ -1,3 +1,4 @@
+import { errorFields } from '../../lib/errors.ts';
 import crypto from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
@@ -11,7 +12,6 @@ import {
   buildRequestFields,
   buildResponseFields,
   buildRefundFields,
-  buildCheckMidFields,
 } from '../../lib/euplatesc-mac';
 import type {
   PaymentProvider,
@@ -304,8 +304,11 @@ async function refund(
     }
 
     return { success: false, error: data.error || 'Unknown euPlatesc refund error' };
-  } catch (err: any) {
-    return { success: false, error: `euPlatesc refund request failed: ${err.message}` };
+  } catch (err: unknown) {
+    return {
+      success: false,
+      error: `euPlatesc refund request failed: ${errorFields(err).message}`,
+    };
   }
 }
 

@@ -5,6 +5,7 @@
  * Uses `inArray()` — never sql-dot-join (this module fixes the live 500 on
  * GET /api/plugins/shop/products/[id]/variants).
  */
+import type { AnyRow, AnyRecord } from '../types.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { inArray, eq, and, isNull } from 'drizzle-orm';
 import {
@@ -164,7 +165,7 @@ export async function listVariants(
 
   // Assignment details for the values
   const assignmentIds = Array.from(new Set(variantAttrValues.map((v) => v.assignment_id)));
-  const assignmentsMap = new Map<string, any>();
+  const assignmentsMap = new Map<string, AnyRow>();
   if (assignmentIds.length > 0) {
     const assignments = await db
       .select()
@@ -177,7 +178,7 @@ export async function listVariants(
   const attributeIds = Array.from(
     new Set(Array.from(assignmentsMap.values()).map((a) => a.attribute_id))
   );
-  const attributesMap = new Map<string, any>();
+  const attributesMap = new Map<string, AnyRow>();
   const attrTransMap = new Map<string, string>();
   if (attributeIds.length > 0) {
     const attrs = await db
@@ -278,7 +279,7 @@ export async function findVariantBySku(
   active: boolean;
 } | null> {
   const [variant] = await db.select().from(product_variants).where(eq(product_variants.sku, sku));
-  return (variant as any) ?? null;
+  return (variant as AnyRow) ?? null;
 }
 
 export interface VariantCombination {
@@ -363,7 +364,7 @@ export async function createVariants(
 
   for (const combo of combinations) {
     const comboSet = new Set(combo.option_ids);
-    for (const [vId, optSet] of existingValues) {
+    for (const [, optSet] of existingValues) {
       if (optSet.size === comboSet.size && [...optSet].every((id) => comboSet.has(id))) {
         throw new VariantError('Duplicate variant combination', 'duplicate_combination');
       }
@@ -449,7 +450,7 @@ export async function updateVariant(
     .where(eq(product_variants.id, variantId));
   if (!existing) throw new VariantError('Variant not found', 'not_found');
 
-  const updateData: Record<string, any> = {};
+  const updateData: AnyRecord = {};
   if (input.sku !== undefined) updateData.sku = input.sku;
   if (input.stock !== undefined) updateData.stock = input.stock;
   if (input.active !== undefined) updateData.active = input.active;
@@ -498,11 +499,12 @@ export async function updateVariant(
     }
   }
 
-  if (input.field_values && Array.isArray(input.field_values)) {
+  const fieldValues = input.field_values;
+  if (fieldValues && Array.isArray(fieldValues)) {
     // Transactional (r17 Task 10) — the value inserts/updates run in one tx so a
     // mid-loop failure rolls back the whole dimension/value set.
     await db.transaction(async (tx) => {
-      for (const fv of input.field_values) {
+      for (const fv of fieldValues) {
         // Validate assignment belongs to this product and is field role
         const [assignment] = await tx
           .select()

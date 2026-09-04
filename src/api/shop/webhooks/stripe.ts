@@ -1,8 +1,10 @@
+import { errorFields } from '../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { handleWebhook as realHandleWebhook } from '../../../providers/payment/stripe';
 import { buildOrderEventPayload } from '../../../lib/event-payload';
 import type { HandlerDeps } from '../../../lib/handler-types';
+import type { Ctx } from '../../../lib/types';
 
 /**
  * Stripe webhook endpoint — receives events from Stripe.
@@ -11,7 +13,7 @@ import type { HandlerDeps } from '../../../lib/handler-types';
  */
 export const POST: APIRoute = async ({ request }) => {
   const sdk = createPluginContext();
-  return runPost({ db: sdk.db, sdk, ctx: { request } as any });
+  return runPost({ db: sdk.db, sdk, ctx: { request } as Ctx });
 };
 
 export async function runPost(
@@ -31,8 +33,8 @@ export async function runPost(
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    const message = err.message ?? 'Server Error';
+  } catch (err: unknown) {
+    const message = errorFields(err).message ?? 'Server Error';
     const isInvalidSig = message.includes('Invalid') || message.includes('signature');
     const isNotFound = message.includes('not found') || message.includes('Order not found');
 

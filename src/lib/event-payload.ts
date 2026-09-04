@@ -1,3 +1,4 @@
+import type { AnyRecord } from './types.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { getOrderWithItems } from './data/orders.ts';
 
@@ -79,7 +80,7 @@ export async function buildOrderEventPayload(
         company: order.shipping_company,
         vat_number: order.shipping_vat_number,
       },
-      items: items.map((item: any) => ({
+      items: items.map((item) => ({
         product_name: item.product_name,
         sku: item.sku,
         quantity: item.quantity,
@@ -93,7 +94,7 @@ export async function buildOrderEventPayload(
 
   // Helper: find the timestamp of a status transition from status history
   function statusTransitionAt(status: string): string | null {
-    const entry = statusHistory.find((h: any) => h.to_status === status);
+    const entry = statusHistory.find((h) => h.to_status === status);
     if (!entry || !entry.created_at) return null;
     return new Date(entry.created_at).toISOString();
   }
@@ -121,10 +122,10 @@ export interface OrderEventPayload {
   event: string;
   timestamp: string;
   data: {
-    order: Record<string, any>;
-    billing_address: Record<string, any>;
-    shipping_address: Record<string, any>;
-    items: Array<Record<string, any>>;
+    order: AnyRecord;
+    billing_address: AnyRecord;
+    shipping_address: AnyRecord;
+    items: Array<AnyRecord>;
     paid_at?: string | null;
     shipped_at?: string | null;
     cancelled_at?: string | null;

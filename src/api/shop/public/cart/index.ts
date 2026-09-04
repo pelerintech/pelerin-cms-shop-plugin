@@ -1,3 +1,5 @@
+import type { AnyRow } from '../../../../lib/types.ts';
+import { errorFields } from '../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getOrCreateCart } from '../../../../lib/cart-session';
@@ -31,7 +33,7 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     const evalResult = await evaluateCartDiscount(db, cart, items, currency);
     const discountAmount = evalResult.discount_amount;
 
-    const totals = computeCartTotals(items as any, currency, 0, discountAmount);
+    const totals = computeCartTotals(items as AnyRow, currency, 0, discountAmount);
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (setCookie) headers['Set-Cookie'] = setCookie;
 
@@ -50,11 +52,14 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       }),
       { status: 200, headers }
     );
-  } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 

@@ -1,3 +1,4 @@
+import type { LooseBody } from '../../../lib/types.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getLocales, saveLocales, getShopConfig, deleteSetting } from '../../../lib/data/settings';
@@ -42,7 +43,7 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     });
   }
 
-  let body: any;
+  let body: LooseBody;
   try {
     body = await ctx.request.json();
   } catch {

@@ -1,3 +1,4 @@
+import { errorFields } from '../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listOrders } from '../../../lib/data/orders';
@@ -49,12 +50,15 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  } catch (err: any) {
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -77,19 +81,32 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
 
     // Admin order creation delegates to the checkout flow's createOrder via the accessor.
     // createOrder generates its own order_number (transactional, with UNIQUE retry)
-    // and returns the actual number used.
+    // and returns the actual number used. The admin schema allows blank (nullable)
+    // shipping fields, but the orders table columns are NOT NULL — coalesce to ''.
     const { createOrder } = await import('../../../lib/data/orders');
-    const order = await createOrder(db, parsed.data);
+    const order = await createOrder(db, {
+      order_number: null,
+      ...parsed.data,
+      shipping_first_name: parsed.data.shipping_first_name ?? '',
+      shipping_last_name: parsed.data.shipping_last_name ?? '',
+      shipping_address: parsed.data.shipping_address ?? '',
+      shipping_city: parsed.data.shipping_city ?? '',
+      shipping_postal_code: parsed.data.shipping_postal_code ?? '',
+      shipping_country: parsed.data.shipping_country ?? '',
+    });
 
     return new Response(JSON.stringify({ success: true, data: order }), {
       status: 201,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    const status = err.status ?? 500;
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

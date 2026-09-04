@@ -14,6 +14,7 @@
  * `db` is injected (no astro:db import). All DB access goes through accessors in
  * src/lib/data/.
  */
+import type { AnyRow, AnyRecord } from './types.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { ProductImportRowSchema } from '../schemas/import.schema.ts';
 import {
@@ -88,7 +89,7 @@ export async function importProducts(
       result.errors.push({
         row: rowNum,
         sku: skuForError,
-        error: formatZodError(parsed.error.issues as any),
+        error: formatZodError(parsed.error.issues as AnyRow),
       });
       result.skipped++;
       continue;
@@ -120,7 +121,7 @@ export async function importProducts(
       // the existing product — we never null out vat_rate, stock, category, or
       // description, and `active` has no CSV column so it is never flipped.
       // Required fields (sku, name_ro, type) are always present on a valid row.
-      const updateFields: Record<string, any> = {
+      const updateFields: AnyRecord = {
         sku: data.sku,
         type: data.type,
         name: data.name_ro,

@@ -3,22 +3,10 @@
  * and order-number generation.
  * Uses inArray/eq — never the sql IN-join idiom.
  */
+import type { AnyRow, AnyRecord, WhereCondition, AnyDb } from '../types.ts';
+import { errorFields } from '../errors.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import {
-  inArray,
-  eq,
-  and,
-  isNull,
-  ne,
-  asc,
-  desc,
-  like,
-  or,
-  gte,
-  lte,
-  count,
-  sql,
-} from 'drizzle-orm';
+import { inArray, eq, and, asc, desc, like, or, gte, lte, count, sql } from 'drizzle-orm';
 import {
   orders,
   order_items,
@@ -28,7 +16,6 @@ import {
   product_variants,
   carts,
   cart_items,
-  shop_settings,
 } from '../../db/schema.ts';
 import { getSetting, getSettingBool, getSettingNumber, upsertSetting } from './settings.ts';
 
@@ -115,7 +102,9 @@ export interface CreateOrderItemInput {
 }
 
 export interface CreateOrderInput {
-  order_number: string;
+  // createOrder generates its own order_number (r16) and ignores this field;
+  // callers pass null.
+  order_number: string | null;
   user_id?: string | null;
   customer_type: string;
   customer_email: string;
@@ -291,13 +280,13 @@ export async function createOrder(
         return { id: orderId, order_number: orderNumber, status: 'pending' };
       });
       return result;
-    } catch (err: any) {
+    } catch (err: unknown) {
       lastErr = err;
       // Retry only on a UNIQUE-constraint violation on orders.order_number.
-      const msg = String(err?.message ?? '');
+      const msg = String(errorFields(err).message ?? '');
       const isUniqueViolation =
         /UNIQUE constraint failed: orders\.order_number/i.test(msg) ||
-        /SQLITE_CONSTRAINT_UNIQUE/i.test(String(err?.code ?? ''));
+        /SQLITE_CONSTRAINT_UNIQUE/i.test(String(errorFields(err).code ?? ''));
       if (!isUniqueViolation) throw err;
       // else: loop and retry with a fresh generateOrderNumber
     }
@@ -306,9 +295,11 @@ export async function createOrder(
 }
 
 export interface OrderWithItems {
-  order: any;
-  items: any[];
-  statusHistory: any[];
+  // enriched order shape (PaymentOrder etc.); raw `any` boundary, tightened in
+  // task 5 aliasing — consumers read computed fields not on the orders row.
+  order: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  items: (typeof order_items.$inferSelect)[];
+  statusHistory: (typeof order_status_history.$inferSelect)[];
 }
 
 /** Get an order with its items and status history. */
@@ -331,7 +322,7 @@ export async function getOrderWithItems(
 
 /** Transition an order to a new status (state-machine validated). Same-status logs history only. */
 export async function transitionOrderStatus(
-  db: LibSQLDatabase,
+  db: AnyDb,
   orderId: string,
   toStatus: string,
   note?: string | null,
@@ -378,7 +369,7 @@ export async function transitionOrderStatus(
  * stock exists and throws `StockValidationError` if not (the MAX(0,...) floor is
  * a backstop only, never the enforcement).
  */
-export async function decrementStock(db: LibSQLDatabase, orderId: string): Promise<void> {
+export async function decrementStock(db: AnyDb, orderId: string): Promise<void> {
   const items = await db.select().from(order_items).where(eq(order_items.order_id, orderId));
 
   for (const item of items) {
@@ -443,7 +434,7 @@ export interface RestockLineItem {
  * Runs on the provided `db` handle (the caller's transaction `tx` when invoked inside one).
  */
 export async function restockOrderItems(
-  db: LibSQLDatabase,
+  db: AnyDb,
   orderId: string,
   items?: RestockLineItem[]
 ): Promise<void> {
@@ -505,13 +496,13 @@ export interface ListOrdersOptions {
 }
 
 export interface ListOrdersResult {
-  orders: any[];
+  orders: AnyRow[];
   total: number;
   page: number;
   limit: number;
 }
 
-const SORT_COL_MAP: Record<string, any> = {
+const SORT_COL_MAP: AnyRecord = {
   created_at: orders.created_at,
   updated_at: orders.updated_at,
   order_number: orders.order_number,
@@ -530,7 +521,7 @@ export async function listOrders(
   const orderDir = opts.dir === 'asc' ? asc : desc;
 
   // Build the WHERE clause in SQL (r17 Task 9) — no full-table load into Node.
-  const conditions: any[] = [];
+  const conditions: WhereCondition[] = [];
   if (opts.status && opts.status.length > 0) {
     conditions.push(inArray(orders.status, opts.status));
   }

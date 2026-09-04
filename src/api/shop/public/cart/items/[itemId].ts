@@ -1,3 +1,4 @@
+import { errorFields } from '../../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getOrCreateCart } from '../../../../../lib/cart-session';
@@ -55,7 +56,7 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
         }),
         { status: 200, headers }
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (e instanceof CartItemError) {
         return new Response(JSON.stringify({ success: false, error: e.message }), {
           status: 404,
@@ -64,11 +65,14 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       }
       throw e;
     }
-  } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -94,7 +98,7 @@ export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response
           headers,
         }
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (e instanceof CartItemError) {
         return new Response(JSON.stringify({ success: false, error: e.message }), {
           status: 404,
@@ -103,10 +107,13 @@ export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response
       }
       throw e;
     }
-  } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

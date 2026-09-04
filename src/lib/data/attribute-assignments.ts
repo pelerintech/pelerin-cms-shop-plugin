@@ -87,7 +87,7 @@ export async function listAssignments(
   const dimensionAssignments = assignments.filter((a) => a.role === 'dimension');
   const optionsMap = new Map<string, AssignmentRow['offered_options']>([]);
   for (const assignment of dimensionAssignments) {
-    let offeredIds: string[] = [];
+    let offeredIds: string[];
     try {
       offeredIds = JSON.parse(assignment.offered_option_ids || '[]');
     } catch {

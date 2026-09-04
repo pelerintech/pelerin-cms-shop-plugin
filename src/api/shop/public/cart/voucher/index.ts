@@ -1,3 +1,5 @@
+import type { AnyRow } from '../../../../../lib/types.ts';
+import { errorFields } from '../../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getOrCreateCart } from '../../../../../lib/cart-session';
@@ -81,7 +83,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       });
     }
 
-    const baseTotals = computeCartTotals(items as any, config.defaultCurrency);
+    const baseTotals = computeCartTotals(items as AnyRow, config.defaultCurrency);
     if (voucher.min_order_value !== null && baseTotals.subtotal_net < voucher.min_order_value) {
       return new Response(
         JSON.stringify({ success: false, error: 'Minimum order value not met' }),
@@ -100,7 +102,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
         Math.round(baseTotals.subtotal_net * ((voucher.value ?? 0) / 100) * 100) / 100;
 
     await setCartVoucher(db, cart.id, voucher.code);
-    const totals = computeCartTotals(items as any, config.defaultCurrency, 0, discountAmount);
+    const totals = computeCartTotals(items as AnyRow, config.defaultCurrency, 0, discountAmount);
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (setCookie) headers['Set-Cookie'] = setCookie;
@@ -116,11 +118,14 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       }),
       { status: 200, headers }
     );
-  } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -134,10 +139,13 @@ export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response
       status: 200,
       headers,
     });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

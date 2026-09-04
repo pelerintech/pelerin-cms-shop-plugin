@@ -6,6 +6,7 @@
  * Admin-guarded. Accepts { enabled: boolean } and persists ramburs_enabled
  * as "true" or "false" in shop_settings.
  */
+import { errorFields } from '../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { upsertSetting } from '../../../../lib/data/settings';
@@ -54,10 +55,13 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'Server Error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  } catch (err: unknown) {
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

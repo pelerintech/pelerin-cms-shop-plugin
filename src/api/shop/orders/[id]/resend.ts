@@ -1,3 +1,4 @@
+import type { AnyRow } from '../../../../lib/types.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import type { HandlerDeps } from '../../../../lib/handler-types';
@@ -9,7 +10,7 @@ import type { HandlerDeps } from '../../../../lib/handler-types';
  * `shop.order.confirmation_requested` event instead of returning a stub.
  */
 export const POST: APIRoute = (context) =>
-  runPost({ db: undefined as any, sdk: createPluginContext(), ctx: context });
+  runPost({ db: undefined as AnyRow, sdk: createPluginContext(), ctx: context });
 
 export async function runPost({ sdk, ctx }: HandlerDeps): Promise<Response> {
   try {

@@ -1,7 +1,9 @@
+import type { LooseBody } from '../../../../lib/types.ts';
+import { errorFields } from '../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getOrderWithItems } from '../../../../lib/data/orders';
-import { getProvider, listProviders } from '../../../../providers/payment/registry';
+import { getProvider } from '../../../../providers/payment/registry';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 import type { PaymentOrder, PaymentOptions } from '../../../../providers/payment/interface';
 
@@ -26,7 +28,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
 
   const orderId = ctx.params.id!;
 
-  let body: any;
+  let body: LooseBody;
   try {
     body = await ctx.request.json();
   } catch {
@@ -118,9 +120,12 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     return new Response(
-      JSON.stringify({ success: false, error: err.message || 'Payment initiation failed' }),
+      JSON.stringify({
+        success: false,
+        error: errorFields(err).message || 'Payment initiation failed',
+      }),
       {
         status: 500,
         headers: { 'Content-Type': 'application/json' },

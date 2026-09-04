@@ -11,6 +11,7 @@
  * `db` is injected (no astro:db import). All DB access goes through accessors in
  * src/lib/data/.
  */
+import type { AnyRow } from './types.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { PriceImportRowSchema } from '../schemas/import.schema.ts';
 import { findProductBySku, upsertPrice } from './data/products.ts';
@@ -72,7 +73,7 @@ export async function importPrices(
       result.errors.push({
         row: rowNum,
         sku: skuForError,
-        error: formatZodError(parsed.error.issues as any),
+        error: formatZodError(parsed.error.issues as AnyRow),
       });
       result.skipped++;
       continue;
