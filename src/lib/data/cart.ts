@@ -247,7 +247,10 @@ export async function enrichCartItems(
   for (const item of items) {
     let priceNet = 0;
     if (item.variant_id) {
-      priceNet = priceMap.get(`v:${item.variant_id}`) ?? 0;
+      // Variant price, falling back to the base product price for the same
+      // currency (matches getEffectiveVariantPrices: own override wins, else
+      // inherit the product row, else no price for that currency).
+      priceNet = priceMap.get(`v:${item.variant_id}`) ?? priceMap.get(`p:${item.product_id}`) ?? 0;
     } else if (item.product_id) {
       priceNet = priceMap.get(`p:${item.product_id}`) ?? 0;
     }

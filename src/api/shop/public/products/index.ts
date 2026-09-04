@@ -40,7 +40,11 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
           { status: 409, headers: { 'Content-Type': 'application/json' } }
         );
       }
-      const enriched = await batchEnrichPublicProducts(db, [result.product], { currency, sdk });
+      const enriched = await batchEnrichPublicProducts(db, [result.product], {
+        currency,
+        locale,
+        sdk,
+      });
       if (enriched.length === 0) {
         return new Response(JSON.stringify({ success: false, error: 'Product not found' }), {
           status: 404,
@@ -86,7 +90,11 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       active: true,
     });
 
-    const enriched = await batchEnrichPublicProducts(db, result.products, { currency, sdk });
+    const enriched = await batchEnrichPublicProducts(db, result.products, {
+      currency,
+      locale,
+      sdk,
+    });
 
     return new Response(
       JSON.stringify({

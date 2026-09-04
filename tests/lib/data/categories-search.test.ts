@@ -17,7 +17,7 @@ test('listCategories with search filters by name (case-insensitive)', async () =
       description: null,
       sort_order: 10,
       created_at: new Date(),
-      updated_at: null,
+      updated_at: new Date(),
     });
     await insertFixture(db, 'categories', {
       id: 'cat-clothing',
@@ -27,7 +27,7 @@ test('listCategories with search filters by name (case-insensitive)', async () =
       description: null,
       sort_order: 11,
       created_at: new Date(),
-      updated_at: null,
+      updated_at: new Date(),
     });
     await insertFixture(db, 'categories', {
       id: 'cat-electrical',
@@ -37,7 +37,7 @@ test('listCategories with search filters by name (case-insensitive)', async () =
       description: null,
       sort_order: 12,
       created_at: new Date(),
-      updated_at: null,
+      updated_at: new Date(),
     });
 
     // Search for "elec" should match Electronics and Electrical Parts, but not Clothing
@@ -66,7 +66,7 @@ test('listCategories with search filters by slug', async () => {
       description: null,
       sort_order: 20,
       created_at: new Date(),
-      updated_at: null,
+      updated_at: new Date(),
     });
 
     // Search by slug fragment
@@ -103,7 +103,7 @@ test('listCategories without search returns all categories (backward compatible)
       description: null,
       sort_order: 99,
       created_at: new Date(),
-      updated_at: null,
+      updated_at: new Date(),
     });
 
     // Without search param, should return all (seedMinimal creates 2 + 1 extra = 3)
@@ -127,7 +127,7 @@ test('listCategories with search is case-insensitive', async () => {
       description: null,
       sort_order: 30,
       created_at: new Date(),
-      updated_at: null,
+      updated_at: new Date(),
     });
 
     // Search with uppercase

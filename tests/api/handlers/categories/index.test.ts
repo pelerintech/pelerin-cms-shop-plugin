@@ -133,7 +133,7 @@ test('GET with search param filters categories by name/slug', async () => {
       description: null,
       sort_order: 50,
       created_at: new Date(),
-      updated_at: null,
+      updated_at: new Date(),
     });
 
     const sdk = makeFakeSdk();

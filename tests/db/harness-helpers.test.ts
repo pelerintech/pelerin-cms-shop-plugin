@@ -77,8 +77,8 @@ test('insertFixture inserts rows into a table', async () => {
       description: null,
       slug: 'test-category',
       sort_order: 1,
-      created_at: null,
-      updated_at: null,
+      created_at: new Date(),
+      updated_at: new Date(),
     });
 
     const after = await db.select().from(categories).all();

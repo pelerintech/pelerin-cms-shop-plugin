@@ -228,8 +228,8 @@ test('categories.slug is UNIQUE — duplicate throws', async () => {
     description: null,
     slug: 'cat-slug',
     sort_order: 1,
-    created_at: null,
-    updated_at: null,
+    created_at: new Date(),
+    updated_at: new Date(),
   });
   await assertUniqueConstraint(() =>
     insertFixture(db, 'categories', {
@@ -239,8 +239,8 @@ test('categories.slug is UNIQUE — duplicate throws', async () => {
       description: null,
       slug: 'cat-slug',
       sort_order: 2,
-      created_at: null,
-      updated_at: null,
+      created_at: new Date(),
+      updated_at: new Date(),
     })
   );
 });

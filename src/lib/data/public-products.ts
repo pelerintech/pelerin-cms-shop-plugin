@@ -14,7 +14,15 @@
  */
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { inArray, asc, and, isNull } from 'drizzle-orm';
-import { product_prices, product_variants, product_images } from '../../db/schema.ts';
+import {
+  product_prices,
+  product_variants,
+  product_images,
+  product_attribute_values,
+  product_attribute_assignments,
+  product_attributes,
+  translations,
+} from '../../db/schema.ts';
 import type { ProductListRow } from './products.ts';
 
 /**
@@ -46,12 +54,21 @@ export interface EnrichedPublicProduct {
     stock: number | null;
     active: boolean;
     prices: { currency: string; price_net: number }[];
+    attributes: {
+      attribute_name: string;
+      attribute_type: string;
+      role: string;
+      value: string | number | boolean | null;
+      option_id?: string | null;
+    }[];
   }[];
 }
 
 export interface BatchEnrichOptions {
   /** The currency to resolve prices for (e.g. 'RON'). */
   currency: string;
+  /** The locale for resolving localized attribute names and option labels. */
+  locale: string;
   /** SDK with storage.getUrl for resolving image keys to URLs. */
   sdk: { storage: { getUrl: (key: string) => string | Promise<string> } };
 }
@@ -91,6 +108,76 @@ export async function batchEnrichPublicProducts(
     variantIds.length > 0
       ? await db.select().from(product_prices).where(inArray(product_prices.variant_id, variantIds))
       : [];
+
+  // 3b. Variant attribute values -> assignments -> attributes -> option labels,
+  // build a Map<variantId, attributes[]> (same resolver as listVariants/cart.ts).
+  const attributesByVariant = new Map<
+    string,
+    EnrichedPublicProduct['variants'][number]['attributes']
+  >();
+  if (variantIds.length > 0) {
+    const vavRows = await db
+      .select()
+      .from(product_attribute_values)
+      .where(inArray(product_attribute_values.entity_id, variantIds));
+    const variantVav = vavRows.filter((v) => v.entity_type === 'variant');
+
+    const assignmentIds = Array.from(new Set(variantVav.map((v) => v.assignment_id)));
+    const assignmentsMap = new Map<string, typeof product_attribute_assignments.$inferSelect>();
+    if (assignmentIds.length > 0) {
+      const assignments = await db
+        .select()
+        .from(product_attribute_assignments)
+        .where(inArray(product_attribute_assignments.id, assignmentIds));
+      for (const a of assignments) assignmentsMap.set(a.id, a);
+    }
+
+    const attributeIds = Array.from(
+      new Set(Array.from(assignmentsMap.values()).map((a) => a.attribute_id))
+    );
+    const attributesMap = new Map<string, typeof product_attributes.$inferSelect>();
+    if (attributeIds.length > 0) {
+      const attrs = await db
+        .select()
+        .from(product_attributes)
+        .where(inArray(product_attributes.id, attributeIds));
+      for (const attr of attrs) attributesMap.set(attr.id, attr);
+    }
+
+    const optionIds = Array.from(
+      new Set(variantVav.map((v) => v.option_id).filter(Boolean) as string[])
+    );
+    const optionLabelsMap = new Map<string, string>();
+    if (optionIds.length > 0) {
+      const optTransRows = await db
+        .select()
+        .from(translations)
+        .where(inArray(translations.entity_id, optionIds));
+      for (const t of optTransRows) {
+        if (t.entity_type === 'product_attribute_option' && t.locale === opts.locale && t.label) {
+          optionLabelsMap.set(t.entity_id, t.label);
+        }
+      }
+    }
+
+    for (const val of variantVav) {
+      if (!attributesByVariant.has(val.entity_id)) attributesByVariant.set(val.entity_id, []);
+      const assignment = assignmentsMap.get(val.assignment_id);
+      const attr = assignment ? attributesMap.get(assignment.attribute_id) : null;
+      let value: string | number | boolean | null = null;
+      if (val.option_id) value = optionLabelsMap.get(val.option_id) || val.option_id;
+      else if (val.value_text !== null) value = val.value_text;
+      else if (val.value_number !== null) value = val.value_number;
+      else if (val.value_boolean !== null) value = val.value_boolean;
+      attributesByVariant.get(val.entity_id)!.push({
+        attribute_name: attr?.name || '',
+        attribute_type: attr?.type || '',
+        role: assignment?.role || '',
+        value,
+        option_id: val.option_id ?? null,
+      });
+    }
+  }
 
   // 4. Images
   const images = await db
@@ -155,6 +242,7 @@ export async function batchEnrichPublicProducts(
         currency: vp.currency,
         price_net: vp.price_net,
       })),
+      attributes: attributesByVariant.get(v.id) ?? [],
     }));
 
     // Resolve product price: product-level → min variant-level

@@ -238,8 +238,8 @@ export async function seedMinimal(db: LibSQLDatabase<typeof schema>): Promise<Fi
       description: 'Telefoane mobile',
       slug: 'telefoane',
       sort_order: 1,
-      created_at: null,
-      updated_at: null,
+      created_at: now,
+      updated_at: now,
     },
     {
       id: f.categoryBooksId,
@@ -248,8 +248,8 @@ export async function seedMinimal(db: LibSQLDatabase<typeof schema>): Promise<Fi
       description: 'Cărți de specialitate',
       slug: 'carti',
       sort_order: 2,
-      created_at: null,
-      updated_at: null,
+      created_at: now,
+      updated_at: now,
     },
   ]);
   await db.insert(translations).values([

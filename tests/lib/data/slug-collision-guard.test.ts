@@ -45,8 +45,8 @@ test('upsertTranslationWithSlugGuard rejects duplicate slug for different entity
       description: null,
       slug: 'second-' + secondCatId.slice(0, 8),
       sort_order: 99,
-      created_at: null,
-      updated_at: null,
+      created_at: new Date(),
+      updated_at: new Date(),
     });
     // Trying to give the second category the same en slug 'books' should throw.
     await assert.rejects(
@@ -126,8 +126,8 @@ test('upsertTranslationWithSlugGuard allows null slug', async () => {
       description: null,
       slug: 'second-' + secondCatId.slice(0, 8),
       sort_order: 99,
-      created_at: null,
-      updated_at: null,
+      created_at: new Date(),
+      updated_at: new Date(),
     });
     // Null slug should bypass collision check.
     await assert.doesNotReject(
@@ -166,8 +166,8 @@ test('resolveCategoryBySlug throws on collision (defensive backstop)', async () 
       description: null,
       slug: 'second-' + secondCatId.slice(0, 8),
       sort_order: 99,
-      created_at: null,
-      updated_at: null,
+      created_at: new Date(),
+      updated_at: new Date(),
     });
     await db.insert(harnessTranslations).values({
       id: crypto.randomUUID(),

@@ -32,6 +32,7 @@ test('simple product is enriched with price, images, and empty variants', async 
     const result = await listProducts(db, { locale: 'ro', active: true });
     const enriched = await batchEnrichPublicProducts(db, result.products, {
       currency: 'RON',
+      locale: 'ro',
       sdk,
     });
 
@@ -91,6 +92,7 @@ test('variant product is enriched with variants and their prices', async () => {
     const result = await listProducts(db, { locale: 'ro', active: true });
     const enriched = await batchEnrichPublicProducts(db, result.products, {
       currency: 'RON',
+      locale: 'ro',
       sdk,
     });
 
@@ -129,6 +131,61 @@ test('variant product is enriched with variants and their prices', async () => {
     assert.ok(white256, 'white256 variant should be present');
     assert.equal(white256.sku, 'SMX-WHT-256');
     assert.equal(white256.stock, 30);
+
+    // Variant attributes (NEW — localized labels + option_id)
+    assert.ok(Array.isArray(black128.attributes), 'black128 should carry attributes');
+    assert.equal(black128.attributes.length, 2, 'black128 has color + storage values');
+    const color = black128.attributes.find((a: any) => a.attribute_name === 'Culoare');
+    assert.ok(color, 'black128 has a color attribute');
+    assert.equal(color.attribute_type, 'select');
+    assert.equal(color.role, 'dimension');
+    assert.equal(color.value, 'Negru', 'color option resolves to the ro-localized label');
+    assert.equal(color.option_id, f.optColorBlackId, 'color carries its option_id');
+    const storage = black128.attributes.find((a: any) => a.attribute_name === 'Stocare');
+    assert.ok(storage, 'black128 has a storage attribute');
+    assert.equal(storage.value, '128 GB', 'storage option resolves to the ro-localized label');
+    assert.equal(storage.option_id, f.optStorage128Id, 'storage carries its option_id');
+    assert.ok(Array.isArray(white256.attributes), 'white256 should carry attributes');
+    const whiteColor = white256.attributes.find((a: any) => a.attribute_name === 'Culoare');
+    assert.ok(whiteColor);
+    assert.equal(whiteColor.value, 'Alb', 'white color option resolves to ro label');
+    const whiteStorage = white256.attributes.find((a: any) => a.attribute_name === 'Stocare');
+    assert.ok(whiteStorage);
+    assert.equal(whiteStorage.value, '256 GB');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('variant with no attribute values exposes an empty attributes array (shop-r36 P3)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const sdk = makeFakeSdk();
+
+    // Add a third variant with NO product_attribute_values rows.
+    const bareVariantId = crypto.randomUUID();
+    await insertFixture(db, 'product_variants', {
+      id: bareVariantId,
+      product_id: f.variantProductId,
+      sku: 'SMX-BARE',
+      stock: 5,
+      active: true,
+    });
+
+    const result = await listProducts(db, { locale: 'ro', active: true });
+    const enriched = await batchEnrichPublicProducts(db, result.products, {
+      currency: 'RON',
+      locale: 'ro',
+      sdk,
+    });
+
+    const variantProd = enriched.find((p: any) => p.id === f.variantProductId);
+    assert.ok(variantProd);
+    const bare = variantProd.variants.find((v: any) => v.id === bareVariantId);
+    assert.ok(bare, 'bare variant should be present');
+    assert.ok(Array.isArray(bare.attributes), 'attributes must be an array (not undefined)');
+    assert.equal(bare.attributes.length, 0, 'bare variant has no attributes');
   } finally {
     await cleanup();
   }
@@ -144,6 +201,7 @@ test('product with no matching currency is omitted', async () => {
     // GBP — neither product has a GBP price
     const enriched = await batchEnrichPublicProducts(db, result.products, {
       currency: 'GBP',
+      locale: 'ro',
       sdk,
     });
 
@@ -157,7 +215,11 @@ test('empty products array returns empty array', async () => {
   const { db, cleanup } = await createTestDb();
   try {
     const sdk = makeFakeSdk();
-    const enriched = await batchEnrichPublicProducts(db, [], { currency: 'RON', sdk });
+    const enriched = await batchEnrichPublicProducts(db, [], {
+      currency: 'RON',
+      locale: 'ro',
+      sdk,
+    });
     assert.ok(Array.isArray(enriched));
     assert.equal(enriched.length, 0);
   } finally {

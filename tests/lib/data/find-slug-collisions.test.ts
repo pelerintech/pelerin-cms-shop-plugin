@@ -34,8 +34,8 @@ test('findSlugCollisions returns locale when slug collides with another entity',
       description: null,
       slug: 'second-cat',
       sort_order: 99,
-      created_at: null,
-      updated_at: null,
+      created_at: new Date(),
+      updated_at: new Date(),
     });
     await db.insert(harnessTranslations).values({
       id: crypto.randomUUID(),
@@ -120,8 +120,8 @@ test('findSlugCollisions returns multiple locales when collisions exist in more 
       description: null,
       slug: 'second-cat',
       sort_order: 99,
-      created_at: null,
-      updated_at: null,
+      created_at: new Date(),
+      updated_at: new Date(),
     });
     await db.insert(harnessTranslations).values([
       {

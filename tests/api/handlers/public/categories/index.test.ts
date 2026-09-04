@@ -87,8 +87,8 @@ test('GET categories ?slug=books&locale=en → 409 on collision', async () => {
       description: null,
       slug: 'second-' + secondCatId.slice(0, 8),
       sort_order: 99,
-      created_at: null,
-      updated_at: null,
+      created_at: new Date(),
+      updated_at: new Date(),
     });
     await db.insert(harnessTranslations).values({
       id: crypto.randomUUID(),

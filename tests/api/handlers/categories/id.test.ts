@@ -99,8 +99,8 @@ test('PUT [id] slug collision → 422 with field-level error', async () => {
       description: null,
       slug: 'second-' + secondCatId.slice(0, 8),
       sort_order: 99,
-      created_at: null,
-      updated_at: null,
+      created_at: new Date(),
+      updated_at: new Date(),
     });
     const sdk = makeFakeSdk();
     const ctx = makeCtx({
@@ -202,8 +202,8 @@ test('DELETE [id] happy-path seeded → 200', async () => {
       description: null,
       slug: 'leaf-' + leafId.slice(0, 8),
       sort_order: 99,
-      created_at: null,
-      updated_at: null,
+      created_at: new Date(),
+      updated_at: new Date(),
     });
     const ctx = makeCtx({ url: `${base}/${leafId}`, method: 'DELETE', params: { id: leafId } });
     const res = await runDelete({ db, sdk, ctx });

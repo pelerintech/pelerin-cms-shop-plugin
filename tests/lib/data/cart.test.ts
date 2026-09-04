@@ -9,7 +9,7 @@ import {
   deleteCartItem,
   clearCart,
 } from '../../../src/lib/data/cart.ts';
-import { carts, products, product_variants } from '../../../src/db/schema.ts';
+import { carts, products, product_variants, product_prices } from '../../../src/db/schema.ts';
 import { eq } from 'drizzle-orm';
 
 async function makeCart(db: any, id = 'cart-1'): Promise<string> {
@@ -386,6 +386,143 @@ test('updateCartItem with quantity 0 keeps applied codes when items remain', asy
     const [cart] = await db.select().from(carts).where(eq(carts.id, cartId));
     assert.equal(cart.applied_voucher_code, 'PCT20', 'voucher code should remain');
     assert.equal(cart.applied_referral_code, 'PARTNER10', 'referral code should remain');
+  } finally {
+    await cleanup();
+  }
+});
+
+// ---------- Variant price fallback to base product (shop-r36) ----------
+
+/** Insert a variant product with an optional base (product-level) RON price and
+ *  an optional variant-level RON price. Returns the product + variant ids. */
+async function seedVariantWithPrices(
+  db: any,
+  f: any,
+  opts: { baseRon?: number; variantRon?: number | null } = {}
+): Promise<{ productId: string; variantId: string }> {
+  const productId = crypto.randomUUID();
+  const variantId = crypto.randomUUID();
+  const now = new Date();
+  await insertFixture(db, 'products', {
+    id: productId,
+    sku: null,
+    type: 'physical',
+    has_variants: true,
+    vat_rate: 0.19,
+    stock: null,
+    category_id: f.categoryPhonesId,
+    active: true,
+    name: 'VP2-' + productId,
+    description: null,
+    slug: 'vp2-' + productId,
+    created_at: now,
+    updated_at: now,
+  });
+  await insertFixture(db, 'product_variants', {
+    id: variantId,
+    product_id: productId,
+    sku: 'V2-' + variantId,
+    stock: 10,
+    active: true,
+  });
+  if (opts.baseRon !== undefined) {
+    await insertFixture(db, 'product_prices', {
+      id: crypto.randomUUID(),
+      product_id: productId,
+      variant_id: null,
+      currency: 'RON',
+      price_net: opts.baseRon,
+    });
+  }
+  if (opts.variantRon !== undefined && opts.variantRon !== null) {
+    await insertFixture(db, 'product_prices', {
+      id: crypto.randomUUID(),
+      product_id: null,
+      variant_id: variantId,
+      currency: 'RON',
+      price_net: opts.variantRon,
+    });
+  }
+  return { productId, variantId };
+}
+
+test('variant line falls back to the base product price when the variant has no price (shop-r36 C2)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const cartId = await makeCart(db, 'r36-c2');
+    const { productId, variantId } = await seedVariantWithPrices(db, f, { baseRon: 900 });
+    await addCartItem(db, cartId, { product_id: productId, variant_id: variantId, quantity: 1 });
+
+    const result = await getCartWithItems(db, cartId, 'RON');
+    assert.ok(result, 'must return a result');
+    assert.strictEqual(result!.items.length, 1);
+    assert.strictEqual(
+      result!.items[0].price_net,
+      900,
+      'variant with no own price must inherit the base product price (was 0)'
+    );
+  } finally {
+    await cleanup();
+  }
+});
+
+test('variant own price wins over the base product price (shop-r36 C1)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const cartId = await makeCart(db, 'r36-c1');
+    const { productId, variantId } = await seedVariantWithPrices(db, f, {
+      baseRon: 900,
+      variantRon: 1200,
+    });
+    await addCartItem(db, cartId, { product_id: productId, variant_id: variantId, quantity: 1 });
+
+    const result = await getCartWithItems(db, cartId, 'RON');
+    assert.ok(result, 'must return a result');
+    assert.strictEqual(result!.items.length, 1);
+    assert.strictEqual(
+      result!.items[0].price_net,
+      1200,
+      'variant with an own price keeps its own price (base ignored)'
+    );
+  } finally {
+    await cleanup();
+  }
+});
+
+test('non-variant line prices from the base product (shop-r36 C3)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const cartId = await makeCart(db, 'r36-c3');
+    await addCartItem(db, cartId, { product_id: f.simpleProductId, variant_id: null, quantity: 1 });
+
+    const result = await getCartWithItems(db, cartId, 'RON');
+    assert.ok(result, 'must return a result');
+    assert.strictEqual(result!.items.length, 1);
+    assert.strictEqual(
+      result!.items[0].price_net,
+      5000,
+      'non-variant line uses base product price'
+    );
+  } finally {
+    await cleanup();
+  }
+});
+
+test('variant with no price on variant or product stays 0 (shop-r36 C4)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const cartId = await makeCart(db, 'r36-c4');
+    const { productId, variantId } = await seedVariantWithPrices(db, f, {});
+    await addCartItem(db, cartId, { product_id: productId, variant_id: variantId, quantity: 1 });
+
+    const result = await getCartWithItems(db, cartId, 'RON');
+    assert.ok(result, 'must return a result');
+    assert.strictEqual(result!.items.length, 1);
+    assert.strictEqual(result!.items[0].price_net, 0, 'no price defined at either level stays 0');
   } finally {
     await cleanup();
   }

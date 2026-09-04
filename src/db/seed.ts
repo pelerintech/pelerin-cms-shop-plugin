@@ -8,6 +8,8 @@ import { sql } from 'drizzle-orm';
 export default async function seed(db: any) {
   console.log('[Plugin:pelerin_ro_shop] Seeding...');
 
+  const now = new Date().toISOString();
+
   // Clear all plugin tables in FK-safe order (children first)
   await db.run(sql`DELETE FROM product_attribute_values`);
   await db.run(sql`DELETE FROM product_attribute_assignments`);
@@ -54,10 +56,10 @@ export default async function seed(db: any) {
   const catBooks = crypto.randomUUID();
 
   await db.run(sql`
-    INSERT INTO categories (id, parent_id, name, description, slug, sort_order) VALUES
-      (${catElectronics}, NULL, 'Electronice', 'Produse electronice', 'electronice', 1),
-      (${catPhones}, ${catElectronics}, 'Telefoane', 'Telefoane mobile', 'telefoane', 1),
-      (${catBooks}, NULL, 'Cărți', 'Cărți de specialitate', 'carti', 2)
+    INSERT INTO categories (id, parent_id, name, description, slug, sort_order, created_at, updated_at) VALUES
+      (${catElectronics}, NULL, 'Electronice', 'Produse electronice', 'electronice', 1, ${now}, ${now}),
+      (${catPhones}, ${catElectronics}, 'Telefoane', 'Telefoane mobile', 'telefoane', 1, ${now}, ${now}),
+      (${catBooks}, NULL, 'Cărți', 'Cărți de specialitate', 'carti', 2, ${now}, ${now})
   `);
 
   await db.run(sql`
@@ -132,7 +134,6 @@ export default async function seed(db: any) {
   const prodSimple = crypto.randomUUID();
   const prodVariant = crypto.randomUUID();
 
-  const now = new Date().toISOString();
   await db.run(sql`
     INSERT INTO products (id, sku, type, has_variants, vat_rate, stock, category_id, active, name, description, slug, created_at, updated_at) VALUES
       (${prodSimple}, 'BOOK-001', 'physical', 0, 0.05, 100, ${catBooks}, 1, 'Carte de programare', 'O carte excelentă', 'carte-programare', ${now}, ${now}),
