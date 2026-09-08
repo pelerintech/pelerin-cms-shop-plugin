@@ -9,7 +9,13 @@ import {
   deleteCartItem,
   clearCart,
 } from '../../../src/lib/data/cart.ts';
-import { carts, products, product_variants, product_prices } from '../../../src/db/schema.ts';
+import {
+  carts,
+  products,
+  product_variants,
+  product_prices,
+  translations,
+} from '../../../src/db/schema.ts';
 import { eq } from 'drizzle-orm';
 
 async function makeCart(db: any, id = 'cart-1'): Promise<string> {
@@ -523,6 +529,51 @@ test('variant with no price on variant or product stays 0 (shop-r36 C4)', async 
     assert.ok(result, 'must return a result');
     assert.strictEqual(result!.items.length, 1);
     assert.strictEqual(result!.items[0].price_net, 0, 'no price defined at either level stays 0');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('cart variant items expose the unified attribute shape (attribute_id, option_id, canonical value, option_label)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    // Seed a default-locale (ro) attribute-name translation so we can assert the
+    // cart builder resolves the translated name rather than the default column.
+    await db.insert(translations).values({
+      id: crypto.randomUUID(),
+      entity_type: 'product_attribute',
+      entity_id: f.attrColorId,
+      locale: 'ro',
+      name: 'Culoare RO',
+      description: null,
+      slug: null,
+      label: null,
+    });
+    const cartId = await makeCart(db);
+    await addCartItem(db, cartId, {
+      product_id: f.variantProductId,
+      variant_id: f.variantBlack128Id,
+      quantity: 1,
+    });
+
+    const result = await getCartWithItems(db, cartId, 'RON');
+    const item = result!.items.find((i) => i.variant_id === f.variantBlack128Id);
+    assert.ok(item, 'variant cart item present');
+    assert.ok(Array.isArray(item!.attributes));
+    assert.strictEqual(item!.attributes.length, 2, 'cart item has color + storage dims');
+
+    const color = item!.attributes.find((a) => a.attribute_id === f.attrColorId);
+    assert.ok(color, 'color attribute present');
+    assert.strictEqual(color.attribute_id, f.attrColorId, 'attribute_id present');
+    assert.strictEqual(
+      color.attribute_name,
+      'Culoare RO',
+      'attribute_name resolves the default-locale translation'
+    );
+    assert.strictEqual(color.value, 'black', 'canonical value (not a UUID)');
+    assert.strictEqual(color.option_id, f.optColorBlackId, 'option_id present');
+    assert.strictEqual(color.option_label, 'Negru', 'option_label resolves in the default locale');
   } finally {
     await cleanup();
   }

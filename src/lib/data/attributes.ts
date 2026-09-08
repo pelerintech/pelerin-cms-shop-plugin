@@ -20,6 +20,7 @@ import {
   translations,
 } from '../../db/schema.ts';
 import { getShopConfig } from './settings.ts';
+import { upsertTranslation } from './products.ts';
 
 export interface AttributeRow {
   id: string;
@@ -126,6 +127,7 @@ export interface CreateAttributeInput {
   name: string;
   type: string;
   sort_order: number;
+  translations?: Record<string, string>;
 }
 
 /** Create a new global attribute. */
@@ -137,6 +139,18 @@ export async function createAttribute(
   await db
     .insert(product_attributes)
     .values({ id, name: input.name, type: input.type, sort_order: input.sort_order });
+  if (input.translations) {
+    for (const [locale, name] of Object.entries(input.translations)) {
+      if (name) {
+        await upsertTranslation(db, {
+          entity_type: 'product_attribute',
+          entity_id: id,
+          locale,
+          name,
+        });
+      }
+    }
+  }
   return { id, name: input.name, type: input.type, sort_order: input.sort_order };
 }
 
@@ -144,6 +158,7 @@ export interface UpdateAttributeInput {
   name?: string;
   type?: string;
   sort_order?: number;
+  translations?: Record<string, string>;
 }
 
 export class AttributeUpdateConflictError extends Error {
@@ -190,6 +205,19 @@ export async function updateAttribute(
 
   if (Object.keys(updateData).length > 0) {
     await db.update(product_attributes).set(updateData).where(eq(product_attributes.id, id));
+  }
+
+  if (input.translations) {
+    for (const [locale, name] of Object.entries(input.translations)) {
+      if (name) {
+        await upsertTranslation(db, {
+          entity_type: 'product_attribute',
+          entity_id: id,
+          locale,
+          name,
+        });
+      }
+    }
   }
 
   return {

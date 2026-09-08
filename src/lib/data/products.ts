@@ -50,6 +50,9 @@ export interface ListProductsOptions {
   category_id?: string;
   active?: boolean;
   search?: string;
+  /** Server-side product type filter (e.g. 'physical' | 'digital'), applied to
+   * SQL before pagination so the total stays correct under the filter. */
+  type?: string;
 }
 
 export interface ListProductsResult {
@@ -73,6 +76,7 @@ export async function listProducts(
   // Build WHERE in SQL (r17 Task 9) — no full-table load.
   const conditions: WhereCondition[] = [];
   if (opts.category_id) conditions.push(eq(products.category_id, opts.category_id));
+  if (opts.type) conditions.push(eq(products.type, opts.type));
   if (opts.active !== undefined) conditions.push(eq(products.active, opts.active));
   if (opts.search) {
     const s = `%${opts.search.toLowerCase()}%`;
@@ -460,16 +464,30 @@ export interface CategoryRow {
 
 export interface ListCategoriesOptions {
   search?: string;
+  page?: number;
+  limit?: number;
 }
 
 export async function listCategories(
   db: LibSQLDatabase,
   locale: string,
+  opts?: ListCategoriesOptions
+): Promise<CategoryRow[]>;
+export async function listCategories(
+  db: LibSQLDatabase,
+  locale: string,
+  opts: ListCategoriesOptions
+): Promise<{ rows: CategoryRow[]; total: number; page: number; limit: number }>;
+export async function listCategories(
+  db: LibSQLDatabase,
+  locale: string,
   opts: ListCategoriesOptions = {}
-): Promise<CategoryRow[]> {
+): Promise<CategoryRow[] | { rows: CategoryRow[]; total: number; page: number; limit: number }> {
   const config = await getShopConfig(db);
 
-  // Build WHERE clause for search (pushed to SQL, r24)
+  // Build WHERE clause for search (pushed to SQL, r24). ORDER BY sort_order is
+  // always pushed to SQL. When pagination args are present, push LIMIT/OFFSET +
+  // a separate COUNT(*) so the caller never holds more than one page in memory.
   const conditions: WhereCondition[] = [];
   if (opts.search) {
     const s = `%${opts.search.toLowerCase()}%`;
@@ -479,29 +497,50 @@ export async function listCategories(
 
   const rows = await db.select().from(categories).where(where).orderBy(asc(categories.sort_order));
 
-  if (locale !== config.defaultLocale) {
-    const ids = rows.map((r) => r.id);
-    if (ids.length > 0) {
-      const transRows = await db
-        .select()
-        .from(translations)
-        .where(inArray(translations.entity_id, ids));
-      const transMap = new Map(
-        transRows
-          .filter((t) => t.entity_type === 'category' && t.locale === locale)
-          .map((t) => [t.entity_id, t])
-      );
-      for (const r of rows) {
-        const t = transMap.get(r.id);
-        if (t) {
-          (r as AnyRow).name = t.name ?? r.name;
-          (r as AnyRow).description = t.description ?? r.description;
-          (r as AnyRow).slug = t.slug ?? r.slug;
-        }
+  // Apply the localisation overlay to a given set of rows (translate only the
+  // paged subset, keeping memory bounded).
+  const applyOverlay = async (targetRows: AnyRow[]): Promise<void> => {
+    if (locale === config.defaultLocale) return;
+    const ids = targetRows.map((r) => r.id);
+    if (ids.length === 0) return;
+    const transRows = await db
+      .select()
+      .from(translations)
+      .where(inArray(translations.entity_id, ids));
+    const transMap = new Map(
+      transRows
+        .filter((t) => t.entity_type === 'category' && t.locale === locale)
+        .map((t) => [t.entity_id, t])
+    );
+    for (const r of targetRows) {
+      const t = transMap.get(r.id);
+      if (t) {
+        r.name = t.name ?? r.name;
+        r.description = t.description ?? r.description;
+        r.slug = t.slug ?? r.slug;
       }
     }
+  };
+
+  // Array mode (no page/limit): preserve the existing full-list behaviour.
+  if (opts.page === undefined && opts.limit === undefined) {
+    await applyOverlay(rows);
+    return rows as CategoryRow[];
   }
-  return rows as CategoryRow[];
+
+  const page = Math.max(1, opts.page ?? 1);
+  const limit = Math.min(100, Math.max(1, opts.limit ?? 20));
+  const [countRow] = await db.select({ value: count() }).from(categories).where(where);
+  const total = countRow?.value ?? 0;
+  const paged = await db
+    .select()
+    .from(categories)
+    .where(where)
+    .orderBy(asc(categories.sort_order))
+    .limit(limit)
+    .offset((page - 1) * limit);
+  await applyOverlay(paged);
+  return { rows: paged as CategoryRow[], total, page, limit };
 }
 
 export async function getCategoryById(db: LibSQLDatabase, id: string): Promise<CategoryRow | null> {

@@ -17,6 +17,8 @@ import {
   translations,
 } from '../../db/schema.ts';
 import { getShopConfig } from './settings.ts';
+import { resolveOptionValueLabels } from './attribute-value.ts';
+import type { AttributeValue } from './attribute-value.ts';
 
 export interface CartRow {
   id: string;
@@ -40,12 +42,7 @@ export interface EnrichedCartItem {
   price_net: number;
   vat_rate: number | null;
   currency: string;
-  attributes: {
-    attribute_name: string;
-    attribute_type: string;
-    role: string;
-    value: string | number | boolean | null;
-  }[];
+  attributes: AttributeValue[];
 }
 
 export interface CartWithItems {
@@ -170,50 +167,49 @@ export async function enrichCartItems(
     const attributeIds = Array.from(
       new Set(Array.from(assignmentsMap.values()).map((a) => a.attribute_id))
     );
+    const config = await getShopConfig(db);
     const attributesMap = new Map<string, AnyRow>();
+    const attrNameTransMap = new Map<string, string>();
     if (attributeIds.length > 0) {
       const attrs = await db
         .select()
         .from(product_attributes)
         .where(inArray(product_attributes.id, attributeIds));
       for (const attr of attrs) attributesMap.set(attr.id, attr);
+      const attrTransRows = await db
+        .select()
+        .from(translations)
+        .where(inArray(translations.entity_id, attributeIds));
+      for (const t of attrTransRows) {
+        if (t.entity_type === 'product_attribute' && t.locale === config.defaultLocale && t.name) {
+          attrNameTransMap.set(t.entity_id, t.name);
+        }
+      }
     }
 
     const optionIds = Array.from(
       new Set(variantVav.map((v) => v.option_id).filter(Boolean) as string[])
     );
-    const optionLabelsMap = new Map<string, string>();
-    if (optionIds.length > 0) {
-      const config = await getShopConfig(db);
-      const optTransRows = await db
-        .select()
-        .from(translations)
-        .where(inArray(translations.entity_id, optionIds));
-      for (const t of optTransRows) {
-        if (
-          t.entity_type === 'product_attribute_option' &&
-          t.locale === config.defaultLocale &&
-          t.label
-        ) {
-          optionLabelsMap.set(t.entity_id, t.label);
-        }
-      }
-    }
+    const optionLabelsMap = await resolveOptionValueLabels(db, optionIds, config.defaultLocale);
 
     for (const val of variantVav) {
       if (!variantAttributesMap.has(val.entity_id)) variantAttributesMap.set(val.entity_id, []);
       const assignment = assignmentsMap.get(val.assignment_id);
       const attr = assignment ? attributesMap.get(assignment.attribute_id) : null;
       let value: string | number | boolean | null = null;
-      if (val.option_id) value = optionLabelsMap.get(val.option_id) || val.option_id;
+      const optInfo = val.option_id ? optionLabelsMap.get(val.option_id) : undefined;
+      if (optInfo) value = optInfo.value;
       else if (val.value_text !== null) value = val.value_text;
       else if (val.value_number !== null) value = val.value_number;
       else if (val.value_boolean !== null) value = val.value_boolean;
       variantAttributesMap.get(val.entity_id)!.push({
-        attribute_name: attr?.name || '',
+        attribute_id: assignment?.attribute_id || '',
+        attribute_name: attr ? attrNameTransMap.get(attr.id) || attr.name : '',
         attribute_type: attr?.type || '',
         role: assignment?.role || '',
         value,
+        option_id: val.option_id ?? null,
+        option_label: optInfo ? optInfo.label : null,
       });
     }
   }

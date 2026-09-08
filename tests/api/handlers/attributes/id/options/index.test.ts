@@ -84,3 +84,23 @@ test('POST error-wrap → 500', () =>
     body: { value: 'err', sort_order: 1 },
     params: { id: 'x' },
   }));
+
+test('POST duplicate option value → 409', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: base(f.attrColorId),
+      body: { value: 'black', sort_order: 9 },
+      method: 'POST',
+      params: { id: f.attrColorId },
+    });
+    const res = await runPost({ db, sdk, ctx });
+    assert.equal(res.status, 409);
+    const b = await res.json();
+    assert.equal(b.success, false);
+  } finally {
+    await cleanup();
+  }
+});

@@ -50,34 +50,50 @@ export function buildAttributeSavePayload(
 }
 
 /**
- * Build the PUT body for updating an attribute. Mirrors the edit form's
- * existing behavior: the `type` key is intentionally excluded (type is not
- * editable on the edit page), `sort_order` is parsed, and per-locale name
- * fields are passed through as-is.
+ * Build the PUT body for updating an attribute. The `type` key is excluded
+ * (type is not editable on the edit page), `sort_order` is parsed, and the
+ * per-locale `name_{code}` fields become a `translations` map (empty values
+ * omitted) so the backend persists the localized names.
  */
 export function buildAttributeUpdatePayload(
-  fields: Record<string, string>
-): Record<string, string | number> {
-  return Object.fromEntries(
-    Object.entries(fields)
-      .filter(([key]) => key !== 'type')
-      .map(([key, value]) => [key, key === 'sort_order' ? toInt(value) : value])
-  ) as Record<string, string | number>;
+  fields: Record<string, string>,
+  opts: AttributeSaveOptions = { defaultLocale: 'ro', otherLocaleCodes: [] }
+): { name: string; sort_order: number; translations: Record<string, string> } {
+  const translations: Record<string, string> = Object.fromEntries(
+    opts.otherLocaleCodes
+      .filter((code) => (fields[`name_${code}`] ?? '').trim() !== '')
+      .map((code) => [code, fields[`name_${code}`] ?? ''])
+  );
+  return {
+    name: fields.name ?? '',
+    sort_order: toInt(fields.sort_order),
+    translations,
+  };
 }
 
 export interface AttributeOptionPayload {
   value: string;
   label?: string;
   sort_order: number;
+  translations: Record<string, string>;
 }
 
-/** Build the POST body for adding an option to a select-type attribute. */
+/** Build the POST body for adding an option to a select-type attribute.
+ * `label` is the default-locale label; `label_{code}` fields for each other
+ * locale become the `translations` map (empty values omitted).
+ */
 export function buildAttributeOptionPayload(
-  fields: Record<string, string>
+  fields: Record<string, string>,
+  opts: AttributeSaveOptions = { defaultLocale: 'ro', otherLocaleCodes: [] }
 ): AttributeOptionPayload {
   const out: AttributeOptionPayload = {
     value: fields.value ?? '',
     sort_order: toInt(fields.sort_order),
+    translations: Object.fromEntries(
+      opts.otherLocaleCodes
+        .filter((code) => (fields[`label_${code}`] ?? '').trim() !== '')
+        .map((code) => [code, fields[`label_${code}`] ?? ''])
+    ),
   };
   if (fields.label) out.label = fields.label;
   return out;

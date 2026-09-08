@@ -1,0 +1,36 @@
+---
+// Shared numbered pagination component for admin list pages (r38).
+interface Props {
+  /** Current page (1-based). */
+  page: number;
+  /** Total number of pages. */
+  totalPages: number;
+  /** Base path, e.g. '/admin/plugins/shop/products'. */
+  basePath: string;
+  /** Filter query params to preserve in each link. */
+  params?: Record<string, string>;
+}
+
+const { page, totalPages, basePath, params = {} } = Astro.props;
+
+const qs = (p: number): string => {
+  const usp = new URLSearchParams(params);
+  usp.set('page', String(p));
+  return usp.toString();
+};
+---
+
+{
+  totalPages > 1 && (
+    <div class="join mt-4">
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+        <a
+          href={`${basePath}?${qs(p)}`}
+          class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
+        >
+          {p}
+        </a>
+      ))}
+    </div>
+  )
+}

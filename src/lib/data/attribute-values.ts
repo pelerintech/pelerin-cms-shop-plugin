@@ -14,13 +14,14 @@ import {
   product_attributes,
   translations,
 } from '../../db/schema.ts';
+import { resolveOptionValueLabels } from './attribute-value.ts';
+import type { AttributeValue } from './attribute-value.ts';
 
-export interface AttributeValueRow {
+/** A field-role attribute value row. Extends the shared `AttributeValue` shape
+ * (adds `assignment_id`, which is not part of the shared type) and carries the
+ * `role` field so these builders stay on the single shared shape. */
+export interface AttributeValueRow extends AttributeValue {
   assignment_id: string;
-  attribute_id: string;
-  attribute_name: string;
-  attribute_type: string;
-  value: string | number | boolean | null;
 }
 
 export interface UpsertValueInput {
@@ -98,26 +99,16 @@ export async function listProductAttributeValues(
 
   // Option labels for select-type values
   const optionIds = Array.from(new Set(values.map((v) => v.option_id).filter(Boolean) as string[]));
-  const optionLabelsMap = new Map<string, string>();
-  if (optionIds.length > 0) {
-    const optTransRows = await db
-      .select()
-      .from(translations)
-      .where(inArray(translations.entity_id, optionIds));
-    for (const t of optTransRows) {
-      if (t.entity_type === 'product_attribute_option' && t.locale === locale && t.label) {
-        optionLabelsMap.set(t.entity_id, t.label);
-      }
-    }
-  }
+  const optionLabelsMap = await resolveOptionValueLabels(db, optionIds, locale);
 
   return assignments.map((a) => {
     const attr = attributesMap.get(a.attribute_id);
     const val = values.find((v) => v.assignment_id === a.id);
     let value: string | number | boolean | null = null;
+    const optInfo = val?.option_id ? optionLabelsMap.get(val.option_id) : undefined;
     if (val) {
-      if (val.option_id) {
-        value = optionLabelsMap.get(val.option_id) || val.option_id;
+      if (optInfo) {
+        value = optInfo.value;
       } else if (val.value_text !== null) {
         value = val.value_text;
       } else if (val.value_number !== null) {
@@ -131,8 +122,10 @@ export async function listProductAttributeValues(
       attribute_id: a.attribute_id,
       attribute_name: attrTransMap.get(a.attribute_id) || attr?.name || '',
       attribute_type: attr?.type || '',
+      role: a.role,
       value,
       option_id: val?.option_id ?? null,
+      option_label: optInfo ? optInfo.label : null,
     };
   });
 }
@@ -299,26 +292,16 @@ export async function listVariantAttributeValues(
   );
 
   const optionIds = Array.from(new Set(values.map((v) => v.option_id).filter(Boolean) as string[]));
-  const optionLabelsMap = new Map<string, string>();
-  if (optionIds.length > 0) {
-    const optTransRows = await db
-      .select()
-      .from(translations)
-      .where(inArray(translations.entity_id, optionIds));
-    for (const t of optTransRows) {
-      if (t.entity_type === 'product_attribute_option' && t.locale === locale && t.label) {
-        optionLabelsMap.set(t.entity_id, t.label);
-      }
-    }
-  }
+  const optionLabelsMap = await resolveOptionValueLabels(db, optionIds, locale);
 
   return assignments.map((a) => {
     const attr = attributesMap.get(a.attribute_id);
     const val = values.find((v) => v.assignment_id === a.id);
     let value: string | number | boolean | null = null;
+    const optInfo = val?.option_id ? optionLabelsMap.get(val.option_id) : undefined;
     if (val) {
-      if (val.option_id) {
-        value = optionLabelsMap.get(val.option_id) || val.option_id;
+      if (optInfo) {
+        value = optInfo.value;
       } else if (val.value_text !== null) {
         value = val.value_text;
       } else if (val.value_number !== null) {
@@ -332,7 +315,10 @@ export async function listVariantAttributeValues(
       attribute_id: a.attribute_id,
       attribute_name: attrTransMap.get(a.attribute_id) || attr?.name || '',
       attribute_type: attr?.type || '',
+      role: a.role,
       value,
+      option_id: val?.option_id ?? null,
+      option_label: optInfo ? optInfo.label : null,
     };
   });
 }

@@ -232,6 +232,9 @@ const typeOptions = [
   const errorMessage = document.getElementById('error-message');
   const errorText = document.getElementById('error-text');
   const attributeId = window.location.pathname.split('/').pop();
+  const defaultLocale = form.dataset.defaultLocale || 'ro';
+  const otherLocaleCodes = JSON.parse(form.dataset.localeCodes || '[]');
+  const formOpts = { defaultLocale, otherLocaleCodes };
 
   // Save attribute
   form.addEventListener('submit', async (e) => {
@@ -243,7 +246,7 @@ const typeOptions = [
       fields[key] = String(value);
     }
 
-    const body = buildAttributeUpdatePayload(fields);
+    const body = buildAttributeUpdatePayload(fields, formOpts);
 
     const response = await fetch(`/api/plugins/shop/attributes/${attributeId}`, {
       method: 'PUT',
@@ -276,7 +279,7 @@ const typeOptions = [
       for (const [key, value] of new FormData(addOptionForm).entries()) {
         fields[key] = String(value);
       }
-      const body = buildAttributeOptionPayload(fields);
+      const body = buildAttributeOptionPayload(fields, formOpts);
 
       const response = await fetch(`/api/plugins/shop/attributes/${attributeId}/options`, {
         method: 'POST',

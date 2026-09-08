@@ -1,7 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { createTestDb, seedMinimal, resetDb } from '../../db/harness.ts';
-import { listAttributes } from '../../../src/lib/data/attributes.ts';
+import {
+  listAttributes,
+  createAttribute,
+  updateAttribute,
+} from '../../../src/lib/data/attributes.ts';
 import { listTranslationsByEntityIds } from '../../../src/lib/data/products.ts';
 
 test('listAttributes returns all global attributes ordered by sort_order with localized names and option counts', async () => {
@@ -131,6 +135,38 @@ test('listTranslationsByEntityIds on empty db returns []', async () => {
   try {
     const rows = await listTranslationsByEntityIds(db, 'product_attribute_option', ['any-id']);
     assert.strictEqual(rows.length, 0, 'empty db must return []');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('createAttribute persists per-locale name translations', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const created = await createAttribute(db, {
+      name: 'Culoare',
+      type: 'select',
+      sort_order: 5,
+      translations: { en: 'Color' },
+    });
+    const rows = await listTranslationsByEntityIds(db, 'product_attribute', [created.id]);
+    const en = rows.find((r) => r.locale === 'en');
+    assert.ok(en, 'en translation row must be written on create');
+    assert.strictEqual(en!.name, 'Color');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('updateAttribute upserts per-locale name translations', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const created = await createAttribute(db, { name: 'Culoare', type: 'select', sort_order: 5 });
+    await updateAttribute(db, created.id, { name: 'Culoare', translations: { en: 'Colour' } });
+    const rows = await listTranslationsByEntityIds(db, 'product_attribute', [created.id]);
+    const en = rows.find((r) => r.locale === 'en');
+    assert.ok(en, 'en translation row must be written on update');
+    assert.strictEqual(en!.name, 'Colour');
   } finally {
     await cleanup();
   }

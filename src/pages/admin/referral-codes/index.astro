@@ -4,6 +4,7 @@
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listReferrals, countOrdersByReferralCodes } from '../../../lib/data/referrals';
+import Pagination from '../../../components/admin/Pagination.astro';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
@@ -35,12 +36,9 @@ function discountLabel(c: any): string {
   return '—';
 }
 
-function buildFilterParams(p: number): string {
-  const params = new URLSearchParams();
-  if (activeFilter) params.set('active', activeFilter);
-  params.set('page', String(p));
-  return params.toString();
-}
+// Filter params to preserve in the pager links.
+const filters: Record<string, string> = {};
+if (activeFilter) filters.active = activeFilter;
 ---
 
 <AdminLayout title="Referral Codes" currentPath="/admin/plugins/shop/referral-codes" user={user}>
@@ -135,20 +133,12 @@ function buildFilterParams(p: number): string {
     }
 
     <!-- Pagination -->
-    {
-      totalPages > 1 && (
-        <div class="join mt-4">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <a
-              href={`/admin/plugins/shop/referral-codes?${buildFilterParams(p)}`}
-              class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
-            >
-              {p}
-            </a>
-          ))}
-        </div>
-      )
-    }
+    <Pagination
+      page={page}
+      totalPages={totalPages}
+      basePath="/admin/plugins/shop/referral-codes"
+      params={filters}
+    />
   </div>
 </AdminLayout>
 

@@ -54,17 +54,20 @@ describe('buildAttributeSavePayload', () => {
 });
 
 describe('buildAttributeUpdatePayload', () => {
-  it('excludes the type key and parses sort_order (edit-form parity)', () => {
-    const out = buildAttributeUpdatePayload({
-      name: 'Color',
-      type: 'select',
-      sort_order: '3',
-      name_en: 'Colour',
-    });
-    assert.equal(out.type, undefined);
-    assert.equal(out.sort_order, 3);
-    assert.equal(out.name, 'Color');
-    assert.equal(out.name_en, 'Colour');
+  it('excludes the type key, parses sort_order, and builds a translations object', () => {
+    const out = buildAttributeUpdatePayload(
+      { name: 'Color', type: 'select', sort_order: '3', name_en: 'Colour' },
+      { defaultLocale: 'ro', otherLocaleCodes: ['en'] }
+    );
+    assert.deepEqual(out, { name: 'Color', sort_order: 3, translations: { en: 'Colour' } });
+  });
+
+  it('omits empty per-locale names from translations', () => {
+    const out = buildAttributeUpdatePayload(
+      { name: 'Color', sort_order: '0', name_en: '' },
+      { defaultLocale: 'ro', otherLocaleCodes: ['en'] }
+    );
+    assert.deepEqual(out, { name: 'Color', sort_order: 0, translations: {} });
   });
 });
 
@@ -74,6 +77,7 @@ describe('buildAttributeOptionPayload', () => {
       value: 'red',
       label: 'Red',
       sort_order: 1,
+      translations: {},
     });
   });
 
@@ -82,6 +86,20 @@ describe('buildAttributeOptionPayload', () => {
       value: 'red',
       label: 'Red',
       sort_order: 0,
+      translations: {},
+    });
+  });
+
+  it('builds per-locale translations for the other locale label fields', () => {
+    const out = buildAttributeOptionPayload(
+      { value: 'red', label: 'Red', label_en: 'Red', sort_order: '1' },
+      { defaultLocale: 'ro', otherLocaleCodes: ['en'] }
+    );
+    assert.deepEqual(out, {
+      value: 'red',
+      label: 'Red',
+      sort_order: 1,
+      translations: { en: 'Red' },
     });
   });
 });

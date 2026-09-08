@@ -5,6 +5,7 @@ import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listCarts, getCartItemCount, getCartWithItems } from '../../../lib/data/cart';
 import { getShopConfig } from '../../../lib/data/settings';
+import Pagination from '../../../components/admin/Pagination.astro';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
@@ -148,25 +149,12 @@ for (const cart of cartList) {
     </div>
 
     <!-- Pagination -->
-    {
-      totalPages > 1 && (
-        <div class="join mt-4">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
-            const params = new URLSearchParams();
-            if (abandonedSince) params.set('abandoned_since', abandonedSince);
-            params.set('page', String(p));
-            return (
-              <a
-                href={`/admin/plugins/shop/carts?${params.toString()}`}
-                class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
-              >
-                {p}
-              </a>
-            );
-          })}
-        </div>
-      )
-    }
+    <Pagination
+      page={page}
+      totalPages={totalPages}
+      basePath="/admin/plugins/shop/carts"
+      params={abandonedSince ? { abandoned_since: abandonedSince } : {}}
+    />
 
     <div class="mt-2 text-sm text-gray-500">
       {

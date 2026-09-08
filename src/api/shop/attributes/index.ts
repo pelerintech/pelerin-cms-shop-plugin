@@ -60,8 +60,8 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       );
     }
 
-    const { name, type, sort_order } = result.data;
-    const data = await createAttribute(db, { name, type, sort_order });
+    const { name, type, sort_order, translations } = result.data;
+    const data = await createAttribute(db, { name, type, sort_order, translations });
 
     return new Response(JSON.stringify({ success: true, data }), {
       status: 201,

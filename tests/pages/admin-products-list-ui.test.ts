@@ -29,3 +29,50 @@ describe('Products list page - filter bar alignment', () => {
     );
   });
 });
+
+describe('Products list page - accessor pagination (r38)', () => {
+  it('derives totalPages from result.total', () => {
+    const content = readFileSync(PAGE_PATH, 'utf-8');
+    assert.match(
+      content,
+      /total\s*=\s*result\.total/,
+      'total should come from result.total, not the paginated array length'
+    );
+    assert.match(content, /Math\.ceil\(total \/ limit\)/, 'totalPages should derive from total');
+  });
+
+  it('does not re-slice an already-paginated array', () => {
+    const content = readFileSync(PAGE_PATH, 'utf-8');
+    assert.doesNotMatch(
+      content,
+      /\.slice\(\(page - 1\) \* limit/,
+      'page must not re-slice the paginated result'
+    );
+    assert.doesNotMatch(content, /productList\.slice\(/, 'should not slice productList');
+  });
+
+  it('imports and renders the shared Pagination component', () => {
+    const content = readFileSync(PAGE_PATH, 'utf-8');
+    assert.match(content, /import Pagination/, 'should import Pagination');
+    assert.match(content, /<Pagination\s/, 'should render <Pagination');
+    assert.match(
+      content,
+      /basePath="\/admin\/plugins\/shop\/products"/,
+      'should pass products basePath'
+    );
+  });
+
+  it('passes type to listProducts (server-side filter)', () => {
+    const content = readFileSync(PAGE_PATH, 'utf-8');
+    assert.match(content, /type:\s*filterType/, 'should pass type to listProducts');
+  });
+
+  it('no longer filters type client-side', () => {
+    const content = readFileSync(PAGE_PATH, 'utf-8');
+    assert.doesNotMatch(
+      content,
+      /\.filter\(\(p\) => p\.type/,
+      'must not post-filter products by type in JS'
+    );
+  });
+});

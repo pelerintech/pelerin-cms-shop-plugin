@@ -4,6 +4,7 @@
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listVouchers } from '../../../lib/data/vouchers';
+import Pagination from '../../../components/admin/Pagination.astro';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
@@ -15,18 +16,13 @@ const typeFilter = url.searchParams.get('type') || '';
 const page = parseInt(url.searchParams.get('page') || '1');
 const limit = 20;
 
-// Use accessor for paginated list with active filter
+// Use accessor for paginated list with active + type filters.
 const result = await listVouchers(sdk.db, {
   active: activeFilter === 'true' ? true : activeFilter === 'false' ? false : undefined,
+  type: typeFilter || undefined,
   page,
   limit,
 });
-
-// Apply type filter client-side (not supported by accessor)
-let voucherList = result.rows;
-if (typeFilter) {
-  voucherList = voucherList.filter((v) => v.type === typeFilter);
-}
 
 // Derive status for each voucher
 function getVoucherStatus(v: any): string {
@@ -36,12 +32,15 @@ function getVoucherStatus(v: any): string {
   return 'active';
 }
 
-const vouchersWithStatus = voucherList.map((v) => ({ ...v, status: getVoucherStatus(v) }));
-
-const total = vouchersWithStatus.length;
+const vouchersWithStatus = result.rows.map((v) => ({ ...v, status: getVoucherStatus(v) }));
+const vouchersPaginated = vouchersWithStatus;
+const total = result.total;
 const totalPages = Math.ceil(total / limit);
-const offset = (page - 1) * limit;
-const vouchersPaginated = vouchersWithStatus.slice(offset, offset + limit);
+
+// Filter params to preserve in the pager links.
+const filters: Record<string, string> = {};
+if (activeFilter) filters.active = activeFilter;
+if (typeFilter) filters.type = typeFilter;
 
 function statusBadge(status: string) {
   const colors: Record<string, string> = {
@@ -51,14 +50,6 @@ function statusBadge(status: string) {
     exhausted: 'badge-error',
   };
   return colors[status] || 'badge-ghost';
-}
-
-function buildFilterParams(p: number): string {
-  const params = new URLSearchParams();
-  if (activeFilter) params.set('active', activeFilter);
-  if (typeFilter) params.set('type', typeFilter);
-  params.set('page', String(p));
-  return params.toString();
 }
 ---
 
@@ -186,20 +177,12 @@ function buildFilterParams(p: number): string {
     }
 
     <!-- Pagination -->
-    {
-      totalPages > 1 && (
-        <div class="join mt-4">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <a
-              href={`/admin/plugins/shop/vouchers?${buildFilterParams(p)}`}
-              class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
-            >
-              {p}
-            </a>
-          ))}
-        </div>
-      )
-    }
+    <Pagination
+      page={page}
+      totalPages={totalPages}
+      basePath="/admin/plugins/shop/vouchers"
+      params={filters}
+    />
   </div>
 </AdminLayout>
 

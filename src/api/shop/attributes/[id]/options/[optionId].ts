@@ -85,8 +85,10 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     });
   } catch (err: unknown) {
     if (err instanceof OptionError) {
+      const code = errorFields(err).code;
+      const status = code === 'not_found' ? 404 : code === 'duplicate_value' ? 409 : 400;
       return new Response(JSON.stringify({ success: false, error: errorFields(err).message }), {
-        status: 404,
+        status,
         headers: { 'Content-Type': 'application/json' },
       });
     }

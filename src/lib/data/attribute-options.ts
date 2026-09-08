@@ -4,7 +4,7 @@
  */
 import type { AnyRecord } from '../types.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import { inArray, eq } from 'drizzle-orm';
+import { inArray, eq, and } from 'drizzle-orm';
 import {
   product_attributes,
   product_attribute_options,
@@ -12,6 +12,7 @@ import {
   translations,
 } from '../../db/schema.ts';
 import { getShopConfig } from './settings.ts';
+import { upsertTranslation } from './products.ts';
 
 export interface OptionRow {
   id: string;
@@ -21,9 +22,38 @@ export interface OptionRow {
   sort_order: number;
 }
 
+/** Persist an option's localized labels into `translations` (default-locale
+ * via `label`, other locales via the `translations` map). */
+async function persistOptionLabels(
+  db: LibSQLDatabase,
+  optionId: string,
+  label?: string,
+  translations?: Record<string, string>
+): Promise<void> {
+  const config = await getShopConfig(db);
+  const entries: [string, string][] = [];
+  if (label) entries.push([config.defaultLocale, label]);
+  if (translations) {
+    for (const [locale, lab] of Object.entries(translations)) {
+      if (lab) entries.push([locale, lab]);
+    }
+  }
+  for (const [locale, lab] of entries) {
+    await upsertTranslation(db, {
+      entity_type: 'product_attribute_option',
+      entity_id: optionId,
+      locale,
+      label: lab,
+    });
+  }
+}
+
 export class OptionError extends Error {
-  code: 'not_found' | 'not_select' | 'in_use';
-  constructor(message: string, code: 'not_found' | 'not_select' | 'in_use' = 'not_found') {
+  code: 'not_found' | 'not_select' | 'in_use' | 'duplicate_value';
+  constructor(
+    message: string,
+    code: 'not_found' | 'not_select' | 'in_use' | 'duplicate_value' = 'not_found'
+  ) {
     super(message);
     this.code = code;
   }
@@ -105,6 +135,8 @@ export async function getOption(
 export interface CreateOptionInput {
   value: string;
   sort_order: number;
+  label?: string;
+  translations?: Record<string, string>;
 }
 
 /** Create a new option on a select-type attribute. */
@@ -121,16 +153,36 @@ export async function createOption(
   if (attr.type !== 'select')
     throw new OptionError('Options can only be added to select-type attributes', 'not_select');
 
+  // The canonical `value` must be unique within the attribute.
+  const [dupExisting] = await db
+    .select()
+    .from(product_attribute_options)
+    .where(
+      and(
+        eq(product_attribute_options.attribute_id, attributeId),
+        eq(product_attribute_options.value, input.value)
+      )
+    );
+  if (dupExisting) {
+    throw new OptionError(
+      `Option value '${input.value}' already exists for this attribute`,
+      'duplicate_value'
+    );
+  }
+
   const id = crypto.randomUUID();
   await db
     .insert(product_attribute_options)
     .values({ id, attribute_id: attributeId, value: input.value, sort_order: input.sort_order });
+  await persistOptionLabels(db, id, input.label, input.translations);
   return { id, attribute_id: attributeId, value: input.value, sort_order: input.sort_order };
 }
 
 export interface UpdateOptionInput {
   value?: string;
   sort_order?: number;
+  label?: string;
+  translations?: Record<string, string>;
 }
 
 /** Update an option's value/sort_order. */
@@ -145,6 +197,24 @@ export async function updateOption(
     .where(eq(product_attribute_options.id, optionId));
   if (!existing) throw new OptionError('Option not found', 'not_found');
 
+  if (input.value !== undefined) {
+    const [dup] = await db
+      .select()
+      .from(product_attribute_options)
+      .where(
+        and(
+          eq(product_attribute_options.attribute_id, existing.attribute_id),
+          eq(product_attribute_options.value, input.value)
+        )
+      );
+    if (dup && dup.id !== optionId) {
+      throw new OptionError(
+        `Option value '${input.value}' already exists for this attribute`,
+        'duplicate_value'
+      );
+    }
+  }
+
   const updateData: AnyRecord = {};
   if (input.value !== undefined) updateData.value = input.value;
   if (input.sort_order !== undefined) updateData.sort_order = input.sort_order;
@@ -153,6 +223,9 @@ export async function updateOption(
       .update(product_attribute_options)
       .set(updateData)
       .where(eq(product_attribute_options.id, optionId));
+  }
+  if (input.label !== undefined || input.translations !== undefined) {
+    await persistOptionLabels(db, optionId, input.label, input.translations);
   }
   return {
     id: optionId,

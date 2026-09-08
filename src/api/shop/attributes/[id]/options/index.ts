@@ -68,8 +68,8 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       );
     }
 
-    const { value, sort_order } = result.data;
-    const data = await createOption(db, attributeId, { value, sort_order });
+    const { value, sort_order, label, translations } = result.data;
+    const data = await createOption(db, attributeId, { value, sort_order, label, translations });
 
     return new Response(JSON.stringify({ success: true, data }), {
       status: 201,
@@ -77,7 +77,8 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     });
   } catch (err: unknown) {
     if (err instanceof OptionError) {
-      const status = errorFields(err).code === 'not_found' ? 404 : 422;
+      const code = errorFields(err).code;
+      const status = code === 'not_found' ? 404 : code === 'duplicate_value' ? 409 : 422;
       return new Response(JSON.stringify({ success: false, error: errorFields(err).message }), {
         status,
         headers: { 'Content-Type': 'application/json' },

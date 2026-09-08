@@ -40,15 +40,25 @@ export async function getVoucherById(db: LibSQLDatabase, id: string): Promise<Vo
   return (voucher as VoucherRow) ?? null;
 }
 
+export interface ListVouchersOptions {
+  page?: number;
+  limit?: number;
+  active?: boolean;
+  search?: string;
+  /** Server-side voucher type filter (e.g. 'percentage' | 'fixed_amount'),
+   * applied to SQL before pagination so the total stays correct. */
+  type?: string;
+}
+
 /** List all vouchers ordered by created_at DESC. */
 export async function listVouchers(db: LibSQLDatabase): Promise<VoucherRow[]>;
 export async function listVouchers(
   db: LibSQLDatabase,
-  opts: { page?: number; limit?: number; active?: boolean; search?: string }
+  opts: ListVouchersOptions
 ): Promise<{ rows: VoucherRow[]; total: number; page: number; limit: number }>;
 export async function listVouchers(
   db: LibSQLDatabase,
-  opts: { page?: number; limit?: number; active?: boolean; search?: string } = {}
+  opts: ListVouchersOptions = {}
 ): Promise<VoucherRow[] | { rows: VoucherRow[]; total: number; page: number; limit: number }> {
   // r17 Task 9 (list-accessors-sql): push WHERE/ORDER to SQL in every case, and
   // when pagination args are present push LIMIT/OFFSET + a separate COUNT(*) so
@@ -56,6 +66,7 @@ export async function listVouchers(
   // shape is preserved for backward compatibility with the admin list API
   // endpoint (whose handler tests assert `data` is an array).
   const conditions: WhereCondition[] = [];
+  if (opts.type) conditions.push(eq(vouchers.type, opts.type));
   if (opts.active !== undefined) conditions.push(eq(vouchers.active, opts.active));
   if (opts.search) {
     const s = `%${opts.search.toLowerCase()}%`;

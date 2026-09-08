@@ -139,19 +139,26 @@ test('variant product is enriched with variants and their prices', async () => {
     assert.ok(color, 'black128 has a color attribute');
     assert.equal(color.attribute_type, 'select');
     assert.equal(color.role, 'dimension');
-    assert.equal(color.value, 'Negru', 'color option resolves to the ro-localized label');
+    assert.equal(color.attribute_id, f.attrColorId, 'color carries attribute_id');
+    assert.equal(color.value, 'black', 'color value is the canonical key (not a UUID)');
+    assert.equal(color.option_label, 'Negru', 'color option_label is the ro-localized label');
     assert.equal(color.option_id, f.optColorBlackId, 'color carries its option_id');
     const storage = black128.attributes.find((a: any) => a.attribute_name === 'Stocare');
     assert.ok(storage, 'black128 has a storage attribute');
-    assert.equal(storage.value, '128 GB', 'storage option resolves to the ro-localized label');
+    assert.equal(storage.attribute_id, f.attrStorageId);
+    assert.equal(storage.value, '128GB', 'storage value is the canonical key');
+    assert.equal(storage.option_label, '128 GB');
     assert.equal(storage.option_id, f.optStorage128Id, 'storage carries its option_id');
     assert.ok(Array.isArray(white256.attributes), 'white256 should carry attributes');
     const whiteColor = white256.attributes.find((a: any) => a.attribute_name === 'Culoare');
     assert.ok(whiteColor);
-    assert.equal(whiteColor.value, 'Alb', 'white color option resolves to ro label');
+    assert.equal(whiteColor.value, 'white');
+    assert.equal(whiteColor.option_label, 'Alb');
+    assert.equal(whiteColor.option_id, f.optColorWhiteId);
     const whiteStorage = white256.attributes.find((a: any) => a.attribute_name === 'Stocare');
     assert.ok(whiteStorage);
-    assert.equal(whiteStorage.value, '256 GB');
+    assert.equal(whiteStorage.value, '256GB');
+    assert.equal(whiteStorage.option_label, '256 GB');
   } finally {
     await cleanup();
   }
@@ -222,6 +229,29 @@ test('empty products array returns empty array', async () => {
     });
     assert.ok(Array.isArray(enriched));
     assert.equal(enriched.length, 0);
+  } finally {
+    await cleanup();
+  }
+});
+
+test('batchEnrichPublicProducts resolves the locale-translated attribute_name', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    const result = await listProducts(db, { locale: 'en', active: true });
+    const enriched = await batchEnrichPublicProducts(db, result.products, {
+      currency: 'RON',
+      locale: 'en',
+      sdk,
+    });
+    const variantProd = enriched.find((p: any) => p.id === f.variantProductId);
+    assert.ok(variantProd, 'variant product present');
+    const black128 = variantProd.variants.find((v: any) => v.id === f.variantBlack128Id);
+    assert.ok(black128, 'black128 present');
+    const color = black128.attributes.find((a: any) => a.attribute_id === f.attrColorId);
+    assert.ok(color, 'color attribute present');
+    assert.strictEqual(color.attribute_name, 'Color', 'attribute_name is the en-translated name');
   } finally {
     await cleanup();
   }

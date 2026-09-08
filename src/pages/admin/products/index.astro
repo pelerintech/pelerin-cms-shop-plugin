@@ -5,6 +5,7 @@ import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listProducts, listCategories } from '../../../lib/data/products';
 import { getShopConfig } from '../../../lib/data/settings';
+import Pagination from '../../../components/admin/Pagination.astro';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
@@ -32,22 +33,24 @@ for (const c of catList) {
 const result = await listProducts(sdk.db, {
   category_id: filterCategory || undefined,
   active: filterActive === 'true' ? true : filterActive === 'false' ? false : undefined,
+  type: filterType || undefined,
   locale: shopConfig.defaultLocale,
   defaultLocale: shopConfig.defaultLocale,
   page,
   limit,
 });
 
-// Apply type filter client-side (not supported by accessor)
-let productList = result.products;
-if (filterType) {
-  productList = productList.filter((p) => p.type === filterType);
-}
-
-const total = productList.length;
+// The accessor already paginates and applies the type filter in SQL; trust its
+// total instead of re-deriving from the (already-paginated) result length.
+const productList = result.products;
+const total = result.total;
 const totalPages = Math.ceil(total / limit);
-const offset = (page - 1) * limit;
-productList = productList.slice(offset, offset + limit);
+
+// Filter params to preserve in the pager links.
+const filters: Record<string, string> = {};
+if (filterCategory) filters.category = filterCategory;
+if (filterType) filters.type = filterType;
+if (filterActive) filters.active = filterActive;
 
 // Enrich with category names
 const productListWithCategory = productList.map((p) => ({
@@ -162,26 +165,11 @@ const productListWithCategory = productList.map((p) => ({
     }
 
     <!-- Pagination -->
-    {
-      totalPages > 1 && (
-        <div class="join mt-4">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
-            const params = new URLSearchParams();
-            if (filterCategory) params.set('category', filterCategory);
-            if (filterType) params.set('type', filterType);
-            if (filterActive) params.set('active', filterActive);
-            params.set('page', String(p));
-            return (
-              <a
-                href={`/admin/plugins/shop/products?${params.toString()}`}
-                class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
-              >
-                {p}
-              </a>
-            );
-          })}
-        </div>
-      )
-    }
+    <Pagination
+      page={page}
+      totalPages={totalPages}
+      basePath="/admin/plugins/shop/products"
+      params={filters}
+    />
   </div>
 </AdminLayout>

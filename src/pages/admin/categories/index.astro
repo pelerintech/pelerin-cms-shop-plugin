@@ -5,6 +5,7 @@ import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listCategories, getCategoryById } from '../../../lib/data/products';
 import { getShopConfig } from '../../../lib/data/settings';
+import Pagination from '../../../components/admin/Pagination.astro';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
@@ -19,26 +20,33 @@ const filterParent = url.searchParams.get('parent') || '';
 const page = parseInt(url.searchParams.get('page') || '1');
 const limit = 20;
 
-// Fetch all categories via accessor
+// Fetch the full category list via accessor for the parent filter dropdown and
+// parent-name lookup in the table.
 const allCats = await listCategories(sdk.db, defaultLocale);
 
-// Apply client-side filters (name search + parent filter)
-let filteredCats = allCats;
-if (filterName) {
-  const search = filterName.toLowerCase();
-  filteredCats = filteredCats.filter((c) => c.name.toLowerCase().includes(search));
-}
+// Paginate via the accessor (search pushed to SQL). The `parent` filter is not
+// an accessor option, so it is applied as an in-page overlay over the paged
+// rows; the pager counts the search-filtered set.
+const result = await listCategories(sdk.db, defaultLocale, {
+  page,
+  limit,
+  search: filterName || undefined,
+});
+
+let categoryList = result.rows;
 if (filterParent === '__none__') {
-  filteredCats = filteredCats.filter((c) => !c.parent_id);
+  categoryList = categoryList.filter((c) => !c.parent_id);
 } else if (filterParent) {
-  filteredCats = filteredCats.filter((c) => c.parent_id === filterParent);
+  categoryList = categoryList.filter((c) => c.parent_id === filterParent);
 }
 
-// Paginate client-side
-const total = filteredCats.length;
+const total = result.total;
 const totalPages = Math.ceil(total / limit);
-const offset = (page - 1) * limit;
-const categoryList = filteredCats.slice(offset, offset + limit);
+
+// Filter params to preserve in the pager links.
+const filters: Record<string, string> = {};
+if (filterName) filters.name = filterName;
+if (filterParent) filters.parent = filterParent;
 
 // Build parent name lookup
 const parentNameMap = new Map<string, string>();
@@ -152,26 +160,12 @@ for (const cat of allCats) {
     }
 
     <!-- Pagination -->
-    {
-      totalPages > 1 && (
-        <div class="join mt-4">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
-            const params = new URLSearchParams();
-            if (filterName) params.set('name', filterName);
-            if (filterParent) params.set('parent', filterParent);
-            params.set('page', String(p));
-            return (
-              <a
-                href={`/admin/plugins/shop/categories?${params.toString()}`}
-                class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
-              >
-                {p}
-              </a>
-            );
-          })}
-        </div>
-      )
-    }
+    <Pagination
+      page={page}
+      totalPages={totalPages}
+      basePath="/admin/plugins/shop/categories"
+      params={filters}
+    />
   </div>
 </AdminLayout>
 

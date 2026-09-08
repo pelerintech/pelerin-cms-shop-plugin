@@ -8,6 +8,7 @@ export const CreateAttributeSchema = z.object({
   name: z.string().min(1),
   type: z.enum(['select', 'text', 'rich_text', 'number', 'boolean']),
   sort_order: z.number().int().default(0),
+  translations: z.record(z.string(), z.string()).optional(),
 });
 
 export type CreateAttributeInput = z.infer<typeof CreateAttributeSchema>;
@@ -26,6 +27,8 @@ export const CreateAttributeOptionSchema = z.object({
   attribute_id: z.string().min(1),
   value: z.string().min(1),
   sort_order: z.number().int().default(0),
+  label: z.string().optional(),
+  translations: z.record(z.string(), z.string()).optional(),
 });
 
 export type CreateAttributeOptionInput = z.infer<typeof CreateAttributeOptionSchema>;

@@ -1,14 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { createTestDb, seedMinimal, resetDb, insertFixture } from '../../db/harness.ts';
-import { listVariants, updateVariant, createVariants } from '../../../src/lib/data/variants.ts';
-import { eq } from 'drizzle-orm';
+import type { Fixtures } from '../../db/harness.ts';
+import {
+  listVariants,
+  updateVariant,
+  createVariants,
+  VariantError,
+} from '../../../src/lib/data/variants.ts';
+import { eq, and } from 'drizzle-orm';
 import {
   product_prices,
   product_variants,
   products,
   product_attribute_assignments,
   product_attribute_values,
+  translations,
 } from '../../../src/db/schema.ts';
 
 const NOW8 = new Date();
@@ -247,6 +254,117 @@ test('listVariants returns effective_prices (own + inherited per currency) along
       { currency: 'EUR', price_net: 11, inherited: true },
       { currency: 'RON', price_net: 54, inherited: false },
     ]);
+  } finally {
+    await cleanup();
+  }
+});
+
+test('listVariants returns canonical value + option_label + attribute_id + option_id for select dimensions', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const variants = await listVariants(db, f.variantProductId, 'ro');
+    const v = variants.find((x) => x.id === f.variantBlack128Id);
+    assert.ok(v, 'variant black/128 present');
+    const color = v.attributes.find((a) => a.attribute_id === f.attrColorId);
+    assert.ok(color, 'attribute_id present and matches attrColorId');
+    assert.strictEqual(color.value, 'black', 'canonical value (never a UUID)');
+    assert.strictEqual(color.option_id, f.optColorBlackId);
+    assert.strictEqual(color.option_label, 'Negru');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('listVariants falls option_label back to the canonical value when no label translation exists', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    await db
+      .delete(translations)
+      .where(
+        and(
+          eq(translations.entity_type, 'product_attribute_option'),
+          eq(translations.entity_id, f.optColorBlackId),
+          eq(translations.locale, 'ro')
+        )
+      );
+    const variants = await listVariants(db, f.variantProductId, 'ro');
+    const v = variants.find((x) => x.id === f.variantBlack128Id);
+    const color = v.attributes.find((a) => a.attribute_id === f.attrColorId);
+    assert.strictEqual(color.value, 'black', 'canonical value when label missing');
+    assert.strictEqual(color.option_label, 'black', 'label falls back to canonical value');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('createVariants rejects a duplicate dimension combination', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    // black + 128 already exists as variantBlack128Id.
+    await assert.rejects(
+      () =>
+        createVariants(db, f.variantProductId, [
+          { option_ids: [f.optColorBlackId, f.optStorage128Id] },
+        ]),
+      (err: any) => err instanceof VariantError && err.code === 'duplicate_combination'
+    );
+  } finally {
+    await cleanup();
+  }
+});
+
+// Fresh product + two real dimension assignments (color + storage) for the
+// repeat-single-value and order-independence cases (seedMinimal's variant
+// product already has black/128 + white/256, which would interfere).
+async function seedFreshDimensionProduct(db: any, f: Fixtures) {
+  const pid = crypto.randomUUID();
+  await insertFixture(db, 'products', {
+    id: pid,
+    sku: 'DIM-PROD',
+    type: 'physical',
+    has_variants: true,
+    vat_rate: 0.19,
+    stock: null,
+    category_id: null,
+    active: true,
+    name: 'Dim Prod',
+    description: '',
+    slug: 'dim-prod',
+    created_at: new Date(),
+    updated_at: new Date(),
+  });
+  await insertFixture(db, 'product_attribute_assignments', {
+    id: crypto.randomUUID(),
+    product_id: pid,
+    attribute_id: f.attrColorId,
+    role: 'dimension',
+    sort_order: 1,
+    offered_option_ids: JSON.stringify([f.optColorBlackId, f.optColorWhiteId]),
+  });
+  await insertFixture(db, 'product_attribute_assignments', {
+    id: crypto.randomUUID(),
+    product_id: pid,
+    attribute_id: f.attrStorageId,
+    role: 'dimension',
+    sort_order: 2,
+    offered_option_ids: JSON.stringify([f.optStorage128Id, f.optStorage256Id]),
+  });
+  return pid;
+}
+
+test('createVariants detects a duplicate combination regardless of option order', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const pid = await seedFreshDimensionProduct(db, f);
+    await createVariants(db, pid, [{ option_ids: [f.optColorBlackId, f.optStorage128Id] }]);
+    await assert.rejects(
+      () => createVariants(db, pid, [{ option_ids: [f.optStorage128Id, f.optColorBlackId] }]),
+      (err: any) => err instanceof VariantError && err.code === 'duplicate_combination'
+    );
   } finally {
     await cleanup();
   }

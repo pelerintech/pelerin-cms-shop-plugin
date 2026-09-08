@@ -8,6 +8,8 @@
 import type { AnyRow, AnyRecord } from '../types.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { inArray, eq, and, isNull } from 'drizzle-orm';
+import type { AttributeValue } from './attribute-value.ts';
+import { resolveOptionValueLabels } from './attribute-value.ts';
 import {
   product_variants,
   product_attribute_values,
@@ -18,16 +20,14 @@ import {
   translations,
 } from '../../db/schema.ts';
 
-export interface VariantAttribute {
-  attribute_id: string;
-  attribute_name: string;
-  attribute_type: string;
-  role: string;
-  value: string | number | boolean | null;
-  /** The option_id for select-type dimension values (used by the Manage Variants
-   *  matrix to detect existing combinations). Null for text/number/boolean. */
-  option_id?: string | null;
-}
+/** A variant/attribute value in the unified shape (see ./attribute-value.ts).
+ * `value` is the canonical option.value key (never a UUID); `option_label` is
+ * the localized display label (translation ?? value).
+ *
+ * `option_id` is used by the Manage Variants matrix to detect existing
+ * combinations.
+ */
+export type VariantAttribute = AttributeValue;
 
 export interface VariantRow {
   id: string;
@@ -197,22 +197,11 @@ export async function listVariants(
     }
   }
 
-  // Option labels for select-type values
+  // Option value + label for select-type dimension values (shared resolver).
   const optionIds = Array.from(
     new Set(variantAttrValues.map((v) => v.option_id).filter(Boolean) as string[])
   );
-  const optionLabelsMap = new Map<string, string>();
-  if (optionIds.length > 0) {
-    const optTransRows = await db
-      .select()
-      .from(translations)
-      .where(inArray(translations.entity_id, optionIds));
-    for (const t of optTransRows) {
-      if (t.entity_type === 'product_attribute_option' && t.locale === locale && t.label) {
-        optionLabelsMap.set(t.entity_id, t.label);
-      }
-    }
-  }
+  const optionLabelsMap = await resolveOptionValueLabels(db, optionIds, locale);
 
   return variants.map((v) => {
     const vav = variantAttrValues.filter((val) => val.entity_id === v.id);
@@ -223,8 +212,9 @@ export async function listVariants(
       const attr = assignment ? attributesMap.get(assignment.attribute_id) : null;
       const attrName = attr ? attrTransMap.get(attr.id) || attr.name : '';
       let value: string | number | boolean | null = null;
-      if (val.option_id) {
-        value = optionLabelsMap.get(val.option_id) || val.option_id;
+      const optInfo = val.option_id ? optionLabelsMap.get(val.option_id) : undefined;
+      if (optInfo) {
+        value = optInfo.value;
       } else if (val.value_text !== null) {
         value = val.value_text;
       } else if (val.value_number !== null) {
@@ -239,6 +229,7 @@ export async function listVariants(
         role: assignment?.role || '',
         value,
         option_id: val.option_id ?? null,
+        option_label: optInfo ? optInfo.label : null,
       };
     });
 

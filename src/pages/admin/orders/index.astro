@@ -4,6 +4,7 @@
 import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listOrders } from '../../../lib/data/orders';
+import Pagination from '../../../components/admin/Pagination.astro';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
@@ -60,15 +61,12 @@ function statusLabel(status: string): string {
   return labels[status] || status;
 }
 
-function buildFilterParams(p: number): string {
-  const params = new URLSearchParams();
-  if (filterStatus) params.set('status', filterStatus);
-  if (filterFrom) params.set('from', filterFrom);
-  if (filterTo) params.set('to', filterTo);
-  if (filterSearch) params.set('search', filterSearch);
-  params.set('page', String(p));
-  return params.toString();
-}
+// Filter params to preserve in the pager links.
+const filters: Record<string, string> = {};
+if (filterStatus) filters.status = filterStatus;
+if (filterFrom) filters.from = filterFrom;
+if (filterTo) filters.to = filterTo;
+if (filterSearch) filters.search = filterSearch;
 
 const hasFilters = filterStatus || filterFrom || filterTo || filterSearch;
 
@@ -207,19 +205,11 @@ if (hasFilters) {
     }
 
     <!-- Pagination -->
-    {
-      totalPages > 1 && (
-        <div class="join mt-4">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <a
-              href={`/admin/plugins/shop/orders?${buildFilterParams(p)}`}
-              class={`join-item btn btn-sm ${p === page ? 'btn-active' : ''}`}
-            >
-              {p}
-            </a>
-          ))}
-        </div>
-      )
-    }
+    <Pagination
+      page={page}
+      totalPages={totalPages}
+      basePath="/admin/plugins/shop/orders"
+      params={filters}
+    />
   </div>
 </AdminLayout>
