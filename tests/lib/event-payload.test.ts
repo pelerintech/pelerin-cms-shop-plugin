@@ -178,7 +178,7 @@ test('buildOrderEventPayload - Scenario E: shop.order.refunded has refund_amount
   await db.$client.close();
 });
 
-test('buildOrderEventPayload - Scenario G: user_id and metadata included when set', async () => {
+test('buildOrderEventPayload - Scenario G: user_id and parsed metadata included when set', async () => {
   const { db } = await createTestDb();
   const orderId = 'order-user-meta';
   await insertFixture(
@@ -193,11 +193,73 @@ test('buildOrderEventPayload - Scenario G: user_id and metadata included when se
 
   const payload = await buildOrderEventPayload(db, orderId, 'shop.order.confirmed');
   assert.equal(payload.data.order.user_id, 'user-123', 'user_id is carried through');
-  assert.equal(
+  assert.deepEqual(
     payload.data.order.metadata,
-    '{"pickup_point":"Bucharest East"}',
-    'metadata is carried through'
+    { pickup_point: 'Bucharest East' },
+    'metadata is parsed into an object, not a JSON string'
   );
+
+  await db.$client.close();
+});
+
+test('buildOrderEventPayload - Scenario M: pickup_location metadata parses into an object', async () => {
+  const { db } = await createTestDb();
+  const orderId = 'order-pickup';
+  await insertFixture(
+    db,
+    'orders',
+    buildOrderRow({
+      id: orderId,
+      metadata: JSON.stringify({
+        pickup_location: {
+          collectionItemId: 'loc-1',
+          name: 'Sediu',
+          address: '1 Main St',
+          city: 'Cluj',
+        },
+      }),
+    })
+  );
+
+  const payload = await buildOrderEventPayload(db, orderId, 'shop.order.confirmed');
+  assert.equal(payload.data.order.metadata.pickup_location.name, 'Sediu');
+  assert.equal(payload.data.order.metadata.pickup_location.collectionItemId, 'loc-1');
+
+  await db.$client.close();
+});
+
+test('buildOrderEventPayload - Scenario N: malformed metadata yields null without throwing', async () => {
+  const { db } = await createTestDb();
+  const orderId = 'order-malformed';
+  await insertFixture(
+    db,
+    'orders',
+    buildOrderRow({
+      id: orderId,
+      metadata: 'not-json',
+    })
+  );
+
+  const payload = await buildOrderEventPayload(db, orderId, 'shop.order.confirmed');
+  assert.equal(payload.data.order.metadata, null, 'malformed metadata should be null, not throw');
+
+  await db.$client.close();
+});
+
+test('buildOrderEventPayload - Scenario O: non-pickup metadata parses generically', async () => {
+  const { db } = await createTestDb();
+  const orderId = 'order-other-meta';
+  await insertFixture(
+    db,
+    'orders',
+    buildOrderRow({
+      id: orderId,
+      metadata: JSON.stringify({ anything: { a: 1 } }),
+    })
+  );
+
+  const payload = await buildOrderEventPayload(db, orderId, 'shop.order.confirmed');
+  assert.deepEqual(payload.data.order.metadata, { anything: { a: 1 } });
 
   await db.$client.close();
 });

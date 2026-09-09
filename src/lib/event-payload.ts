@@ -3,6 +3,21 @@ import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import { getOrderWithItems } from './data/orders.ts';
 
 /**
+ * Parse an order's `metadata` (stored as a JSON string) into an object so
+ * downstream subscribers can traverse it (e.g. `data.order.metadata.pickup_location`).
+ * Returns null for null/undefined input or malformed JSON. The metadata blob is
+ * generic — ecomm does not interpret its contents; it only makes it traversable.
+ */
+function parseMetadata(metadata: string | null | undefined): unknown {
+  if (metadata == null || metadata === '') return null;
+  try {
+    return JSON.parse(metadata);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Build a self-contained order lifecycle event payload.
  *
  * Loads the complete order with items via `getOrderWithItems`, then constructs
@@ -51,7 +66,7 @@ export async function buildOrderEventPayload(
         shipping_type: order.shipping_type,
         shipping_method: order.shipping_method,
         user_id: order.user_id ?? null,
-        metadata: order.metadata ?? null,
+        metadata: parseMetadata(order.metadata),
         voucher_code: order.voucher_code,
         referral_code: order.referral_code,
         notes: order.notes,
