@@ -211,6 +211,7 @@ const TEST_FILES = [
   'tests/api/handlers/payment-providers-listing.test.ts',
   'tests/api/handlers/public/checkout/providers.test.ts',
   'tests/api/handlers/public/orders/index.test.ts',
+  'tests/api/handlers/public/orders/id.test.ts',
   'tests/lib/data/order-transitions-awaiting-pending.test.ts',
   'tests/schemas/euplatesc-settings-schema.test.ts',
   'tests/api/handlers/settings/payments/euplatesc-4fields.test.ts',

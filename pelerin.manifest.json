@@ -264,6 +264,10 @@
       "entrypoint": "./src/api/shop/public/orders/index.ts"
     },
     {
+      "pattern": "/api/plugins/shop/public/orders/[id]",
+      "entrypoint": "./src/api/shop/public/orders/[id].ts"
+    },
+    {
       "pattern": "/api/plugins/shop/carts",
       "entrypoint": "./src/api/shop/carts/index.ts"
     },
