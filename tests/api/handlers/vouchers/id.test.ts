@@ -115,3 +115,23 @@ test('DELETE [id] happy-path → 200', async () => {
 
 test('DELETE [id] error-wrap → 500', () =>
   matrix.errorWrap({ run: runDelete, url: `${base}/x`, params: { id: 'x' } }));
+
+test('PUT converts fixed_amount value + min_order_value to minor on store', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const id = await firstVoucherId(db);
+    const sdk = makeFakeSdk();
+    const body = { type: 'fixed_amount', value: 7, min_order_value: 30 };
+    const ctx = makeCtx({ url: `${base}/${id}`, method: 'PUT', body, params: { id } });
+    const res = await runPut({ db, sdk, ctx });
+    assert.equal(res.status, 200);
+    const { eq } = await import('drizzle-orm');
+    const { vouchers } = await import('../../../../src/db/schema.ts');
+    const row = (await db.select().from(vouchers).where(eq(vouchers.id, id)))[0];
+    assert.equal(row.value, 700, 'value stored minor (7.00 → 700)');
+    assert.equal(row.min_order_value, 3000, 'min_order_value stored minor (30.00 → 3000)');
+  } finally {
+    await cleanup();
+  }
+});

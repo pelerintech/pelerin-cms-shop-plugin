@@ -20,8 +20,8 @@ test('importPrices upserts a price for an existing product SKU', async () => {
   const { db, cleanup } = await createTestDb();
   try {
     const f = await seedMinimal(db);
-    // BOOK-001 seeded with RON=5000
-    const rows = [{ sku: 'BOOK-001', currency: 'RON', price_net: '5500' }];
+    // BOOK-001 seeded with RON=5000 (minor). CSV price_net is MAJOR units.
+    const rows = [{ sku: 'BOOK-001', currency: 'RON', price_net: '55' }]; // 55.00 RON
     const result = await importPrices(db, rows);
     assert.strictEqual(result.total, 1);
     assert.strictEqual(result.updated, 1);
@@ -32,7 +32,7 @@ test('importPrices upserts a price for an existing product SKU', async () => {
       .from(product_prices)
       .where(eq(product_prices.product_id, f.simpleProductId));
     const ron = prodPrices.find((p) => p.currency === 'RON' && p.variant_id === null);
-    assert.strictEqual(ron.price_net, 5500, 'product price updated in place');
+    assert.strictEqual(ron.price_net, 5500, 'product price updated in place (55.00 → 5500 minor)');
   } finally {
     await cleanup();
   }
@@ -56,7 +56,7 @@ test('importPrices inserts a new price for a configured currency the product lac
       description: null,
       slug: 'no-price',
     });
-    const rows = [{ sku: 'NOPRICE-001', currency: 'RON', price_net: '600' }];
+    const rows = [{ sku: 'NOPRICE-001', currency: 'RON', price_net: '6' }]; // 6.00 RON
     const result = await importPrices(db, rows);
     assert.strictEqual(result.updated, 1);
     const prodPrices = await db
@@ -65,7 +65,7 @@ test('importPrices inserts a new price for a configured currency the product lac
       .where(eq(product_prices.product_id, newId));
     assert.strictEqual(prodPrices.length, 1, 'one price inserted, no duplicate');
     assert.strictEqual(prodPrices[0].currency, 'RON');
-    assert.strictEqual(prodPrices[0].price_net, 600);
+    assert.strictEqual(prodPrices[0].price_net, 600, '6.00 → 600 minor');
   } finally {
     await cleanup();
   }
@@ -75,8 +75,8 @@ test('importPrices upserts a price for an existing variant SKU', async () => {
   const { db, cleanup } = await createTestDb();
   try {
     const f = await seedMinimal(db);
-    // SMX-BLK-128 seeded variant RON=25000
-    const rows = [{ sku: 'SMX-BLK-128', currency: 'RON', price_net: '26000' }];
+    // SMX-BLK-128 seeded variant RON=25000. CSV price_net is MAJOR units.
+    const rows = [{ sku: 'SMX-BLK-128', currency: 'RON', price_net: '260' }]; // 260.00 RON
     const result = await importPrices(db, rows);
     assert.strictEqual(result.updated, 1);
     assert.strictEqual(result.errors.length, 0);
@@ -86,7 +86,11 @@ test('importPrices upserts a price for an existing variant SKU', async () => {
       .from(product_prices)
       .where(eq(product_prices.variant_id, f.variantBlack128Id));
     const ron = variantPrices.find((p) => p.currency === 'RON');
-    assert.strictEqual(ron.price_net, 26000, 'variant price updated in place');
+    assert.strictEqual(
+      ron.price_net,
+      26000,
+      'variant price updated in place (260.00 → 26000 minor)'
+    );
     assert.strictEqual(variantPrices.length, 2, 'EUR untouched, no duplicate');
   } finally {
     await cleanup();
@@ -167,6 +171,25 @@ test('importPrices works on empty (unseeded) db — all rows error as unknown SK
     const result = await importPrices(db, rows);
     assert.strictEqual(result.updated, 0);
     assert.strictEqual(result.errors.length, 2, 'no products exist → both unknown SKU');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('importPrices converts decimal major price_net to minor on store', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    // 49.99 RON in the CSV (major) → stored as minor 4999.
+    const rows = [{ sku: 'BOOK-001', currency: 'RON', price_net: '49.99' }];
+    const result = await importPrices(db, rows);
+    assert.strictEqual(result.updated, 1);
+    const prodPrices = await db
+      .select()
+      .from(product_prices)
+      .where(eq(product_prices.product_id, f.simpleProductId));
+    const ron = prodPrices.find((p) => p.currency === 'RON' && p.variant_id === null);
+    assert.strictEqual(ron.price_net, 4999, '49.99 → 4999 minor');
   } finally {
     await cleanup();
   }

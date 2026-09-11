@@ -1,6 +1,8 @@
 import { test } from 'node:test';
+import { eq } from 'drizzle-orm';
+import { referral_codes } from '../../../db/harness.ts';
 import { ensureLoader } from '../../../stubs/register.mjs';
-import { matrix, assert } from '../_matrix.ts';
+import { matrix, assert, createTestDb, seedMinimal, makeFakeSdk, makeCtx } from '../_matrix.ts';
 
 ensureLoader();
 const { runGet, runPost } = await import('../../../../src/api/shop/referral-codes/index.ts');
@@ -53,3 +55,57 @@ test('POST error-wrap → 500', () =>
       active: true,
     },
   }));
+
+// ── Money-unit boundary: major (form input) → minor (storage) ──
+
+test('POST converts fixed_amount discount_value to minor on store', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    const body = {
+      code: 'FIXREF5',
+      name: 'Fixed',
+      discount_type: 'fixed_amount',
+      discount_value: 5, // 5.00 RON
+      active: true,
+    };
+    const ctx = makeCtx({ url: base, method: 'POST', body, params: {} });
+    const res = await runPost({ db, sdk, ctx });
+    assert.equal(res.status, 201);
+    const row = (
+      await db.select().from(referral_codes).where(eq(referral_codes.code, 'FIXREF5'))
+    )[0];
+    assert.equal(row.discount_value, 500, 'fixed_amount discount_value stored minor (5.00 → 500)');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('POST leaves percentage discount_value as-is (not x100)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    const body = {
+      code: 'PCTREF10',
+      name: 'Pct',
+      discount_type: 'percentage',
+      discount_value: 10,
+      active: true,
+    };
+    const ctx = makeCtx({ url: base, method: 'POST', body, params: {} });
+    const res = await runPost({ db, sdk, ctx });
+    assert.equal(res.status, 201);
+    const row = (
+      await db.select().from(referral_codes).where(eq(referral_codes.code, 'PCTREF10'))
+    )[0];
+    assert.equal(
+      row.discount_value,
+      10,
+      'percentage discount_value stays a percent (10, not 1000)'
+    );
+  } finally {
+    await cleanup();
+  }
+});

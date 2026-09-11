@@ -304,6 +304,9 @@ test('GET no codes → both null, discount_amount 0, total equals subtotal_net +
     assert.equal(b.data.discount_amount, 0);
     // Without discount, total = subtotal_net + vat_total
     assert.equal(b.data.totals.total, b.data.totals.subtotal_net + b.data.totals.vat_total);
+    // Money contract: the simple product's seeded RON price is minor 5000 (50.00);
+    // the public cart must return totals in minor units (no /100 at the API).
+    assert.strictEqual(b.data.totals.subtotal_net, 5000, 'cart subtotal_net is minor (no /100)');
   } finally {
     await cleanup();
   }

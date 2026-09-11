@@ -7,6 +7,7 @@ import {
   deleteVoucher,
   VoucherError,
 } from '../../../lib/data/vouchers';
+import { majorToMinor } from '../../../lib/money.ts';
 import { UpdateVoucherSchema } from '../../../schemas/voucher.schema';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
@@ -66,6 +67,16 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     }
     const v = await updateVoucher(db, ctx.params.id!, {
       ...parsed.data,
+      // Convert money fields (major input → minor store). type may be absent on update,
+      // so only convert value when the resolved type is fixed_amount (percentage stays).
+      value:
+        parsed.data.value != null && parsed.data.type === 'fixed_amount'
+          ? majorToMinor(parsed.data.value)
+          : parsed.data.value,
+      min_order_value:
+        parsed.data.min_order_value != null
+          ? majorToMinor(parsed.data.min_order_value)
+          : parsed.data.min_order_value,
       valid_from: parsed.data.valid_from ? new Date(parsed.data.valid_from) : null,
       valid_until: parsed.data.valid_until ? new Date(parsed.data.valid_until) : null,
     });

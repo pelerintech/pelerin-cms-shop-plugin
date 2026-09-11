@@ -144,7 +144,14 @@ const fromPage = new URL(Astro.request.url).searchParams.get('from_page') || '1'
         form.code.value = c.code || '';
         form.name.value = c.name || '';
         form.discount_type.value = c.discount_type || '';
-        form.discount_value.value = c.discount_value !== null ? c.discount_value : '';
+        // Storage is MINOR units → display as MAJOR (/100) in the form. Only
+        // fixed_amount is monetary; percentage stays a percent (raw), never /100.
+        form.discount_value.value =
+          c.discount_value !== null
+            ? c.discount_type === 'fixed_amount'
+              ? c.discount_value / 100
+              : c.discount_value
+            : '';
         form.notes.value = c.notes || '';
         form.active.checked = c.active;
 

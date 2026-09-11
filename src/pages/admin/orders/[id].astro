@@ -98,13 +98,13 @@ const orderId = Astro.params.id;
           '<td>' +
           item.quantity +
           '</td><td>' +
-          item.price_net.toFixed(2) +
+          (item.price_net / 100).toFixed(2) +
           '</td>' +
           '<td>' +
           (item.vat_rate !== null ? (item.vat_rate * 100).toFixed(0) + '%' : '—') +
           '</td>' +
           '<td>' +
-          item.price_gross.toFixed(2) +
+          (item.price_gross / 100).toFixed(2) +
           ' ' +
           order.currency +
           '</td></tr>'
@@ -269,25 +269,29 @@ const orderId = Astro.params.id;
     html +=
       '<div class="card bg-base-100 shadow mb-6"><div class="card-body"><h2 class="card-title text-lg">Totals</h2>' +
       '<div class="text-sm space-y-1"><p>Subtotal (net): ' +
-      order.subtotal_net.toFixed(2) +
+      (order.subtotal_net / 100).toFixed(2) +
       ' ' +
       order.currency +
       '</p>' +
       '<p>VAT: ' +
-      order.vat_total.toFixed(2) +
+      (order.vat_total / 100).toFixed(2) +
       ' ' +
       order.currency +
       '</p>' +
       '<p>Shipping: ' +
-      order.shipping_cost.toFixed(2) +
+      (order.shipping_cost / 100).toFixed(2) +
       ' ' +
       order.currency +
       '</p>' +
       (order.discount_amount > 0
-        ? '<p>Discount: -' + order.discount_amount.toFixed(2) + ' ' + order.currency + '</p>'
+        ? '<p>Discount: -' +
+          (order.discount_amount / 100).toFixed(2) +
+          ' ' +
+          order.currency +
+          '</p>'
         : '') +
       '<p class="font-bold text-lg mt-2">Total: ' +
-      order.total.toFixed(2) +
+      (order.total / 100).toFixed(2) +
       ' ' +
       order.currency +
       '</p></div></div></div>';
@@ -306,7 +310,7 @@ const orderId = Astro.params.id;
       '</p>' +
       (order.refund_amount
         ? '<p class="text-error mt-2">Refunded: ' +
-          order.refund_amount.toFixed(2) +
+          (order.refund_amount / 100).toFixed(2) +
           ' ' +
           order.currency +
           (order.refund_notes ? ' — ' + order.refund_notes : '') +

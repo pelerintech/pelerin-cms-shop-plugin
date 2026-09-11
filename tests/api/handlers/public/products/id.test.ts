@@ -18,6 +18,11 @@ test('GET happy-path → 200, data has id', async () => {
     const b = await res.json();
     assert.equal(b.success, true);
     assert.equal(b.data.id, f.simpleProductId);
+    // Money contract: 50.00 RON stored as minor 5000 — the API must NOT /100.
+    const ron = b.data.prices.find((p: any) => p.currency === 'RON');
+    assert.ok(ron, 'RON price must be present');
+    assert.strictEqual(ron.price_net, 5000, 'public price_net is minor (no /100)');
+    assert.strictEqual(ron.price_gross, 5250, 'public price_gross is minor (no /100)');
   } finally {
     await cleanup();
   }

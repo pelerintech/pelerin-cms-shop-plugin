@@ -48,7 +48,8 @@ for (const cart of cartList) {
     for (const item of enriched.items) {
       total += Math.round(item.price_net * (1 + (item.vat_rate ?? 0)) * item.quantity * 100) / 100;
     }
-    cartValues.set(cart.id, total.toFixed(2) + ' ' + shopConfig.defaultCurrency);
+    // Storage is MINOR units → display as MAJOR (/100).
+    cartValues.set(cart.id, (total / 100).toFixed(2) + ' ' + shopConfig.defaultCurrency);
   } catch {
     cartValues.set(cart.id, '—');
   }

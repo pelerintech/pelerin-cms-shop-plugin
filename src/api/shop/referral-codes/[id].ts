@@ -7,6 +7,7 @@ import {
   deleteReferral,
   ReferralError,
 } from '../../../lib/data/referrals';
+import { majorToMinor } from '../../../lib/money.ts';
 import { UpdateReferralCodeSchema } from '../../../schemas/referral.schema';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
@@ -64,7 +65,14 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
         { status: 422, headers: { 'Content-Type': 'application/json' } }
       );
     }
-    const r = await updateReferral(db, ctx.params.id!, parsed.data);
+    const r = await updateReferral(db, ctx.params.id!, {
+      ...parsed.data,
+      // discount_value is MAJOR when fixed_amount; percentage stays a percent.
+      discount_value:
+        parsed.data.discount_type === 'fixed_amount' && parsed.data.discount_value != null
+          ? majorToMinor(parsed.data.discount_value)
+          : parsed.data.discount_value,
+    });
     return new Response(JSON.stringify({ success: true, data: r }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

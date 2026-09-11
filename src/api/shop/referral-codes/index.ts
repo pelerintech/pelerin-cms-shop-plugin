@@ -2,6 +2,7 @@ import { errorFields } from '../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listReferrals, createReferral } from '../../../lib/data/referrals';
+import { majorToMinor } from '../../../lib/money.ts';
 import { CreateReferralCodeSchema } from '../../../schemas/referral.schema';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
@@ -49,7 +50,14 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
         { status: 422, headers: { 'Content-Type': 'application/json' } }
       );
     }
-    const ref = await createReferral(db, parsed.data);
+    const ref = await createReferral(db, {
+      ...parsed.data,
+      // Money units: discount_value is MAJOR when fixed_amount; percentage stays a percent.
+      discount_value:
+        parsed.data.discount_type === 'fixed_amount' && parsed.data.discount_value != null
+          ? majorToMinor(parsed.data.discount_value)
+          : parsed.data.discount_value,
+    });
     return new Response(JSON.stringify({ success: true, data: ref }), {
       status: 201,
       headers: { 'Content-Type': 'application/json' },

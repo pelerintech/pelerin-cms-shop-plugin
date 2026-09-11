@@ -155,8 +155,11 @@ const fromPage = new URL(Astro.request.url).searchParams.get('from_page') || '1'
         var form = document.getElementById('voucher-form');
         form.code.value = v.code || '';
         form.type.value = v.type || '';
-        form.value.value = v.value !== null ? v.value : '';
-        form.min_order_value.value = v.min_order_value !== null ? v.min_order_value : '';
+        // Storage is MINOR units → display as MAJOR (/100) in the form. Only
+        // fixed_amount is monetary; percentage stays a percent (raw), never /100.
+        form.value.value =
+          v.value !== null ? (v.type === 'fixed_amount' ? v.value / 100 : v.value) : '';
+        form.min_order_value.value = v.min_order_value !== null ? v.min_order_value / 100 : '';
         form.max_uses.value = v.max_uses !== null ? v.max_uses : '';
         if (v.valid_from) {
           form.valid_from.value = new Date(v.valid_from).toISOString().split('T')[0];

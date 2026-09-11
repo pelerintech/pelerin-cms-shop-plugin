@@ -578,3 +578,35 @@ test('cart variant items expose the unified attribute shape (attribute_id, optio
     await cleanup();
   }
 });
+
+test('cart totals stay in MINOR units (no /100 at the API boundary)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const { computeCartTotals } = await import('../../../src/lib/cart-totals.ts');
+    // 5000 minor = 50.00 RON; totals must be minor, NOT divided by 100.
+    const totals = computeCartTotals(
+      [
+        {
+          id: 'i1',
+          product_id: 'p',
+          variant_id: null,
+          product_name: 'x',
+          sku: 'SKU',
+          quantity: 1,
+          price_net: 5000,
+          vat_rate: 0.05,
+          currency: 'RON',
+          attributes: [],
+        },
+      ],
+      'RON',
+      0,
+      0
+    );
+    assert.strictEqual(totals.subtotal_net, 5000, 'subtotal minor');
+    assert.strictEqual(totals.total, 5250, 'total minor (no /100)');
+  } finally {
+    await cleanup();
+  }
+});

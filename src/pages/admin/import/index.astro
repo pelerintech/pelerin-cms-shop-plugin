@@ -87,7 +87,8 @@ const priceTemplateUrl = `data:text/csv;charset=utf-8,${encodeURIComponent(PRICE
         <p class="text-sm text-base-content/60">
           Upsert per-currency prices by SKU. Required columns: <code>sku</code>, <code
             >currency</code
-          >, <code>price_net</code>. SKU may match a product or a variant.
+          >, <code>price_net</code> (in <strong>major</strong> units, e.g.
+          <code>49.99</code> for 49.99 RON). SKU may match a product or a variant.
         </p>
         <div class="mb-2">
           <a href={priceTemplateUrl} download="prices-template.csv" class="btn btn-ghost btn-sm">

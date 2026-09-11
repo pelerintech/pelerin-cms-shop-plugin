@@ -107,7 +107,7 @@ test('PUT accepts prices: upserts RON override and deletes EUR (price_net:null)'
     // variantBlack128Id starts with RON 25000 + EUR 5000 own prices (from seed).
     const body = {
       prices: [
-        { currency: 'RON', price_net: 5400 },
+        { currency: 'RON', price_net: 54 }, // major (54.00) → stored minor 5400
         { currency: 'EUR', price_net: null },
       ],
     };
@@ -129,7 +129,7 @@ test('PUT accepts prices: upserts RON override and deletes EUR (price_net:null)'
       .where(eq(product_prices.variant_id, f.variantBlack128Id));
     const ron = rows.find((p) => p.currency === 'RON');
     const eur = rows.find((p) => p.currency === 'EUR');
-    assert.equal(ron!.price_net, 5400, 'RON variant price must be upserted to 5400');
+    assert.equal(ron!.price_net, 5400, 'RON variant price must be upserted to minor 5400');
     assert.equal(eur, undefined, 'EUR variant price must be deleted (price_net:null)');
   } finally {
     await cleanup();

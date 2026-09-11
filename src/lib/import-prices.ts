@@ -13,6 +13,7 @@
  */
 import type { AnyRow } from './types.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
+import { majorToMinor } from './money.ts';
 import { PriceImportRowSchema } from '../schemas/import.schema.ts';
 import { findProductBySku, upsertPrice } from './data/products.ts';
 import { findVariantBySku } from './data/variants.ts';
@@ -109,7 +110,8 @@ export async function importPrices(
       product_id: product?.id ?? null,
       variant_id: variant?.id ?? null,
       currency: data.currency,
-      price_net: data.price_net,
+      // CSV source is MAJOR units (e.g. 49.99) → store minor (4999).
+      price_net: majorToMinor(data.price_net),
     });
     result.updated++;
   }

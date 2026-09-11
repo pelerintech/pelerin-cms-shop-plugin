@@ -256,3 +256,23 @@ test('batchEnrichPublicProducts resolves the locale-translated attribute_name', 
     await cleanup();
   }
 });
+
+test('public API stays in MINOR units (no /100 conversion at the API boundary)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    const result = await listProducts(db, { locale: 'ro', active: true });
+    const enriched = await batchEnrichPublicProducts(db, result.products, {
+      currency: 'RON',
+      locale: 'ro',
+      sdk,
+    });
+    const simple = enriched.find((p: any) => p.id === f.simpleProductId);
+    // 50.00 RON product is stored/served as minor 5000 — the API does NOT /100.
+    assert.strictEqual(simple.price_net, 5000, 'public price_net is minor (no /100)');
+    assert.strictEqual(simple.price_gross, 5250, 'public price_gross is minor (no /100)');
+  } finally {
+    await cleanup();
+  }
+});

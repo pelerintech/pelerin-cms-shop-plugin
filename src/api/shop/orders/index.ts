@@ -2,6 +2,7 @@ import { errorFields } from '../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listOrders } from '../../../lib/data/orders';
+import { majorToMinor } from '../../../lib/money.ts';
 import { CreateOrderSchema } from '../../../schemas/order.schema';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
@@ -84,9 +85,27 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     // and returns the actual number used. The admin schema allows blank (nullable)
     // shipping fields, but the orders table columns are NOT NULL — coalesce to ''.
     const { createOrder } = await import('../../../lib/data/orders');
+    // Admin manual-order input is in MAJOR units (form) → convert to minor on store.
+    const subtotalNet = majorToMinor(parsed.data.subtotal_net);
+    const vatTotal = majorToMinor(parsed.data.vat_total);
+    const shippingCost = majorToMinor(parsed.data.shipping_cost);
+    const discountAmount = majorToMinor(parsed.data.discount_amount);
     const order = await createOrder(db, {
       order_number: null,
       ...parsed.data,
+      subtotal_net: subtotalNet,
+      vat_total: vatTotal,
+      shipping_cost: shippingCost,
+      discount_amount: discountAmount,
+      // Derive the total from the converted fields (checkout convention:
+      // subtotal_net + vat_total + shipping_cost − discount_amount), so the stored
+      // order is internally consistent regardless of a client-supplied value.
+      total: subtotalNet + vatTotal + shippingCost - discountAmount,
+      items: parsed.data.items.map((it) => ({
+        ...it,
+        price_net: majorToMinor(it.price_net),
+        price_gross: majorToMinor(it.price_gross),
+      })),
       shipping_first_name: parsed.data.shipping_first_name ?? '',
       shipping_last_name: parsed.data.shipping_last_name ?? '',
       shipping_address: parsed.data.shipping_address ?? '',

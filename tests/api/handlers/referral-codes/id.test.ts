@@ -115,3 +115,20 @@ test('DELETE [id] happy-path → 200', async () => {
 
 test('DELETE [id] error-wrap → 500', () =>
   matrix.errorWrap({ run: runDelete, url: `${base}/x`, params: { id: 'x' } }));
+
+test('PUT converts fixed_amount discount_value to minor on store', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const id = await firstReferralId(db);
+    const sdk = makeFakeSdk();
+    const body = { discount_type: 'fixed_amount', discount_value: 7 };
+    const ctx = makeCtx({ url: `${base}/${id}`, method: 'PUT', body, params: { id } });
+    const res = await runPut({ db, sdk, ctx });
+    assert.equal(res.status, 200);
+    const b = await res.json();
+    assert.equal(b.data.discount_value, 700, 'discount_value stored minor (7.00 → 700)');
+  } finally {
+    await cleanup();
+  }
+});

@@ -2,6 +2,7 @@ import { errorFields } from '../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listVouchers, createVoucher } from '../../../lib/data/vouchers';
+import { majorToMinor } from '../../../lib/money.ts';
 import { CreateVoucherSchema } from '../../../schemas/voucher.schema';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
@@ -51,6 +52,14 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     }
     const voucher = await createVoucher(db, {
       ...parsed.data,
+      // Money units: form input is MAJOR; only fixed_amount value + min_order_value
+      // are monetary (percentage stays a percent). Convert to minor on store.
+      value:
+        parsed.data.type === 'fixed_amount' && parsed.data.value != null
+          ? majorToMinor(parsed.data.value)
+          : parsed.data.value,
+      min_order_value:
+        parsed.data.min_order_value != null ? majorToMinor(parsed.data.min_order_value) : null,
       valid_from: parsed.data.valid_from ? new Date(parsed.data.valid_from) : null,
       valid_until: parsed.data.valid_until ? new Date(parsed.data.valid_until) : null,
     });

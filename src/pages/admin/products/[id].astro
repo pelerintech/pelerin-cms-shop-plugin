@@ -254,7 +254,7 @@ const slugCollisions = await findSlugCollisions(
                         <td>
                           <code class="text-sm">{p.currency}</code>
                         </td>
-                        <td class="text-right font-mono">{p.price_net}</td>
+                        <td class="text-right font-mono">{(p.price_net / 100).toFixed(2)}</td>
                         <td>
                           <button
                             type="button"
@@ -833,8 +833,9 @@ const slugCollisions = await findSlugCollisions(
 
     const priceInputsHtml = CURRENCIES.map((cur: string) => {
       const eff = effectiveByCurrency.get(cur);
-      const ownVal = eff && !eff.inherited ? eff.price_net : '';
-      const placeholder = eff ? `${eff.price_net} (inherited from product)` : '';
+      // Storage is MINOR units → display as MAJOR (/100) in the form.
+      const ownVal = eff && !eff.inherited ? eff.price_net / 100 : '';
+      const placeholder = eff ? `${eff.price_net / 100} (inherited from product)` : '';
       return `<div class="form-control">
         <label class="label"><span class="label-text">Price (${cur}) — net</span></label>
         <input type="number" step="0.01" min="0" class="input input-bordered" data-variant-price="${cur}" value="${ownVal}" placeholder="${placeholder}" />

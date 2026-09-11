@@ -27,6 +27,26 @@ test('GET happy-path → 200, data is array', () =>
 test('GET error-wrap → 500', () =>
   matrix.errorWrap({ run: runGet, url: buildUrl({ currency: 'RON', locale: 'ro' }) }));
 
+test('GET products ?currency=RON returns price in MINOR units (no /100 at the API)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({ url: buildUrl({ currency: 'RON', locale: 'ro' }) });
+    const res = await runGet({ db, sdk, ctx });
+    assert.equal(res.status, 200);
+    const b = await res.json();
+    assert.equal(b.success, true);
+    const simple = b.data.find((p) => p.sku === 'BOOK-001');
+    assert.ok(simple, 'seeded simple product should be in the list');
+    // 50.00 RON is stored/served as minor 5000 — the API must NOT /100.
+    assert.strictEqual(simple.price_net, 5000, 'public price_net is minor (no /100)');
+    assert.strictEqual(simple.price_gross, 5250, 'public price_gross is minor (no /100)');
+  } finally {
+    await cleanup();
+  }
+});
+
 // ── Slug resolution scenarios ──
 
 // ── Pagination scenarios ──

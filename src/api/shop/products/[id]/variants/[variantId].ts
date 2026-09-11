@@ -3,6 +3,7 @@ import { errorFields } from '../../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { UpdateVariantSchema } from '../../../../../schemas/product.schema';
+import { majorToMinor } from '../../../../../lib/money.ts';
 import { updateVariant, deleteVariant, VariantError } from '../../../../../lib/data/variants';
 import type { HandlerDeps } from '../../../../../lib/handler-types';
 
@@ -40,7 +41,11 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       input.field_values = body.field_values;
     }
     if (body.prices && Array.isArray(body.prices)) {
-      input.prices = body.prices;
+      // price_net arrives in major units (admin form) → store minor. null = inherit/revert.
+      input.prices = body.prices.map((p: AnyRow) => ({
+        currency: p.currency,
+        price_net: p.price_net == null ? null : majorToMinor(p.price_net),
+      }));
     }
 
     const updated = await updateVariant(db, variantId!, input);

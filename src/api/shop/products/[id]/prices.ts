@@ -9,6 +9,7 @@ import {
 } from '../../../../lib/data/products';
 import { listVariantIdsForProduct } from '../../../../lib/data/variants';
 import { product_prices } from '../../../../db/schema';
+import { majorToMinor } from '../../../../lib/money.ts';
 import type { AnyRecord } from '../../../../lib/types.ts';
 import { BulkUpsertPricesSchema, CreatePriceSchema } from '../../../../schemas/product.schema';
 import type { HandlerDeps } from '../../../../lib/handler-types';
@@ -87,7 +88,7 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       product_id: parsed.data.product_id,
       variant_id: parsed.data.variant_id ?? null,
       currency: parsed.data.currency,
-      price_net: parsed.data.price_net,
+      price_net: majorToMinor(parsed.data.price_net),
     });
     return new Response(JSON.stringify({ success: true, data: parsed.data }), {
       status: 201,
@@ -131,7 +132,7 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
         product_id: p.product_id,
         variant_id: p.variant_id ?? null,
         currency: p.currency,
-        price_net: p.price_net,
+        price_net: majorToMinor(p.price_net),
       });
     }
     return new Response(JSON.stringify({ success: true, data: parsed.data.prices }), {
