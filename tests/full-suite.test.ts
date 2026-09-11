@@ -65,6 +65,7 @@ const TEST_FILES = [
   'tests/lib/import-products.test.ts',
   'tests/lib/import-prices.test.ts',
   'tests/lib/money.test.ts',
+  'tests/lib/public-base-url.test.ts',
   'tests/schemas/import-schemas.test.ts',
   'tests/cart/session.test.ts',
   'tests/api/helpers.test.ts',

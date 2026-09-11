@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getSetting } from '../../../../../lib/data/settings';
 import { decryptIfNeeded } from '../../../../../lib/crypto';
+import { getPublicBaseUrl } from '../../../../../lib/public-base-url.ts';
 import { computeEuplatescHash, buildRequestFields } from '../../../../../lib/euplatesc-mac';
 import type { HandlerDeps } from '../../../../../lib/handler-types';
 
@@ -38,10 +39,11 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
   const merchantId = decryptIfNeeded(merchantIdRaw);
   const secretKey = decryptIfNeeded(secretKeyRaw);
 
-  // Derive URLs from request origin
-  const origin = new URL(ctx.request.url).origin;
-  const webhookUrl = `${origin}/api/plugins/shop/webhooks/euplatesc`;
-  const settingsPageUrl = `${origin}/admin/plugins/shop/settings/payments/euplatesc`;
+  // Derive URLs from the configured public base URL (not the request origin,
+  // which the node adapter derives as http:// behind a TLS-terminating proxy).
+  const base = getPublicBaseUrl();
+  const webhookUrl = `${base}/api/plugins/shop/webhooks/euplatesc`;
+  const settingsPageUrl = `${base}/admin/plugins/shop/settings/payments/euplatesc`;
 
   const now = new Date();
   const timestamp =

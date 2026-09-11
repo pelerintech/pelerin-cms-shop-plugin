@@ -1,4 +1,5 @@
 import { errorFields } from '../../../../../lib/errors.ts';
+import { getPublicBaseUrl } from '../../../../../lib/public-base-url.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getProvider } from '../../../../../providers/payment/registry';
@@ -110,11 +111,11 @@ export async function runPost({ db, ctx }: HandlerDeps): Promise<Response> {
       status: o.status,
     };
 
-    const origin = new URL(ctx.request.url).origin;
+    const base = getPublicBaseUrl();
     const paymentOptions: PaymentOptions = {
       success_url,
       cancel_url,
-      webhook_url: `${origin}/api/plugins/shop/webhooks/${paymentProvider.name}`,
+      webhook_url: `${base}/api/plugins/shop/webhooks/${paymentProvider.name}`,
       currency: o.currency,
     };
 

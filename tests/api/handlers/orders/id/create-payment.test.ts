@@ -154,4 +154,110 @@ describe('create-payment endpoint', () => {
     const b = await res.json();
     assert.strictEqual(b.success, false);
   });
+
+  it('default success/cancel/webhook URLs use the public base, not the request origin', async () => {
+    // Seed settings
+    await db.insert(shop_settings).values([
+      {
+        id: 's1',
+        key: 'locales',
+        value: JSON.stringify([{ code: 'ro', name: 'Română', isDefault: true }]),
+      },
+      {
+        id: 's2',
+        key: 'currencies',
+        value: JSON.stringify([{ code: 'RON', name: 'Leu', isDefault: true }]),
+      },
+      { id: 's3', key: 'euplatesc_merchant_id', value: '44841007584' },
+      { id: 's4', key: 'euplatesc_secret_key', value: 'AA4A81EE58A1D74DE6E02DF2C1CE9982780F95DC' },
+    ]);
+
+    // Seed order
+    const now = new Date();
+    await insertFixture(db, 'orders', {
+      id: 'order-1',
+      order_number: 'ORD-001',
+      user_id: null,
+      customer_type: 'individual',
+      customer_email: 'buyer@example.com',
+      customer_name: 'Ion Popescu',
+      customer_phone: null,
+      currency: 'RON',
+      subtotal_net: 5000,
+      vat_total: 1000,
+      shipping_cost: 0,
+      discount_amount: 0,
+      total: 6000,
+      shipping_type: 'physical',
+      status: 'pending',
+      payment_provider: null,
+      payment_intent_id: null,
+      transaction_id: null,
+      voucher_code: null,
+      referral_code: null,
+      billing_first_name: 'Ion',
+      billing_last_name: 'Popescu',
+      billing_address: 'Str. X nr 1',
+      billing_city: 'Bucuresti',
+      billing_postal_code: '010101',
+      billing_country: 'Romania',
+      billing_county: 'Bucuresti',
+      billing_phone: null,
+      billing_company: null,
+      billing_vat_number: null,
+      shipping_first_name: 'Ion',
+      shipping_last_name: 'Popescu',
+      shipping_address: 'Str. X nr 1',
+      shipping_city: 'Bucuresti',
+      shipping_postal_code: '010101',
+      shipping_country: 'Romania',
+      shipping_county: 'Bucuresti',
+      shipping_phone: null,
+      shipping_company: null,
+      shipping_vat_number: null,
+      shipping_same_as_billing: true,
+      cart_id: null,
+      notes: null,
+      created_at: now,
+      updated_at: now,
+    });
+
+    // Public base differs from the request origin (TLS-terminating proxy).
+    process.env.BETTER_AUTH_URL = 'https://cms.geneticlab.ro';
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: 'http://internal:3000/api/plugins/shop/orders/order-1/create-payment',
+      method: 'POST',
+      body: { provider: 'euplatesc' },
+      params: { id: 'order-1' },
+    });
+    const res = await runPost({ db, sdk, ctx });
+    assert.strictEqual(res.status, 200);
+    const b = await res.json();
+    assert.strictEqual(b.success, true);
+    assert.ok(b.data?.redirect_url, 'should contain redirect_url');
+
+    const redirectUrlStr = b.data.redirect_url;
+    // default success_url, cancel_url, and silenturl (webhook) all use the public base
+    assert.ok(
+      redirectUrlStr.includes(
+        'cms.geneticlab.ro%2Fadmin%2Fplugins%2Fshop%2Forders%2Forder-1%3Fpayment%3Dsuccess'
+      ),
+      'default success_url should use the public base'
+    );
+    assert.ok(
+      redirectUrlStr.includes(
+        'cms.geneticlab.ro%2Fadmin%2Fplugins%2Fshop%2Forders%2Forder-1%3Fpayment%3Dfailed'
+      ),
+      'default cancel_url should use the public base'
+    );
+    assert.ok(
+      redirectUrlStr.includes('cms.geneticlab.ro%2Fapi%2Fplugins%2Fshop%2Fwebhooks%2Feuplatesc'),
+      'silenturl should use the public base'
+    );
+    assert.ok(
+      !redirectUrlStr.includes('internal%3A3000'),
+      'redirect must NOT contain the request origin'
+    );
+  });
 });

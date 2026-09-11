@@ -110,4 +110,40 @@ describe('test-payment endpoint', () => {
     const b = await res.json();
     assert.strictEqual(b.success, false);
   });
+
+  it('webhookUrl uses the public base, not the request origin', async () => {
+    await db.insert(shop_settings).values([
+      { id: 's1', key: 'euplatesc_merchant_id', value: '44841007584' },
+      { id: 's2', key: 'euplatesc_secret_key', value: 'AA4A81EE58A1D74DE6E02DF2C1CE9982780F95DC' },
+    ]);
+
+    // Public base differs from the request origin (TLS-terminating proxy).
+    process.env.BETTER_AUTH_URL = 'https://cms.geneticlab.ro';
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({
+      url: 'http://internal:3000/api/plugins/shop/settings/payments/euplatesc/test-payment',
+      method: 'POST',
+    });
+    const res = await runPost({ db, sdk, ctx });
+    assert.strictEqual(res.status, 200);
+    const b = await res.json();
+    assert.strictEqual(b.success, true);
+    assert.ok(b.data?.redirect_url, 'response should contain redirect_url');
+
+    const redirectUrlStr = b.data.redirect_url;
+    assert.ok(
+      redirectUrlStr.includes('cms.geneticlab.ro%2Fapi%2Fplugins%2Fshop%2Fwebhooks%2Feuplatesc'),
+      'silenturl should use the public base URL'
+    );
+    assert.ok(
+      redirectUrlStr.includes(
+        'cms.geneticlab.ro%2Fadmin%2Fplugins%2Fshop%2Fsettings%2Fpayments%2Feuplatesc'
+      ),
+      'settings page URL should use the public base URL'
+    );
+    assert.ok(
+      !redirectUrlStr.includes('internal%3A3000'),
+      'redirect must NOT contain the request origin'
+    );
+  });
 });

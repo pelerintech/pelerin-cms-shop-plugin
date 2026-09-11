@@ -1,5 +1,6 @@
 import type { LooseBody } from '../../../../lib/types.ts';
 import { errorFields } from '../../../../lib/errors.ts';
+import { getPublicBaseUrl } from '../../../../lib/public-base-url.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getOrderWithItems } from '../../../../lib/data/orders';
@@ -91,13 +92,14 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     status: order.status,
   };
 
-  // Derive URLs from request origin
-  const origin = new URL(ctx.request.url).origin;
+  // Derive URLs from the configured public base URL (not the request origin,
+  // which the node adapter derives as http:// behind a TLS-terminating proxy).
+  const base = getPublicBaseUrl();
   const successUrl =
-    body.success_url || `${origin}/admin/plugins/shop/orders/${orderId}?payment=success`;
+    body.success_url || `${base}/admin/plugins/shop/orders/${orderId}?payment=success`;
   const cancelUrl =
-    body.cancel_url || `${origin}/admin/plugins/shop/orders/${orderId}?payment=failed`;
-  const webhookUrl = `${origin}/api/plugins/shop/webhooks/${providerName}`;
+    body.cancel_url || `${base}/admin/plugins/shop/orders/${orderId}?payment=failed`;
+  const webhookUrl = `${base}/api/plugins/shop/webhooks/${providerName}`;
 
   const paymentOptions: PaymentOptions = {
     success_url: successUrl,
