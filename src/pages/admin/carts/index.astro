@@ -54,6 +54,23 @@ for (const cart of cartList) {
     cartValues.set(cart.id, '—');
   }
 }
+
+// Resolve customer identity for logged-in carts (degrades to the User/Guest
+// badge if the SDK method is not available yet).
+const cartUsers = new Map<string, string>();
+if (typeof (sdk.auth as any).getUserById === 'function') {
+  for (const cart of cartList) {
+    if (!cart.user_id) continue;
+    try {
+      const u = await (sdk.auth as any).getUserById(cart.user_id);
+      if (u?.email) {
+        cartUsers.set(cart.id, u.name ? `${u.name} <${u.email}>` : u.email);
+      }
+    } catch {
+      // ignore — degrade to badge
+    }
+  }
+}
 ---
 
 <AdminLayout title="Open Carts" currentPath="/admin/plugins/shop/carts" user={user}>
@@ -96,7 +113,7 @@ for (const cart of cartList) {
         <thead>
           <tr>
             <th>Cart ID</th>
-            <th>User</th>
+            <th>Customer</th>
             <th>Items</th>
             <th>Value</th>
             <th>Voucher</th>
@@ -104,13 +121,14 @@ for (const cart of cartList) {
             <th>Created</th>
             <th>Updated</th>
             <th>Age</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           {
             cartList.length === 0 ? (
               <tr>
-                <td colspan="9" class="text-center text-gray-500 py-4">
+                <td colspan="10" class="text-center text-gray-500 py-4">
                   No carts found
                 </td>
               </tr>
@@ -124,7 +142,9 @@ for (const cart of cartList) {
                   <tr>
                     <td class="font-mono text-xs">{cart.id.slice(0, 8)}...</td>
                     <td>
-                      {cart.user_id ? (
+                      {cartUsers.get(cart.id) ? (
+                        <span class="text-sm">{cartUsers.get(cart.id)}</span>
+                      ) : cart.user_id ? (
                         <span class="badge badge-sm">User</span>
                       ) : (
                         <span class="badge badge-sm badge-ghost">Guest</span>
@@ -140,6 +160,14 @@ for (const cart of cartList) {
                     <td class="text-sm">{new Date(cart.created_at).toLocaleString()}</td>
                     <td class="text-sm">{new Date(cart.updated_at).toLocaleString()}</td>
                     <td>{ageDisplay}</td>
+                    <td>
+                      <button
+                        class="btn btn-xs btn-error btn-outline"
+                        onclick={`if(confirm('Delete this cart?')){fetch('/api/plugins/shop/carts/${cart.id}',{method:'DELETE'}).then(()=>location.reload())}`}
+                      >
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 );
               })

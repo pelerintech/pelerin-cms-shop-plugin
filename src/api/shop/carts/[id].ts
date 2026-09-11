@@ -2,7 +2,7 @@ import type { AnyRow } from '../../../lib/types.ts';
 import { errorFields } from '../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
-import { getCartWithItems } from '../../../lib/data/cart';
+import { getCartWithItems, deleteCart } from '../../../lib/data/cart';
 import { computeCartTotals } from '../../../lib/cart-totals';
 import { getShopConfig } from '../../../lib/data/settings';
 import type { HandlerDeps } from '../../../lib/handler-types';
@@ -10,6 +10,11 @@ import type { HandlerDeps } from '../../../lib/handler-types';
 export const GET: APIRoute = (context) => {
   const sdk = createPluginContext();
   return runGet({ db: sdk.db, sdk, ctx: context });
+};
+
+export const DELETE: APIRoute = (context) => {
+  const sdk = createPluginContext();
+  return runDelete({ db: sdk.db, sdk, ctx: context });
 };
 
 export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
@@ -48,6 +53,27 @@ export async function runGet({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
+  } catch (err: unknown) {
+    const status = errorFields(err).status ?? 500;
+    return new Response(
+      JSON.stringify({ success: false, error: errorFields(err).message || 'Server Error' }),
+      {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  }
+}
+
+export async function runDelete({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
+  try {
+    await sdk.auth.requireAdmin(ctx.request);
+    const cartId = ctx.params.id!;
+    await deleteCart(db, cartId);
+    return new Response(JSON.stringify({ success: true, data: { id: cartId } }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (err: unknown) {
     const status = errorFields(err).status ?? 500;
     return new Response(

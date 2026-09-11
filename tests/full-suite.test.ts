@@ -138,6 +138,8 @@ const TEST_FILES = [
   'tests/pages/admin-vouchers-id-script-syntax.test.ts',
   'tests/pages/admin-categories-list-ui.test.ts',
   'tests/pages/admin-remaining-lists-pagination-ui.test.ts',
+  'tests/pages/admin-orders-list-units.test.ts',
+  'tests/pages/admin-carts-ui.test.ts',
   'tests/pages/admin-searchselect-syntax.test.ts',
   'tests/pages/admin-import-ui.test.ts',
   'tests/pages/admin-import-script-syntax.test.ts',

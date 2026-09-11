@@ -194,7 +194,7 @@ async function handleWebhook(db: LibSQLDatabase, request: Request): Promise<Webh
 
   // Find order by order_number (= invoice_id)
   const orderResult = await db
-    .select({ id: orders.id, status: orders.status })
+    .select({ id: orders.id, status: orders.status, total: orders.total })
     .from(orders)
     .where(sql`${orders.order_number} = ${invoiceId}`)
     .limit(1);
@@ -209,18 +209,30 @@ async function handleWebhook(db: LibSQLDatabase, request: Request): Promise<Webh
 
   // action = "0" means payment approved
   if (action === '0') {
-    // Skip transition if already paid (idempotent)
-    if (currentStatus !== 'paid') {
+    // Verify the paid amount matches the order total (major units: amount is RON,
+    // order.total is minor → compare after /100). Refuse to mark paid on mismatch.
+    const amountOk = parseFloat(responseParams.amount) === orderResult[0].total / 100;
+    // Idempotency guard: only transition upward from the pre-payment state.
+    // Never reset a paid/later/terminal status (shipped/delivered/processing/
+    // refunded/cancelled) back to paid on a recalled IPN.
+    const transitioned = amountOk && currentStatus === 'awaiting_payment';
+    if (transitioned) {
       await transitionOrder(db, orderId, 'paid', 'Payment confirmed via euPlatesc IPN');
+      await db
+        .update(orders)
+        .set({ transaction_id: epId })
+        .where(sql`${orders.id} = ${orderId}`);
+      return {
+        order_id: orderId,
+        status: 'paid',
+        transaction_id: epId,
+        transitioned: true,
+      };
     }
-    await db
-      .update(orders)
-      .set({ transaction_id: epId })
-      .where(sql`${orders.id} = ${orderId}`);
     return {
       order_id: orderId,
-      status: 'paid',
-      transaction_id: epId,
+      status: currentStatus === 'paid' ? 'paid' : 'pending',
+      transitioned: false,
     };
   }
 

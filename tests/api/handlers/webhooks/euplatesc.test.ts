@@ -201,8 +201,8 @@ describe('euPlatesc webhook — event publishing', () => {
 
     assert.match(
       content,
-      /if\s*\(\s*result\.status\s*===\s*['"]paid['"]/,
-      'Event publishing must be guarded by result.status === "paid"'
+      /if\s*\(\s*result\.transitioned\s*===?\s*true/,
+      'Event publishing must be guarded by result.transitioned === true'
     );
   });
 
@@ -284,6 +284,190 @@ describe('euPlatesc webhook — event publishing', () => {
       'Payload must contain order data'
     );
 
+    await testDb.$client.close();
+  });
+});
+
+describe('euPlatesc webhook — idempotent paid transition (r41)', () => {
+  const key = 'AA4A81EE58A1D74DE6E02DF2C1CE9982780F95DC';
+  let db: LibSQLDatabase;
+
+  async function freshDb() {
+    const harness = await createTestDb();
+    db = harness.db;
+    await resetDb(db);
+    await db.insert(shop_settings).values([
+      { id: 's1', key: 'euplatesc_merchant_id', value: '44841007584' },
+      { id: 's2', key: 'euplatesc_secret_key', value: key },
+    ]);
+  }
+
+  function signedBody(invoice: string, amount: string, opts: Partial<Record<string, string>> = {}) {
+    const params = {
+      amount,
+      curr: 'RON',
+      invoice_id: invoice,
+      ep_id: 'EP1',
+      merch_id: '44841007584',
+      action: '0',
+      message: 'OK',
+      approval: 'APPR1',
+      timestamp: '20260710120000',
+      nonce: 'abcdef1234567890abcdef1234567890',
+      ...opts,
+    };
+    const fpHash = computeEuplatescHash(buildResponseFields(params), key).toUpperCase();
+    return new URLSearchParams({ ...params, fp_hash: fpHash }).toString();
+  }
+
+  async function req(body: string) {
+    return new Request('https://example.com/api/plugins/shop/webhooks/euplatesc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+  }
+
+  it('transitions awaiting_payment → paid on matching amount (transitioned=true)', async () => {
+    await freshDb();
+    const { handleWebhook } = await import('../../../../src/providers/payment/euplatesc.ts');
+    await db.insert(orders).values(
+      buildOrderRow({
+        id: 'o-1',
+        order_number: 'ORD-ID1',
+        status: 'awaiting_payment',
+        total: 5000,
+        currency: 'RON',
+        customer_name: 'A',
+        customer_email: 'a@x.com',
+        payment_provider: 'euplatesc',
+      })
+    );
+    const result = await handleWebhook(db, await req(signedBody('ORD-ID1', '50.00')));
+    assert.strictEqual(result.status, 'paid');
+    assert.strictEqual(result.transitioned, true);
+  });
+
+  it('does NOT transition on amount mismatch (transitioned=false)', async () => {
+    await freshDb();
+    const { handleWebhook } = await import('../../../../src/providers/payment/euplatesc.ts');
+    await db.insert(orders).values(
+      buildOrderRow({
+        id: 'o-2',
+        order_number: 'ORD-ID2',
+        status: 'awaiting_payment',
+        total: 5000,
+        currency: 'RON',
+        customer_name: 'A',
+        customer_email: 'a@x.com',
+        payment_provider: 'euplatesc',
+      })
+    );
+    const result = await handleWebhook(db, await req(signedBody('ORD-ID2', '100.00')));
+    assert.strictEqual(result.transitioned, false);
+    const [row] = await db.select().from(orders).where(eq(orders.id, 'o-2'));
+    assert.strictEqual(
+      row.status,
+      'awaiting_payment',
+      'must NOT be marked paid on amount mismatch'
+    );
+  });
+
+  it('does NOT downgrade a shipped order on recall (transitioned=false)', async () => {
+    await freshDb();
+    const { handleWebhook } = await import('../../../../src/providers/payment/euplatesc.ts');
+    await db.insert(orders).values(
+      buildOrderRow({
+        id: 'o-3',
+        order_number: 'ORD-ID3',
+        status: 'shipped',
+        total: 5000,
+        currency: 'RON',
+        customer_name: 'A',
+        customer_email: 'a@x.com',
+        payment_provider: 'euplatesc',
+      })
+    );
+    const result = await handleWebhook(db, await req(signedBody('ORD-ID3', '50.00')));
+    assert.strictEqual(result.transitioned, false);
+    const [row] = await db.select().from(orders).where(eq(orders.id, 'o-3'));
+    assert.strictEqual(row.status, 'shipped', 'must NOT reset a shipped order to paid');
+  });
+
+  it('is a no-op on an already-paid order (transitioned=false)', async () => {
+    await freshDb();
+    const { handleWebhook } = await import('../../../../src/providers/payment/euplatesc.ts');
+    await db.insert(orders).values(
+      buildOrderRow({
+        id: 'o-4',
+        order_number: 'ORD-ID4',
+        status: 'paid',
+        total: 5000,
+        currency: 'RON',
+        customer_name: 'A',
+        customer_email: 'a@x.com',
+        payment_provider: 'euplatesc',
+      })
+    );
+    const result = await handleWebhook(db, await req(signedBody('ORD-ID4', '50.00')));
+    assert.strictEqual(result.transitioned, false);
+    const [row] = await db.select().from(orders).where(eq(orders.id, 'o-4'));
+    assert.strictEqual(row.status, 'paid');
+  });
+});
+
+describe('euPlatesc webhook — event only on fresh transition (r41)', () => {
+  const key = 'AA4A81EE58A1D74DE6E02DF2C1CE9982780F95DC';
+
+  it('does NOT publish shop.order.paid when the order is already paid', async () => {
+    const harness = await createTestDb();
+    const testDb = harness.db;
+    await resetDb(testDb);
+    await testDb.insert(shop_settings).values([
+      { id: 's1', key: 'euplatesc_merchant_id', value: '44841007584' },
+      { id: 's2', key: 'euplatesc_secret_key', value: key },
+    ]);
+    await testDb.insert(orders).values(
+      buildOrderRow({
+        id: 'o-dup',
+        order_number: 'ORD-DUP',
+        status: 'paid',
+        total: 5000,
+        currency: 'RON',
+        customer_name: 'A',
+        customer_email: 'a@x.com',
+        payment_provider: 'euplatesc',
+      })
+    );
+    const params = {
+      amount: '50.00',
+      curr: 'RON',
+      invoice_id: 'ORD-DUP',
+      ep_id: 'EP9',
+      merch_id: '44841007584',
+      action: '0',
+      message: 'OK',
+      approval: 'A',
+      timestamp: '20260710120000',
+      nonce: 'abcdef1234567890abcdef1234567890',
+    };
+    const fpHash = computeEuplatescHash(buildResponseFields(params), key).toUpperCase();
+    const body = new URLSearchParams({ ...params, fp_hash: fpHash }).toString();
+    const request = new Request('https://example.com/api/plugins/shop/webhooks/euplatesc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+    const { makeFakeSdk } = await import('../../helpers.ts');
+    const sdk = makeFakeSdk();
+    const mod = await import('../../../../src/api/shop/webhooks/euplatesc.ts');
+    await mod.runPost({ db: testDb, sdk, ctx: { request } as any });
+    const calls = sdk.events.publishCalls as Array<{ event: string }>;
+    assert.strictEqual(
+      calls.length,
+      0,
+      'must NOT publish shop.order.paid on a non-transition recall'
+    );
     await testDb.$client.close();
   });
 });

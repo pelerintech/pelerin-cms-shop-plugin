@@ -5,6 +5,7 @@ import AdminLayout from 'pelerin:admin-layout';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listOrders } from '../../../lib/data/orders';
 import Pagination from '../../../components/admin/Pagination.astro';
+import { formatMinor } from '../../../lib/money.ts';
 
 const sdk = createPluginContext();
 const user = await sdk.auth.requireAdmin(Astro.request);
@@ -185,9 +186,7 @@ if (hasFilters) {
                       {statusLabel(o.status)}
                     </span>
                   </td>
-                  <td class="font-mono">
-                    {(o.total || 0).toFixed(2)} {o.currency}
-                  </td>
+                  <td class="font-mono">{formatMinor(o.total, o.currency)}</td>
                   <td>
                     <a
                       href={`/admin/plugins/shop/orders/${o.id}?from_page=${page}`}

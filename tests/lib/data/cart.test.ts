@@ -8,9 +8,13 @@ import {
   updateCartItem,
   deleteCartItem,
   clearCart,
+  setCartVoucher,
+  setCartReferral,
+  deleteCart,
 } from '../../../src/lib/data/cart.ts';
 import {
   carts,
+  cart_items,
   products,
   product_variants,
   product_prices,
@@ -606,6 +610,107 @@ test('cart totals stay in MINOR units (no /100 at the API boundary)', async () =
     );
     assert.strictEqual(totals.subtotal_net, 5000, 'subtotal minor');
     assert.strictEqual(totals.total, 5250, 'total minor (no /100)');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('addCartItem bumps carts.updated_at', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const cartId = await makeCart(db);
+    const before = (await getCartById(db, cartId))!.updated_at;
+    // Ensure ordering is observable
+    await new Promise((r) => setTimeout(r, 5));
+    await addCartItem(db, cartId, {
+      product_id: f.simpleProductId,
+      variant_id: null,
+      quantity: 1,
+    });
+    const after = (await getCartById(db, cartId))!.updated_at;
+    assert.ok(after.getTime() > before.getTime(), 'updated_at must bump after adding an item');
+  } finally {
+    await cleanup();
+  }
+});
+
+async function assertBumps(db: any, cartId: string, act: () => Promise<unknown>) {
+  const before = (await getCartById(db, cartId))!.updated_at;
+  await new Promise((r) => setTimeout(r, 5));
+  await act();
+  const after = (await getCartById(db, cartId))!.updated_at;
+  assert.ok(after.getTime() > before.getTime(), 'updated_at must bump after mutation');
+}
+
+test('deleteCartItem bumps carts.updated_at', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const cartId = await makeCart(db);
+    const item = await addCartItem(db, cartId, {
+      product_id: f.simpleProductId,
+      variant_id: null,
+      quantity: 1,
+    });
+    await assertBumps(db, cartId, () => deleteCartItem(db, cartId, item.id));
+  } finally {
+    await cleanup();
+  }
+});
+
+test('clearCart bumps carts.updated_at', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const cartId = await makeCart(db);
+    await addCartItem(db, cartId, { product_id: f.simpleProductId, variant_id: null, quantity: 1 });
+    await assertBumps(db, cartId, () => clearCart(db, cartId));
+  } finally {
+    await cleanup();
+  }
+});
+
+test('setCartVoucher bumps carts.updated_at', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const cartId = await makeCart(db);
+    await assertBumps(db, cartId, () => setCartVoucher(db, cartId, 'VOUCHER1'));
+  } finally {
+    await cleanup();
+  }
+});
+
+test('setCartReferral bumps carts.updated_at', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const cartId = await makeCart(db);
+    await assertBumps(db, cartId, () => setCartReferral(db, cartId, 'REF1'));
+  } finally {
+    await cleanup();
+  }
+});
+
+test('deleteCart removes the cart row and its items', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const cartId = await makeCart(db);
+    await addCartItem(db, cartId, { product_id: f.simpleProductId, variant_id: null, quantity: 1 });
+    await addCartItem(db, cartId, { product_id: f.simpleProductId, variant_id: null, quantity: 2 });
+    await deleteCart(db, cartId);
+    assert.strictEqual(await getCartById(db, cartId), null, 'cart row must be gone');
+    const items = await db.select().from(cart_items).where(eq(cart_items.cart_id, cartId));
+    assert.strictEqual(items.length, 0, 'cart_items must be gone');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('deleteCart is idempotent on a missing cart (no throw)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    await assert.doesNotReject(() => deleteCart(db, 'does-not-exist'));
   } finally {
     await cleanup();
   }

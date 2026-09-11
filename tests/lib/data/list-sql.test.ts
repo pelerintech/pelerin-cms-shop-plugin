@@ -298,6 +298,48 @@ test('listCarts pushes userId + abandonedSince filters to SQL (array shape prese
   }
 });
 
+test('listCarts abandonedSinceHours returns only carts older than the cutoff (r41 S7)', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const now = new Date();
+    const oldTs = new Date(now.getTime() - 48 * 60 * 60 * 1000); // 48h ago
+    const newTs = new Date(now.getTime() - 1 * 60 * 60 * 1000); // 1h ago
+    await insertFixture(db, 'carts', {
+      id: 'old-cart',
+      session_id: 'sess-old',
+      user_id: null,
+      applied_voucher_code: null,
+      applied_referral_code: null,
+      converted_at: null,
+      expires_at: futureExpiry(),
+      created_at: oldTs,
+      updated_at: oldTs,
+    });
+    await insertFixture(db, 'carts', {
+      id: 'new-cart',
+      session_id: 'sess-new',
+      user_id: null,
+      applied_voucher_code: null,
+      applied_referral_code: null,
+      converted_at: null,
+      expires_at: futureExpiry(),
+      created_at: newTs,
+      updated_at: newTs,
+    });
+    const abandoned = await listCarts(db, { abandonedSinceHours: 24 });
+    assert.ok(
+      abandoned.some((c: any) => c.id === 'old-cart'),
+      'the cart older than the cutoff must be returned'
+    );
+    assert.ok(
+      !abandoned.some((c: any) => c.id === 'new-cart'),
+      'the cart newer than the cutoff must be excluded'
+    );
+  } finally {
+    await cleanup();
+  }
+});
+
 test('listVouchers returns all vouchers DESC by created_at (array shape preserved)', async () => {
   const { db, cleanup } = await createTestDb();
   try {

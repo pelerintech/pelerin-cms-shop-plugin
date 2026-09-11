@@ -22,8 +22,8 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
   try {
     const result = await handleWebhook(db, ctx.request);
 
-    // Fire event if payment was confirmed
-    if (result.status === 'paid' && result.order_id) {
+    // Fire event only when this call caused a fresh transition to paid
+    if (result.transitioned === true && result.order_id) {
       const payload = await buildOrderEventPayload(db, result.order_id, 'shop.order.paid');
       sdk.events.publish('shop.order.paid', payload);
     }

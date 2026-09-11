@@ -73,6 +73,44 @@ async function initiatePayment(
   };
 }
 
+/**
+ * Verify a Stripe checkout.session.completed event and transition the order to
+ * paid only when safe. Idempotency guard: only `awaiting_payment → paid` is
+ * allowed; a recall on a later/terminal status never downgrades. The amount
+ * must match the order total (both minor units).
+ * Exported for unit testing (handleWebhook itself needs a real Stripe client).
+ */
+export async function applyStripeCheckoutPaid(
+  db: LibSQLDatabase,
+  orderId: string,
+  session: AnyRow,
+  transition: typeof transitionOrder = transitionOrder
+): Promise<WebhookResult> {
+  const [order] = await db
+    .select({ id: orders.id, status: orders.status, total: orders.total })
+    .from(orders)
+    .where(sql`${orders.id} = ${orderId}`)
+    .limit(1);
+  if (!order) throw new Error(`Order not found: ${orderId}`);
+
+  const amountOk = session.amount_total === order.total; // both minor units
+  const transitioned = amountOk && order.status === 'awaiting_payment';
+  if (transitioned) {
+    await transition(db, orderId, 'paid', 'Payment confirmed via Stripe webhook');
+    const txId = session.payment_intent ?? session.id;
+    await db
+      .update(orders)
+      .set({ transaction_id: txId })
+      .where(sql`${orders.id} = ${orderId}`);
+    return { order_id: orderId, status: 'paid', transaction_id: txId, transitioned: true };
+  }
+  return {
+    order_id: orderId,
+    status: order.status === 'paid' ? 'paid' : 'pending',
+    transitioned: false,
+  };
+}
+
 async function handleWebhook(db: LibSQLDatabase, request: Request): Promise<WebhookResult> {
   const stripe = await getStripeClient(db);
   if (!stripe) {
@@ -106,7 +144,7 @@ async function handleWebhook(db: LibSQLDatabase, request: Request): Promise<Webh
 
   // Verify order exists
   const orderResult = await db
-    .select({ id: orders.id })
+    .select({ id: orders.id, status: orders.status })
     .from(orders)
     .where(sql`${orders.id} = ${orderId}`)
     .limit(1);
@@ -116,27 +154,10 @@ async function handleWebhook(db: LibSQLDatabase, request: Request): Promise<Webh
 
   switch (event.type) {
     case 'checkout.session.completed':
-      await transitionOrder(db, orderId, 'paid', 'Payment confirmed via Stripe webhook');
-      // Store transaction_id
-      await db
-        .update(orders)
-        .set({ transaction_id: session.payment_intent ?? session.id })
-        .where(sql`${orders.id} = ${orderId}`);
-      return {
-        order_id: orderId,
-        status: 'paid',
-        transaction_id: session.payment_intent ?? session.id,
-      };
+      return applyStripeCheckoutPaid(db, orderId, session);
 
-    case 'payment_intent.payment_failed': {
-      const reason = session.last_payment_error?.message ?? 'Payment failed';
-      await transitionOrder(db, orderId, 'awaiting_payment', `Payment failed: ${reason}`);
-      return {
-        order_id: orderId,
-        status: 'failed',
-        error: reason,
-      };
-    }
+    case 'payment_intent.payment_failed':
+      return applyStripePaymentFailed(db, orderId, session);
 
     default:
       return {
@@ -144,6 +165,38 @@ async function handleWebhook(db: LibSQLDatabase, request: Request): Promise<Webh
         status: 'pending',
       };
   }
+}
+
+/**
+ * Handle a `payment_intent.payment_failed` event. Guard: never downgrade an
+ * already-paid or later/terminal order back to awaiting_payment. Only an order
+ * that is still `pending`/`awaiting_payment` is moved back to awaiting_payment
+ * so it can be re-tried. Exported for unit testing (handleWebhook needs a real
+ * Stripe client + signature).
+ */
+export async function applyStripePaymentFailed(
+  db: LibSQLDatabase,
+  orderId: string,
+  session: AnyRow,
+  transition: typeof transitionOrder = transitionOrder
+): Promise<WebhookResult> {
+  const [order] = await db
+    .select({ id: orders.id, status: orders.status })
+    .from(orders)
+    .where(sql`${orders.id} = ${orderId}`)
+    .limit(1);
+  if (!order) throw new Error(`Order not found: ${orderId}`);
+
+  const reason = session.last_payment_error?.message ?? 'Payment failed';
+  // Guard: never downgrade an already-paid or later/terminal order.
+  if (order.status === 'pending' || order.status === 'awaiting_payment') {
+    await transition(db, orderId, 'awaiting_payment', `Payment failed: ${reason}`);
+  }
+  return {
+    order_id: orderId,
+    status: 'failed',
+    error: reason,
+  };
 }
 
 async function isConfigured(db: LibSQLDatabase): Promise<boolean> {

@@ -50,6 +50,12 @@ export interface CartWithItems {
   items: EnrichedCartItem[];
 }
 
+/** Bump a cart's last-activity timestamp. Used by cart mutations so the list
+ *  orders by real recency and the abandoned_since filter is truthful. */
+export async function touchCart(db: LibSQLDatabase, cartId: string): Promise<void> {
+  await db.update(carts).set({ updated_at: new Date() }).where(eq(carts.id, cartId));
+}
+
 /** Get a cart by id, or null if not found. */
 export async function getCartById(db: LibSQLDatabase, cartId: string): Promise<CartRow | null> {
   const [cart] = await db.select().from(carts).where(eq(carts.id, cartId));
@@ -347,6 +353,7 @@ export async function addCartItem(
       .update(cart_items)
       .set({ quantity: existingQty + input.quantity })
       .where(eq(cart_items.id, existingItem.id));
+    await touchCart(db, cartId);
     return { id: existingItem.id, quantity: existingQty + input.quantity };
   }
 
@@ -358,6 +365,7 @@ export async function addCartItem(
     variant_id: input.variant_id || null,
     quantity: input.quantity,
   });
+  await touchCart(db, cartId);
   return { id, quantity: input.quantity };
 }
 
@@ -375,9 +383,11 @@ export async function updateCartItem(
   if (quantity === 0) {
     await db.delete(cart_items).where(eq(cart_items.id, itemId));
     await clearAppliedCodesIfEmpty(db, cartId);
+    await touchCart(db, cartId);
     return { removed: true };
   }
   await db.update(cart_items).set({ quantity }).where(eq(cart_items.id, itemId));
+  await touchCart(db, cartId);
   return { removed: false };
 }
 
@@ -407,6 +417,7 @@ export async function deleteCartItem(
   if (!item) throw new CartItemError('Cart item not found', 'not_found');
   await db.delete(cart_items).where(eq(cart_items.id, itemId));
   await clearAppliedCodesIfEmpty(db, cartId);
+  await touchCart(db, cartId);
 }
 
 /** Clear all items from a cart, and the applied voucher/referral codes with them. */
@@ -414,6 +425,7 @@ export async function clearCart(db: LibSQLDatabase, cartId: string): Promise<voi
   await db.delete(cart_items).where(eq(cart_items.cart_id, cartId));
   await setCartVoucher(db, cartId, null);
   await setCartReferral(db, cartId, null);
+  await touchCart(db, cartId);
 }
 
 /** Set or remove the applied voucher code on a cart. */
@@ -422,7 +434,10 @@ export async function setCartVoucher(
   cartId: string,
   code: string | null
 ): Promise<void> {
-  await db.update(carts).set({ applied_voucher_code: code }).where(eq(carts.id, cartId));
+  await db
+    .update(carts)
+    .set({ applied_voucher_code: code, updated_at: new Date() })
+    .where(eq(carts.id, cartId));
 }
 
 /** Set or remove the applied referral code on a cart. */
@@ -431,7 +446,19 @@ export async function setCartReferral(
   cartId: string,
   code: string | null
 ): Promise<void> {
-  await db.update(carts).set({ applied_referral_code: code }).where(eq(carts.id, cartId));
+  await db
+    .update(carts)
+    .set({ applied_referral_code: code, updated_at: new Date() })
+    .where(eq(carts.id, cartId));
+}
+
+/** Delete a cart and all of its items (idempotent — missing cart is a no-op).
+ *  Used to clean up abandoned carts. */
+export async function deleteCart(db: LibSQLDatabase, cartId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.delete(cart_items).where(eq(cart_items.cart_id, cartId));
+    await tx.delete(carts).where(eq(carts.id, cartId));
+  });
 }
 
 /** List all carts ordered by updated_at DESC, with optional filters. */

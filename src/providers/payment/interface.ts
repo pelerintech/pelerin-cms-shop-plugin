@@ -39,6 +39,8 @@ export interface WebhookResult {
   status: 'paid' | 'failed' | 'pending';
   transaction_id?: string;
   error?: string;
+  /** True only when this call caused the transition to `paid` (idempotency guard). */
+  transitioned?: boolean;
 }
 
 /** Return value from a refund operation */
