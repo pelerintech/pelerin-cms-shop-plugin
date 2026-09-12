@@ -3,7 +3,7 @@ import { errorFields } from '../../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { getOrderWithItems } from '../../../../lib/data/orders';
-import { buildOrderEventPayload } from '../../../../lib/event-payload';
+import { buildOrderEventData } from '../../../../lib/event-payload';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 import { z } from 'zod';
 
@@ -97,9 +97,9 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       }
     }
 
-    // Build payload and publish
-    const payload = await buildOrderEventPayload(db, orderId, event);
-    sdk.events.publish(event, payload);
+    // Build data and publish
+    const data = await buildOrderEventData(db, orderId, event);
+    sdk.events.publish(event, data);
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

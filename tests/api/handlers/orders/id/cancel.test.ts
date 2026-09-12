@@ -107,8 +107,9 @@ test('PUT happy-path → 200, status cancelled, event published', async () => {
     const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
     const cancelledCall = calls.find((c) => c.event === 'shop.order.cancelled');
     assert.ok(cancelledCall, 'shop.order.cancelled was published');
-    assert.equal(cancelledCall.payload.event, 'shop.order.cancelled');
-    assert.ok(cancelledCall.payload.data.order.id, 'payload contains order data');
+    assert.ok(!('event' in cancelledCall.payload), 'payload is data, not an envelope');
+    assert.ok(!('data' in cancelledCall.payload), 'payload has no nested data key');
+    assert.ok(cancelledCall.payload.order.id, 'payload contains order data');
   } finally {
     await cleanup();
   }

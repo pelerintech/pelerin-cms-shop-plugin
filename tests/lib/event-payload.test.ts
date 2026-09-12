@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { createTestDb, seedMinimal, resetDb, insertFixture, buildOrderRow } from '../db/harness.ts';
-import { buildOrderEventPayload } from '../../src/lib/event-payload.ts';
+import { buildOrderEventData } from '../../src/lib/event-payload.ts';
 
-test('buildOrderEventPayload - Scenario A: returns full payload shape', async () => {
+test('buildOrderEventData - Scenario A: returns the order data (not the envelope)', async () => {
   const { db } = await createTestDb();
   const f = await seedMinimal(db);
 
@@ -25,54 +25,54 @@ test('buildOrderEventPayload - Scenario A: returns full payload shape', async ()
     currency: 'RON',
   });
 
-  const payload = await buildOrderEventPayload(db, orderId, 'shop.order.confirmed');
-  assert.ok(typeof payload.event === 'string', 'payload.event is a string');
-  assert.equal(payload.event, 'shop.order.confirmed');
-  assert.ok(typeof payload.timestamp === 'string', 'payload.timestamp is a string');
-  assert.ok(payload.timestamp, 'payload.timestamp is not empty');
+  const payload = await buildOrderEventData(db, orderId, 'shop.order.confirmed');
+
+  // The builder returns the DATA object, not the bus envelope.
+  assert.ok(!('event' in payload), 'no event key (bus supplies it)');
+  assert.ok(!('timestamp' in payload), 'no timestamp key (bus supplies it)');
 
   // data.order contains scalar fields
-  assert.ok(payload.data.order, 'payload.data.order exists');
-  assert.equal(payload.data.order.id, orderId);
-  assert.equal(payload.data.order.order_number, orderRow.order_number);
-  assert.equal(payload.data.order.status, 'paid');
-  assert.equal(payload.data.order.currency, 'RON');
-  assert.equal(payload.data.order.customer_email, 'test@example.com');
+  assert.ok(payload.order, 'payload.order exists');
+  assert.equal(payload.order.id, orderId);
+  assert.equal(payload.order.order_number, orderRow.order_number);
+  assert.equal(payload.order.status, 'paid');
+  assert.equal(payload.order.currency, 'RON');
+  assert.equal(payload.order.customer_email, 'test@example.com');
 
   // data.billing_address
-  assert.ok(payload.data.billing_address, 'payload.data.billing_address exists');
-  assert.equal(payload.data.billing_address.first_name, 'Test');
-  assert.equal(payload.data.billing_address.last_name, 'User');
-  assert.equal(payload.data.billing_address.address, 'Addr');
-  assert.equal(payload.data.billing_address.city, 'City');
-  assert.equal(payload.data.billing_address.county, null);
-  assert.equal(payload.data.billing_address.postal_code, '123');
-  assert.equal(payload.data.billing_address.country, 'RO');
-  assert.equal(payload.data.billing_address.company, null);
-  assert.equal(payload.data.billing_address.vat_number, null);
+  assert.ok(payload.billing_address, 'payload.billing_address exists');
+  assert.equal(payload.billing_address.first_name, 'Test');
+  assert.equal(payload.billing_address.last_name, 'User');
+  assert.equal(payload.billing_address.address, 'Addr');
+  assert.equal(payload.billing_address.city, 'City');
+  assert.equal(payload.billing_address.county, null);
+  assert.equal(payload.billing_address.postal_code, '123');
+  assert.equal(payload.billing_address.country, 'RO');
+  assert.equal(payload.billing_address.company, null);
+  assert.equal(payload.billing_address.vat_number, null);
 
   // data.shipping_address
-  assert.ok(payload.data.shipping_address, 'payload.data.shipping_address exists');
-  assert.equal(payload.data.shipping_address.first_name, 'Test');
+  assert.ok(payload.shipping_address, 'payload.shipping_address exists');
+  assert.equal(payload.shipping_address.first_name, 'Test');
 
   // data.items
-  assert.ok(Array.isArray(payload.data.items), 'payload.data.items is an array');
-  assert.equal(payload.data.items.length, 1);
-  assert.equal(payload.data.items[0].product_name, 'Test Product');
-  assert.equal(payload.data.items[0].sku, 'TP-001');
-  assert.equal(payload.data.items[0].quantity, 2);
-  assert.equal(payload.data.items[0].price_net, 2500);
-  assert.equal(payload.data.items[0].vat_rate, 19);
-  assert.equal(payload.data.items[0].price_gross, 2975);
-  assert.equal(payload.data.items[0].currency, 'RON');
+  assert.ok(Array.isArray(payload.items), 'payload.items is an array');
+  assert.equal(payload.items.length, 1);
+  assert.equal(payload.items[0].product_name, 'Test Product');
+  assert.equal(payload.items[0].sku, 'TP-001');
+  assert.equal(payload.items[0].quantity, 2);
+  assert.equal(payload.items[0].price_net, 2500);
+  assert.equal(payload.items[0].vat_rate, 19);
+  assert.equal(payload.items[0].price_gross, 2975);
+  assert.equal(payload.items[0].currency, 'RON');
 
   // No status-specific enrichment for confirmed
-  assert.equal(payload.data.paid_at, undefined);
+  assert.equal(payload.paid_at, undefined);
 
   await db.$client.close();
 });
 
-test('buildOrderEventPayload - Scenario B: shop.order.paid has paid_at from status history', async () => {
+test('buildOrderEventData - Scenario B: shop.order.paid has paid_at from status history', async () => {
   const { db } = await createTestDb();
   const orderId = 'order-paid';
   const paidAt = new Date('2026-07-24T10:00:00Z');
@@ -88,14 +88,14 @@ test('buildOrderEventPayload - Scenario B: shop.order.paid has paid_at from stat
     created_at: paidAt,
   });
 
-  const payload = await buildOrderEventPayload(db, orderId, 'shop.order.paid');
-  assert.ok(payload.data.paid_at, 'paid_at is present');
-  assert.equal(payload.data.paid_at, paidAt.toISOString(), 'paid_at matches status history');
+  const payload = await buildOrderEventData(db, orderId, 'shop.order.paid');
+  assert.ok(payload.paid_at, 'paid_at is present');
+  assert.equal(payload.paid_at, paidAt.toISOString(), 'paid_at matches status history');
 
   await db.$client.close();
 });
 
-test('buildOrderEventPayload - Scenario C: shop.order.shipped has shipped_at from status history', async () => {
+test('buildOrderEventData - Scenario C: shop.order.shipped has shipped_at from status history', async () => {
   const { db } = await createTestDb();
   const orderId = 'order-shipped';
   const shippedAt = new Date('2026-07-24T12:00:00Z');
@@ -110,18 +110,14 @@ test('buildOrderEventPayload - Scenario C: shop.order.shipped has shipped_at fro
     created_at: shippedAt,
   });
 
-  const payload = await buildOrderEventPayload(db, orderId, 'shop.order.shipped');
-  assert.ok(payload.data.shipped_at, 'shipped_at is present');
-  assert.equal(
-    payload.data.shipped_at,
-    shippedAt.toISOString(),
-    'shipped_at matches status history'
-  );
+  const payload = await buildOrderEventData(db, orderId, 'shop.order.shipped');
+  assert.ok(payload.shipped_at, 'shipped_at is present');
+  assert.equal(payload.shipped_at, shippedAt.toISOString(), 'shipped_at matches status history');
 
   await db.$client.close();
 });
 
-test('buildOrderEventPayload - Scenario D: shop.order.cancelled has cancelled_at from status history', async () => {
+test('buildOrderEventData - Scenario D: shop.order.cancelled has cancelled_at from status history', async () => {
   const { db } = await createTestDb();
   const orderId = 'order-cancelled';
   const cancelledAt = new Date('2026-07-24T14:00:00Z');
@@ -136,10 +132,10 @@ test('buildOrderEventPayload - Scenario D: shop.order.cancelled has cancelled_at
     created_at: cancelledAt,
   });
 
-  const payload = await buildOrderEventPayload(db, orderId, 'shop.order.cancelled');
-  assert.ok(payload.data.cancelled_at, 'cancelled_at is present');
+  const payload = await buildOrderEventData(db, orderId, 'shop.order.cancelled');
+  assert.ok(payload.cancelled_at, 'cancelled_at is present');
   assert.equal(
-    payload.data.cancelled_at,
+    payload.cancelled_at,
     cancelledAt.toISOString(),
     'cancelled_at matches status history'
   );
@@ -147,7 +143,7 @@ test('buildOrderEventPayload - Scenario D: shop.order.cancelled has cancelled_at
   await db.$client.close();
 });
 
-test('buildOrderEventPayload - Scenario E: shop.order.refunded has refund_amount, refund_notes, refunded_at', async () => {
+test('buildOrderEventData - Scenario E: shop.order.refunded has refund_amount, refund_notes, refunded_at', async () => {
   const { db } = await createTestDb();
   const orderId = 'order-refunded';
   const refundedAt = new Date('2026-07-24T16:00:00Z');
@@ -163,22 +159,18 @@ test('buildOrderEventPayload - Scenario E: shop.order.refunded has refund_amount
     })
   );
 
-  const payload = await buildOrderEventPayload(db, orderId, 'shop.order.refunded');
-  assert.ok('refund_amount' in payload.data, 'refund_amount key is present');
-  assert.equal(payload.data.refund_amount, 5250);
-  assert.ok('refund_notes' in payload.data, 'refund_notes key is present');
-  assert.equal(payload.data.refund_notes, 'Full refund');
-  assert.ok(payload.data.refunded_at, 'refunded_at is present');
-  assert.equal(
-    payload.data.refunded_at,
-    refundedAt.toISOString(),
-    'refunded_at matches order column'
-  );
+  const payload = await buildOrderEventData(db, orderId, 'shop.order.refunded');
+  assert.ok('refund_amount' in payload, 'refund_amount key is present');
+  assert.equal(payload.refund_amount, 5250);
+  assert.ok('refund_notes' in payload, 'refund_notes key is present');
+  assert.equal(payload.refund_notes, 'Full refund');
+  assert.ok(payload.refunded_at, 'refunded_at is present');
+  assert.equal(payload.refunded_at, refundedAt.toISOString(), 'refunded_at matches order column');
 
   await db.$client.close();
 });
 
-test('buildOrderEventPayload - Scenario G: user_id and parsed metadata included when set', async () => {
+test('buildOrderEventData - Scenario G: user_id and parsed metadata included when set', async () => {
   const { db } = await createTestDb();
   const orderId = 'order-user-meta';
   await insertFixture(
@@ -191,10 +183,10 @@ test('buildOrderEventPayload - Scenario G: user_id and parsed metadata included 
     })
   );
 
-  const payload = await buildOrderEventPayload(db, orderId, 'shop.order.confirmed');
-  assert.equal(payload.data.order.user_id, 'user-123', 'user_id is carried through');
+  const payload = await buildOrderEventData(db, orderId, 'shop.order.confirmed');
+  assert.equal(payload.order.user_id, 'user-123', 'user_id is carried through');
   assert.deepEqual(
-    payload.data.order.metadata,
+    payload.order.metadata,
     { pickup_point: 'Bucharest East' },
     'metadata is parsed into an object, not a JSON string'
   );
@@ -202,7 +194,7 @@ test('buildOrderEventPayload - Scenario G: user_id and parsed metadata included 
   await db.$client.close();
 });
 
-test('buildOrderEventPayload - Scenario M: pickup_location metadata parses into an object', async () => {
+test('buildOrderEventData - Scenario M: pickup_location metadata parses into an object', async () => {
   const { db } = await createTestDb();
   const orderId = 'order-pickup';
   await insertFixture(
@@ -221,14 +213,14 @@ test('buildOrderEventPayload - Scenario M: pickup_location metadata parses into 
     })
   );
 
-  const payload = await buildOrderEventPayload(db, orderId, 'shop.order.confirmed');
-  assert.equal(payload.data.order.metadata.pickup_location.name, 'Sediu');
-  assert.equal(payload.data.order.metadata.pickup_location.collectionItemId, 'loc-1');
+  const payload = await buildOrderEventData(db, orderId, 'shop.order.confirmed');
+  assert.equal(payload.order.metadata.pickup_location.name, 'Sediu');
+  assert.equal(payload.order.metadata.pickup_location.collectionItemId, 'loc-1');
 
   await db.$client.close();
 });
 
-test('buildOrderEventPayload - Scenario N: malformed metadata yields null without throwing', async () => {
+test('buildOrderEventData - Scenario N: malformed metadata yields null without throwing', async () => {
   const { db } = await createTestDb();
   const orderId = 'order-malformed';
   await insertFixture(
@@ -240,13 +232,13 @@ test('buildOrderEventPayload - Scenario N: malformed metadata yields null withou
     })
   );
 
-  const payload = await buildOrderEventPayload(db, orderId, 'shop.order.confirmed');
-  assert.equal(payload.data.order.metadata, null, 'malformed metadata should be null, not throw');
+  const payload = await buildOrderEventData(db, orderId, 'shop.order.confirmed');
+  assert.equal(payload.order.metadata, null, 'malformed metadata should be null, not throw');
 
   await db.$client.close();
 });
 
-test('buildOrderEventPayload - Scenario O: non-pickup metadata parses generically', async () => {
+test('buildOrderEventData - Scenario O: non-pickup metadata parses generically', async () => {
   const { db } = await createTestDb();
   const orderId = 'order-other-meta';
   await insertFixture(
@@ -258,28 +250,28 @@ test('buildOrderEventPayload - Scenario O: non-pickup metadata parses genericall
     })
   );
 
-  const payload = await buildOrderEventPayload(db, orderId, 'shop.order.confirmed');
-  assert.deepEqual(payload.data.order.metadata, { anything: { a: 1 } });
+  const payload = await buildOrderEventData(db, orderId, 'shop.order.confirmed');
+  assert.deepEqual(payload.order.metadata, { anything: { a: 1 } });
 
   await db.$client.close();
 });
 
-test('buildOrderEventPayload - Scenario H: user_id and metadata are null when absent', async () => {
+test('buildOrderEventData - Scenario H: user_id and metadata are null when absent', async () => {
   const { db } = await createTestDb();
   const orderId = 'order-no-user';
   await insertFixture(db, 'orders', buildOrderRow({ id: orderId }));
 
-  const payload = await buildOrderEventPayload(db, orderId, 'shop.order.confirmed');
-  assert.equal(payload.data.order.user_id, null, 'user_id is null for guest order');
-  assert.equal(payload.data.order.metadata, null, 'metadata is null when absent');
+  const payload = await buildOrderEventData(db, orderId, 'shop.order.confirmed');
+  assert.equal(payload.order.user_id, null, 'user_id is null for guest order');
+  assert.equal(payload.order.metadata, null, 'metadata is null when absent');
 
   await db.$client.close();
 });
 
-test('buildOrderEventPayload - Scenario F: non-existent orderId throws', async () => {
+test('buildOrderEventData - Scenario F: non-existent orderId throws', async () => {
   const { db } = await createTestDb();
   await assert.rejects(
-    () => buildOrderEventPayload(db, 'non-existent-id', 'shop.order.confirmed'),
+    () => buildOrderEventData(db, 'non-existent-id', 'shop.order.confirmed'),
     /not found/i
   );
   await db.$client.close();

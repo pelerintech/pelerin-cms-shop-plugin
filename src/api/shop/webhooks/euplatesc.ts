@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { handleWebhook } from '../../../providers/payment/euplatesc';
-import { buildOrderEventPayload } from '../../../lib/event-payload';
+import { buildOrderEventData } from '../../../lib/event-payload';
 import type { HandlerDeps } from '../../../lib/handler-types';
 import type { Ctx } from '../../../lib/types';
 
@@ -24,8 +24,8 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
 
     // Fire event only when this call caused a fresh transition to paid
     if (result.transitioned === true && result.order_id) {
-      const payload = await buildOrderEventPayload(db, result.order_id, 'shop.order.paid');
-      sdk.events.publish('shop.order.paid', payload);
+      const data = await buildOrderEventData(db, result.order_id, 'shop.order.paid');
+      sdk.events.publish('shop.order.paid', data);
     }
   } catch (err) {
     // Log the error but still return OK — euPlatesc retries on non-200

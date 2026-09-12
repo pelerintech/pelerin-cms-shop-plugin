@@ -7,7 +7,7 @@ import {
   getOrderWithItems,
   restockOrderItems,
 } from '../../../../lib/data/orders';
-import { buildOrderEventPayload } from '../../../../lib/event-payload';
+import { buildOrderEventData } from '../../../../lib/event-payload';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 
 const CANCELLABLE_STATUSES = ['pending', 'awaiting_payment', 'paid', 'processing'];
@@ -52,8 +52,8 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
     });
 
     // Fire shop.order.cancelled event
-    const payload = await buildOrderEventPayload(db, orderId, 'shop.order.cancelled');
-    sdk.events.publish('shop.order.cancelled', payload);
+    const data = await buildOrderEventData(db, orderId, 'shop.order.cancelled');
+    sdk.events.publish('shop.order.cancelled', data);
 
     const updated = await getOrderWithItems(db, orderId);
 

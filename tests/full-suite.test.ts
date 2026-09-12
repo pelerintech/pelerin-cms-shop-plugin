@@ -234,6 +234,9 @@ const TEST_FILES = [
   'tests/api/handlers/orders/id/reemit-event.test.ts',
   'tests/api/handlers/webhooks/stripe.test.ts',
   'tests/pages/admin-order-reemit.test.ts',
+  // ── r44: order event contract (data not envelope) + manual invoice ──
+  'tests/api/handlers/orders/id/invoice-manual-only.test.ts',
+  'tests/pages/admin-orders-reemit-doc.test.ts',
 ];
 
 test('full test suite passes (node --test <all test files>)', () => {

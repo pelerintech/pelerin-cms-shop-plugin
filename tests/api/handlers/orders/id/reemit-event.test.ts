@@ -149,8 +149,8 @@ test('POST happy path: re-emit paid for paid order → 200, event published', as
     const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
     const paidCall = calls.find((c) => c.event === 'shop.order.paid');
     assert.ok(paidCall, 'shop.order.paid was published');
-    assert.equal(paidCall.payload.event, 'shop.order.paid');
-    assert.ok(paidCall.payload.data.order.id, 'payload contains order data');
+    assert.ok(!('event' in paidCall.payload), 'payload is data, not an envelope');
+    assert.ok(paidCall.payload.order.id, 'payload contains order data');
   } finally {
     await cleanup();
   }
@@ -220,9 +220,11 @@ test('POST invoice event allowed at any status → 200, event published with pay
     const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
     const invoiceCall = calls.find((c) => c.event === 'shop.order.invoice');
     assert.ok(invoiceCall, 'shop.order.invoice was published');
-    assert.equal(invoiceCall.payload.event, 'shop.order.invoice');
-    assert.ok('user_id' in invoiceCall.payload.data.order, 'payload carries user_id');
-    assert.ok('metadata' in invoiceCall.payload.data.order, 'payload carries metadata');
+    assert.ok(!('event' in invoiceCall.payload), 'payload is data, not an envelope');
+    assert.ok(!('data' in invoiceCall.payload), 'payload has no nested data key');
+    assert.ok(invoiceCall.payload.order, 'payload.order is the top-level data');
+    assert.ok('user_id' in invoiceCall.payload.order, 'payload carries user_id');
+    assert.ok('metadata' in invoiceCall.payload.order, 'payload carries metadata');
 
     // non-paid status still allowed (always-allowed)
     const orderPending = await seedOrderWithStatus(db, f, 'pending', 'ORD-RE-INV-PEND');

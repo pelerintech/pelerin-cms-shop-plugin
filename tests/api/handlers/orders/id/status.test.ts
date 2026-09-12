@@ -139,7 +139,11 @@ test('PUT to paid → publishes shop.order.paid event', async () => {
     const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
     const paidCall = calls.find((c) => c.event === 'shop.order.paid');
     assert.ok(paidCall, 'shop.order.paid was published');
-    assert.equal(paidCall.payload.event, 'shop.order.paid');
+    // New bus contract: the payload is the DATA object, not the envelope
+    assert.ok(!('event' in paidCall.payload), 'payload is data, not an envelope');
+    assert.ok(!('data' in paidCall.payload), 'payload has no nested data key');
+    assert.ok(paidCall.payload.order, 'payload.order is the top-level data');
+    assert.equal(paidCall.payload.order.id, order.id);
   } finally {
     await cleanup();
   }
@@ -167,7 +171,9 @@ test('PUT to shipped → publishes shop.order.shipped event', async () => {
     const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
     const shippedCall = calls.find((c) => c.event === 'shop.order.shipped');
     assert.ok(shippedCall, 'shop.order.shipped was published');
-    assert.equal(shippedCall.payload.event, 'shop.order.shipped');
+    assert.ok(!('event' in shippedCall.payload), 'payload is data, not an envelope');
+    assert.ok(!('data' in shippedCall.payload), 'payload has no nested data key');
+    assert.ok(shippedCall.payload.order, 'payload.order is the top-level data');
   } finally {
     await cleanup();
   }

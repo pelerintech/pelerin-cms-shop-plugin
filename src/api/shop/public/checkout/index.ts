@@ -13,7 +13,7 @@ import { getVoucherByCode, incrementVoucherUsage } from '../../../../lib/data/vo
 import { computeCartTotals } from '../../../../lib/cart-totals';
 import { evaluateCartDiscount } from '../../../../lib/cart-discount';
 import { getShopConfig, getSetting } from '../../../../lib/data/settings';
-import { buildOrderEventPayload } from '../../../../lib/event-payload';
+import { buildOrderEventData } from '../../../../lib/event-payload';
 import { z } from 'zod';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 import { listProviders } from '../../../../providers/payment/registry';
@@ -284,8 +284,8 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
     });
 
     // Fire shop.order.confirmed event
-    const eventPayload = await buildOrderEventPayload(db, order.id, 'shop.order.confirmed');
-    sdk.events.publish('shop.order.confirmed', eventPayload);
+    const eventData = await buildOrderEventData(db, order.id, 'shop.order.confirmed');
+    sdk.events.publish('shop.order.confirmed', eventData);
 
     // Increment voucher usage if applied
     if (cart.applied_voucher_code) {

@@ -4,6 +4,7 @@ import { createPluginContext } from 'pelerin:plugin-sdk';
 import { listOrders } from '../../../lib/data/orders';
 import { majorToMinor } from '../../../lib/money.ts';
 import { CreateOrderSchema } from '../../../schemas/order.schema';
+import { buildOrderEventData } from '../../../lib/event-payload';
 import type { HandlerDeps } from '../../../lib/handler-types';
 
 export const GET: APIRoute = (context) => {
@@ -113,6 +114,17 @@ export async function runPost({ db, sdk, ctx }: HandlerDeps): Promise<Response> 
       shipping_postal_code: parsed.data.shipping_postal_code ?? '',
       shipping_country: parsed.data.shipping_country ?? '',
     });
+
+    // Emit shop.order.confirmed so admin-created orders notify like storefront orders.
+    // Fire-and-forget: a publish failure must not reject the create response.
+    try {
+      const eventData = await buildOrderEventData(db, order.id, 'shop.order.confirmed');
+      sdk.events.publish('shop.order.confirmed', eventData);
+    } catch (publishErr: unknown) {
+      console.error(
+        `[shop] Failed to publish shop.order.confirmed for order ${order.id}: ${errorFields(publishErr).message}`
+      );
+    }
 
     return new Response(JSON.stringify({ success: true, data: order }), {
       status: 201,

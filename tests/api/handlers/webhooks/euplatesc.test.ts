@@ -172,7 +172,7 @@ describe('euPlatesc webhook endpoint — response format', () => {
 });
 
 describe('euPlatesc webhook — event publishing', () => {
-  it('source contains buildOrderEventPayload and sdk.events.publish', async () => {
+  it('source contains buildOrderEventData and sdk.events.publish', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve, dirname } = await import('node:path');
 
@@ -183,14 +183,14 @@ describe('euPlatesc webhook — event publishing', () => {
 
     assert.match(
       content,
-      /import.*buildOrderEventPayload/,
-      'Endpoint must import buildOrderEventPayload'
+      /import.*buildOrderEventData/,
+      'Endpoint must import buildOrderEventData'
     );
 
     assert.match(
       content,
-      /buildOrderEventPayload\s*\(\s*db\s*,\s*result\.order_id/,
-      'Endpoint must call buildOrderEventPayload with db and result.order_id'
+      /buildOrderEventData\s*\(\s*db\s*,\s*result\.order_id/,
+      'Endpoint must call buildOrderEventData with db and result.order_id'
     );
 
     assert.match(
@@ -278,8 +278,10 @@ describe('euPlatesc webhook — event publishing', () => {
     assert.strictEqual(calls.length, 1, 'Exactly one event must be published');
     assert.strictEqual(calls[0].event, 'shop.order.paid', 'Event must be shop.order.paid');
     assert.ok(calls[0].payload, 'Payload must be present');
+    assert.ok(!('event' in calls[0].payload), 'payload is data, not an envelope');
+    assert.ok(!('data' in calls[0].payload), 'payload has no nested data key');
     assert.strictEqual(
-      calls[0].payload.data.order.order_number,
+      calls[0].payload.order.order_number,
       'ORD-EVT-001',
       'Payload must contain order data'
     );

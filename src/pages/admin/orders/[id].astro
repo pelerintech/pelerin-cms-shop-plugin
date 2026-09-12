@@ -373,6 +373,7 @@ const orderId = Astro.params.id;
       '<div class="card bg-base-100 shadow mb-6"><div class="card-body">' +
       '<h2 class="card-title text-lg mb-4">Re-emit Events</h2>' +
       '<p class="text-sm text-gray-500 mb-4">Manually re-publish order lifecycle events for integration testing.</p>' +
+      '<p class="text-sm text-gray-500 mb-4">The invoice event is emitted on demand only (via the "Emit invoice event" button) — it is not sent automatically.</p>' +
       '<div class="flex flex-wrap gap-2">' +
       reemitButtons
         .map(function (b) {

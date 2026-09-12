@@ -114,6 +114,51 @@ test('POST error-wrap → 500', async () => {
   assert.equal(b.success, false);
 });
 
+test('POST admin-created order → publishes shop.order.confirmed with the order data', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    const ctx = makeCtx({ url: base, body: validOrderBody(f.simpleProductId) });
+    const res = await runPost({ db, sdk, ctx });
+    assert.equal(res.status, 201);
+    const b = await jsonBody(res);
+
+    const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
+    const confirmedCall = calls.find((c) => c.event === 'shop.order.confirmed');
+    assert.ok(confirmedCall, 'shop.order.confirmed was published on admin order creation');
+    // New bus contract: the payload is the DATA object, not the envelope.
+    assert.ok(!('event' in confirmedCall.payload), 'payload is data, not an envelope');
+    assert.ok(!('data' in confirmedCall.payload), 'payload has no nested data key');
+    assert.equal(
+      confirmedCall.payload.order.order_number,
+      b.data.order_number,
+      'published order.order_number matches the created order'
+    );
+  } finally {
+    await cleanup();
+  }
+});
+
+test('POST a publish failure does NOT break order creation', async () => {
+  const { db, cleanup } = await createTestDb();
+  try {
+    const f = await seedMinimal(db);
+    const sdk = makeFakeSdk();
+    sdk.events.publish = () => {
+      throw new Error('bus down');
+    };
+    const ctx = makeCtx({ url: base, body: validOrderBody(f.simpleProductId) });
+    const res = await runPost({ db, sdk, ctx });
+    assert.equal(res.status, 201, 'create must still succeed when publish fails');
+    const b = await jsonBody(res);
+    assert.equal(b.success, true);
+    assert.ok(b.data?.id, 'created order id is returned');
+  } finally {
+    await cleanup();
+  }
+});
+
 test('POST converts manual-order item prices + totals to minor on store', async () => {
   const { db, cleanup } = await createTestDb();
   try {

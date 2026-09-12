@@ -107,7 +107,9 @@ test('POST happy-path → 201, order created', async () => {
     const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
     const confirmedCall = calls.find((c) => c.event === 'shop.order.confirmed');
     assert.ok(confirmedCall, 'shop.order.confirmed was published');
-    assert.ok(confirmedCall.payload.data.order.order_number, 'payload contains order_number');
+    assert.ok(!('event' in confirmedCall.payload), 'payload is data, not an envelope');
+    assert.ok(!('data' in confirmedCall.payload), 'payload has no nested data key');
+    assert.ok(confirmedCall.payload.order.order_number, 'payload contains order_number');
   } finally {
     await cleanup();
   }

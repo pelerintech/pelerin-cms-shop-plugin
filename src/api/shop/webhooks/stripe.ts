@@ -2,7 +2,7 @@ import { errorFields } from '../../../lib/errors.ts';
 import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { handleWebhook as realHandleWebhook } from '../../../providers/payment/stripe';
-import { buildOrderEventPayload } from '../../../lib/event-payload';
+import { buildOrderEventData } from '../../../lib/event-payload';
 import type { HandlerDeps } from '../../../lib/handler-types';
 import type { Ctx } from '../../../lib/types';
 
@@ -25,8 +25,8 @@ export async function runPost(
 
     // Fire event if payment was confirmed
     if (result.transitioned === true && result.order_id) {
-      const payload = await buildOrderEventPayload(db, result.order_id, 'shop.order.paid');
-      sdk.events.publish('shop.order.paid', payload);
+      const data = await buildOrderEventData(db, result.order_id, 'shop.order.paid');
+      sdk.events.publish('shop.order.paid', data);
     }
 
     return new Response(JSON.stringify({ success: true, data: result }), {

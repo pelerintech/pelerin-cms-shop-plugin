@@ -146,8 +146,10 @@ test('(a) refund qty 1 of 2 → 200, partially_refunded, stock +1, order_refunds
     const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
     const refundedCall = calls.find((c) => c.event === 'shop.order.refunded');
     assert.ok(refundedCall, 'shop.order.refunded was published');
-    assert.equal(refundedCall.payload.event, 'shop.order.refunded');
-    assert.equal(refundedCall.payload.data.refund_amount, 5000);
+    assert.ok(!('event' in refundedCall.payload), 'payload is data, not an envelope');
+    assert.ok(!('data' in refundedCall.payload), 'payload has no nested data key');
+    assert.ok(refundedCall.payload.order, 'payload.order is the top-level data');
+    assert.equal(refundedCall.payload.refund_amount, 5000);
 
     const refunds = await db
       .select()
@@ -190,7 +192,8 @@ test('(b-refunded) full refund → event published with refund_notes', async () 
     const calls = sdk.events.publishCalls as Array<{ event: string; payload: any }>;
     const refundedCall = calls.find((c) => c.event === 'shop.order.refunded');
     assert.ok(refundedCall, 'shop.order.refunded was published');
-    assert.equal(refundedCall.payload.data.refund_notes, 'full refund');
+    assert.ok(!('event' in refundedCall.payload), 'payload is data, not an envelope');
+    assert.equal(refundedCall.payload.refund_notes, 'full refund');
   } finally {
     await cleanup();
   }

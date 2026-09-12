@@ -12,19 +12,19 @@ const __dirname = dirname(__filename);
 const endpointPath = resolve(__dirname, '../../../../src/api/shop/webhooks/stripe.ts');
 const endpointContent = readFileSync(endpointPath, 'utf-8');
 
-test('Stripe webhook endpoint calls buildOrderEventPayload and sdk.events.publish on paid status', () => {
-  // The endpoint must import buildOrderEventPayload
+test('Stripe webhook endpoint calls buildOrderEventData and sdk.events.publish on paid status', () => {
+  // The endpoint must import buildOrderEventData
   assert.match(
     endpointContent,
-    /import.*buildOrderEventPayload/,
-    'Endpoint must import buildOrderEventPayload'
+    /import.*buildOrderEventData/,
+    'Endpoint must import buildOrderEventData'
   );
 
-  // The endpoint must call buildOrderEventPayload with order_id
+  // The endpoint must call buildOrderEventData with order_id
   assert.match(
     endpointContent,
-    /buildOrderEventPayload\s*\(\s*db\s*,\s*result\.order_id/,
-    'Endpoint must call buildOrderEventPayload with db and result.order_id'
+    /buildOrderEventData\s*\(\s*db\s*,\s*result\.order_id/,
+    'Endpoint must call buildOrderEventData with db and result.order_id'
   );
 
   // The endpoint must call sdk.events.publish with shop.order.paid
@@ -124,8 +124,10 @@ test('Stripe webhook runPost publishes shop.order.paid when handleWebhook return
   assert.strictEqual(calls.length, 1, 'Exactly one event must be published');
   assert.strictEqual(calls[0].event, 'shop.order.paid', 'Event must be shop.order.paid');
   assert.ok(calls[0].payload, 'Payload must be present');
+  assert.ok(!('event' in calls[0].payload), 'payload is data, not an envelope');
+  assert.ok(!('data' in calls[0].payload), 'payload has no nested data key');
   assert.strictEqual(
-    calls[0].payload.data.order.order_number,
+    calls[0].payload.order.order_number,
     'STR-001',
     'Payload must contain order data'
   );

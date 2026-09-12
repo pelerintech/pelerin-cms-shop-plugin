@@ -4,7 +4,7 @@ import type { APIRoute } from 'astro';
 import { createPluginContext } from 'pelerin:plugin-sdk';
 import { recordLineItemRefund, getOrderWithItems, RefundError } from '../../../../lib/data/orders';
 import { LineItemRefundSchema } from '../../../../schemas/order.schema';
-import { buildOrderEventPayload } from '../../../../lib/event-payload';
+import { buildOrderEventData } from '../../../../lib/event-payload';
 import type { HandlerDeps } from '../../../../lib/handler-types';
 
 // Import provider modules to ensure they're registered
@@ -99,8 +99,8 @@ export async function runPut({ db, sdk, ctx }: HandlerDeps): Promise<Response> {
       await recordLineItemRefund(db, orderId, parsed.data, 'admin');
 
       // Fire shop.order.refunded event
-      const refundPayload = await buildOrderEventPayload(db, orderId, 'shop.order.refunded');
-      sdk.events.publish('shop.order.refunded', refundPayload);
+      const refundData = await buildOrderEventData(db, orderId, 'shop.order.refunded');
+      sdk.events.publish('shop.order.refunded', refundData);
     } catch (err: unknown) {
       // If euPlatesc refund already succeeded but internal DB failed, return reconciliation info
       if (euplatescRefunded) {

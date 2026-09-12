@@ -58,13 +58,20 @@ The plugin publishes the following events on the CMS event bus (`sdk.events.publ
 
 | Event                  | When                                                                                         |
 | ---------------------- | -------------------------------------------------------------------------------------------- |
-| `shop.order.confirmed` | After checkout creates an order                                                              |
+| `shop.order.confirmed` | After checkout or admin order creation creates an order                                      |
 | `shop.order.paid`      | After a payment webhook (Stripe, euPlatesc) confirms payment, or admin sets status to `paid` |
 | `shop.order.shipped`   | After admin transitions status to `shipped`                                                  |
-| `shop.order.cancelled` | After admin cancels an order                                                                 |
 | `shop.order.refunded`  | After admin processes a refund                                                               |
+| `shop.order.cancelled` | After admin cancels an order                                                                 |
+| `shop.order.invoice`   | Manual-only — emitted on demand via the admin "Emit invoice event" action; never automatic   |
 
-Each event carries a self-contained payload with full order data (order fields, items, addresses, pricing). Other plugins can subscribe via `sdk.events.subscribe('shop.order.paid', handler)`.
+Each event publishes the event-specific **data** object (order fields + items + addresses + pricing)
+under the bus contract `publish(event, data)`; the bus wraps it into the self-contained
+envelope `{ event, timestamp, data }` delivered to subscribers. Subscribers receive `data.order`,
+`data.billing_address`, `data.shipping_address`, and `data.items` (plus status enrichment such as
+`paid_at` / `refund_amount` where applicable). `shop.order.invoice` is deliberately **manual-only** —
+it is emitted only when an operator re-emits it from the admin order page, never automatically at a
+lifecycle point. Other plugins can subscribe via `sdk.events.subscribe('shop.order.paid', handler)`.
 
 ## Contributing / Local development
 
