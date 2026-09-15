@@ -60,6 +60,7 @@ test('buildOrderEventData - Scenario A: returns the order data (not the envelope
   assert.equal(payload.items.length, 1);
   assert.equal(payload.items[0].product_name, 'Test Product');
   assert.equal(payload.items[0].sku, 'TP-001');
+  assert.equal(payload.items[0].slug, 'carte-programare', 'item slug resolves from the product');
   assert.equal(payload.items[0].quantity, 2);
   assert.equal(payload.items[0].price_net, 2500);
   assert.equal(payload.items[0].vat_rate, 19);

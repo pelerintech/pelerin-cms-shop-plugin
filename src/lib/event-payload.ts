@@ -1,6 +1,8 @@
 import type { AnyRecord } from './types.ts';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
+import { inArray } from 'drizzle-orm';
 import { getOrderWithItems } from './data/orders.ts';
+import { products, product_variants } from '../db/schema.ts';
 
 /**
  * Parse an order's `metadata` (stored as a JSON string) into an object so
@@ -47,6 +49,50 @@ export async function buildOrderEventData(
   }
 
   const { order, items, statusHistory } = orderWithItems;
+
+  // Resolve each line item's product slug so downstream subscribers (e.g. the
+  // notifications plugin) can build per-product guide URLs. Variants don't carry
+  // their own slug, so a variant item falls back to its parent product's slug.
+  const productIds = new Set<string>();
+  const variantIds = new Set<string>();
+  for (const item of items) {
+    if (item.product_id) productIds.add(item.product_id);
+    if (item.variant_id) variantIds.add(item.variant_id);
+  }
+
+  const slugByProduct = new Map<string, string>();
+  const productIdByVariant = new Map<string, string>();
+  if (productIds.size > 0) {
+    const rows = await db
+      .select({ id: products.id, slug: products.slug })
+      .from(products)
+      .where(inArray(products.id, [...productIds]));
+    for (const p of rows) slugByProduct.set(p.id, p.slug);
+  }
+  if (variantIds.size > 0) {
+    const vrows = await db
+      .select({ id: product_variants.id, product_id: product_variants.product_id })
+      .from(product_variants)
+      .where(inArray(product_variants.id, [...variantIds]));
+    for (const v of vrows) productIdByVariant.set(v.id, v.product_id);
+    // Fetch slugs for variant parent products not already loaded.
+    const missing = [...new Set(vrows.map((v) => v.product_id))].filter(
+      (pid) => !slugByProduct.has(pid)
+    );
+    if (missing.length > 0) {
+      const prows = await db
+        .select({ id: products.id, slug: products.slug })
+        .from(products)
+        .where(inArray(products.id, missing));
+      for (const p of prows) slugByProduct.set(p.id, p.slug);
+    }
+  }
+  function slugForItem(item: (typeof items)[number]): string | null {
+    const productId =
+      item.product_id ?? (item.variant_id ? productIdByVariant.get(item.variant_id) : null);
+    if (!productId) return null;
+    return slugByProduct.get(productId) ?? null;
+  }
 
   const payload: OrderEventData = {
     order: {
@@ -97,6 +143,7 @@ export async function buildOrderEventData(
     items: items.map((item) => ({
       product_name: item.product_name,
       sku: item.sku,
+      slug: slugForItem(item),
       quantity: item.quantity,
       price_net: item.price_net,
       vat_rate: item.vat_rate,
